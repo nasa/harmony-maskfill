@@ -1,0 +1,5 @@
+affine==2.2.2
+geopandas==0.4.1
+h5py==2.9.0
+numpy==1.16.4
+gdal
