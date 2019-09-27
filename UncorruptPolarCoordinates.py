@@ -80,11 +80,8 @@ def get_lat_long_arrays(dataset):
     # Get x and y projected meters corresponding to each row and column in image array
     for i in range(rows):
         for j in range(cols):
-            x_meters_left, y_meters_top = trans * (i, j)  # Projected meters of top-left corner of cell
-            x_meters_right, y_meters_bottom = trans * (i + 1, j + 1)  # Projected meters of bottom-right corner of cell
-
             # Projected meters of center of cell
-            x_meters, y_meters = (x_meters_left + x_meters_right) / 2, (y_meters_top + y_meters_bottom) / 2
+            x_meters, y_meters = trans * (i + 0.5, j + 0.5)
 
             # Get lat/long values from projected meters
             lat, long = proj_meters_to_lat_long(x_meters, y_meters)
