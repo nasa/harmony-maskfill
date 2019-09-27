@@ -129,9 +129,9 @@ if __name__ == '__main__':
                         default=os.getcwd())
     parser = parser.parse_args()
 
-    input_file = parser.input_file
-    new_file_path = MaskFill.get_masked_file_path(input_file, parser.output_dir)
-    shutil.copy(input_file, new_file_path)
+    input_file_path = parser.input_file
+    new_file_path = MaskFill.get_masked_file_path(input_file_path, parser.output_dir)
+    shutil.copy(input_file_path, new_file_path)
 
     H5MaskFill.process_file(new_file_path, uncorrupt_coordinates)
     print("Output file:", new_file_path)
