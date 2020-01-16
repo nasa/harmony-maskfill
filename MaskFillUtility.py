@@ -2,6 +2,8 @@
 import argparse
 import os
 import logging
+import uuid
+import re
 from pymods import GeotiffMaskFill, H5MaskFill
 
 
@@ -12,7 +14,7 @@ from pymods import GeotiffMaskFill, H5MaskFill
     Input parameters:
         --FILE_URLS: Path to a GeoTIFF or HDF5 file 
 
-        --BOUNDINGSHAPE: Path to a shapefile (shp, kml, geojson, etc.)
+        --BOUNDINGSHAPE: Path to a shapefile or the native GeoJson string (shp, kml, geojson, etc.)
 
         --OUTPUT_DIR: (optional) Path to the output directory where the mask filled file will be written.
             If not provided, the current working directory will be used.
@@ -102,7 +104,7 @@ def get_input_parameters():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--FILE_URLS', dest='input_file', help='Name of the input file to mask fill')
-    parser.add_argument('--BOUNDINGSHAPE', dest='shape_file', help='Shapefile with which to perform the mask fill')
+    parser.add_argument('--BOUNDINGSHAPE', dest='shape_file', help='Shapefile or native GeoJson with which to perform the mask fill')
     parser.add_argument('--OUTPUT_DIR', dest='output_dir', help='Name of the output directory to put the output file',
                         default=os.getcwd())
     parser.add_argument('--IDENTIFIER', dest='identifier',
@@ -117,6 +119,31 @@ def get_input_parameters():
     logging.info('Parsed input parameters')
     return parser.parse_args()
 
+
+""" Checks if the input is a native GeoJson, and if so, creates a temporary file in the cache directory
+    and returns it. Otherwise it just returns the shape_file value that was passed in
+
+    Returns:
+        str: An ESI standard XML error response if something is wrong; otherwise, file path of the shapefile
+"""
+def check_shapefile_geojson(shape_file, output_dir):
+    # We have a native geojson string passed in
+    if (re.search(r'{..*}',shape_file)):
+        unique_filename = str(uuid.uuid4())
+        new_shape_file = open(output_dir + "/" + 'shape_' + unique_filename + '.geojson', "w")
+        new_shape_file.write(shape_file)
+        new_shape_file.close()
+        return new_shape_file
+
+    # Otherwise just check that the path is correct
+    else:
+        path = {shape_file}
+        path = path.replace("'", "");
+        if not os.path.exists(path):
+            error_message = f"The path {path} does not exist"
+            return get_xml_error_response(exit_status=2, error_message=error_message)
+        
+    return shape_file    
 
 """ Ensures that all required input parameters exist, and that all given parameters are valid. If not, returns an XML
     error response. Otherwise, returns None.
@@ -140,13 +167,14 @@ def validate_input_parameters(params):
         return get_xml_error_response(exit_status=1, error_message=error_message)
 
     # Ensure that all given paths exist
-    paths = {params.input_file, params.shape_file, params.output_dir}
+    paths = {params.input_file, params.output_dir}
     for path in paths:
         path = path.replace("'", "");
         if not os.path.exists(path):
             error_message = f"The path {path} does not exist"
             return get_xml_error_response(exit_status=2, error_message=error_message)
 
+    shape_file = check_shapefile_geojson(params.shape_file, params.output_dir)
     # Ensure that fill_value is a float
     try:
         params.fill_value = float(params.fill_value)
@@ -267,3 +295,4 @@ def get_xml_success_response(input_file, shape_file, output_file):
 if __name__ == '__main__':
     response = mask_fill()
     print(response)
+
