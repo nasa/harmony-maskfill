@@ -1,27 +1,30 @@
-#!/tools/miniconda/bin/python
-import os
-import sys
+''' Utilities for reading and interpreting the CF configuration file
+    Allows processing of hdf-5 files that do not fully follow the CF conventions
+    Where the configuration file provides the missing information.
+'''
 import json
 import re
+
 import h5py
 
-""" Read the config json file
-    Args:
-        configFile(string): config file path
-"""
+
 def readConfigFile(configFile):
+    """ Read the config json file
+        Args:
+            configFile(string): config file path
+    """
     global config
     configString = open(configFile).read()
     configStringWoComments = removeComments(configString)
     config = json.loads(configStringWoComments)
 
-""" Remove c-style comments.
-    Args:
-        txt(string): blob of text with comments (can include newlines)
-    Return:
-        text with comments removed
-"""
 def removeComments(text):
+    """ Remove c-style comments.
+        Args:
+            txt(string): blob of text with comments (can include newlines)
+        Return:
+            text with comments removed
+    """
     pattern = r"""
                         ##  --------- COMMENT ---------
        /\*              ##  Start of /* ... */ comment
@@ -62,13 +65,13 @@ def removeComments(text):
     noncomments = [m.group(2) for m in regex.finditer(text) if m.group(2)]
     return "".join(noncomments)
 
-""" Get product short name using config json file
-    Args:
-        input_file(string): input file path
-    Returns:
-        shortname(string): product short name
-"""
 def getShortName(input_file):
+    """ Get product short name using config json file
+        Args:
+            input_file(string): input file path
+        Returns:
+            shortname(string): product short name
+    """
     shortnamePaths = config["ShortNamePath"]
     if isinstance(input_file, str): inf = h5py.File(input_file, 'r')
     else: inf = input_file
@@ -82,13 +85,13 @@ def getShortName(input_file):
                 break
     return shortName
 
-""" Get grid mapping group projection for CF-Compliance
-    Args:
-        shortName(string): product short name
-    Return:
-        grid mapping group projection
-"""
 def getGridMappingGroup(shortName, datasetName):
+    """ Get grid mapping group projection for CF-Compliance
+        Args:
+            shortName(string): product short name
+        Return:
+            grid mapping group projection
+    """
     gridMappingGroups = config["Grid_Mapping_Group"]
     mappingGroup = ""
     for i, (key, value) in enumerate(gridMappingGroups.items()):
@@ -101,13 +104,13 @@ def getGridMappingGroup(shortName, datasetName):
             break
     return mappingGroup
 
-""" Get grip mapping data for CF-Compliance
-    Args:
-        mappingGroup(string): mapping group projection
-    Return:
-        grid mapping information
-"""
 def getGridMappingData(mappingGroup):
+    """ Get grip mapping data for CF-Compliance
+        Args:
+            mappingGroup(string): mapping group projection
+        Return:
+            grid mapping information
+    """
     gridMappingData = config["Grid_Mapping_Data"]
     for i, (key, value) in enumerate(gridMappingData.items()):
         if re.match(key, mappingGroup): return value
