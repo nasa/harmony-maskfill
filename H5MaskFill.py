@@ -102,8 +102,10 @@ def mask_fill(h5_dataset, shape_path, cache_dir, mask_grid_cache,
         # Update statistics in the h5_dataset
         if h5_dataset.attrs.__contains__('observed_max'):
             h5_dataset.attrs.modify('observed_max', max(unfilled_data))
+
         if h5_dataset.attrs.__contains__('observed_min'):
             h5_dataset.attrs.modify('observed_min', min(unfilled_data))
+
         if h5_dataset.attrs.__contains__('observed_mean'):
             h5_dataset.attrs.modify('observed_mean', np.mean(unfilled_data))
 
@@ -126,7 +128,8 @@ def get_mask_array(h5_dataset, shape_path, cache_dir, mask_grid_cache, saved_mas
     mask_id = get_mask_array_id(h5_dataset, shape_path, shortname)
 
     # If the required mask array is in the set of saved mask arrays, get and return the mask array from the set
-    if mask_id in saved_mask_arrays: return saved_mask_arrays[mask_id]
+    if mask_id in saved_mask_arrays:
+        return saved_mask_arrays[mask_id]
 
     # If the required mask array has already been created and cached, and the mask_grid_cache value allows the use of
     # cached arrays, read in the cached mask array from the file
@@ -192,4 +195,3 @@ def create_mask_array(h5_dataset, shape_path, shortname):
     transform = H5GridProjectionInfo.get_transform(h5_dataset)
 
     return MaskFillUtil.get_mask_array(shapes, raster_arr.shape[-2:], transform)
-

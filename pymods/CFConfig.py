@@ -18,6 +18,7 @@ def readConfigFile(configFile):
     configStringWoComments = removeComments(configString)
     config = json.loads(configStringWoComments)
 
+
 def removeComments(text):
     """ Remove c-style comments.
         Args:
@@ -35,7 +36,7 @@ def removeComments(text):
                         ##    but do end with '*'
        /                ##  End of /* ... */ comment
      |                  ##  -OR-  various things which aren't comments:
-       (                ## 
+       (                ##
                         ##  ------ " ... " STRING ------
          "              ##  Start of " ... " string
          (              ##
@@ -61,9 +62,10 @@ def removeComments(text):
          [^/"'\\]*      ##  Chars which doesn't start a comment, string
        )                ##    or escape
     """
-    regex = re.compile(pattern, re.VERBOSE|re.MULTILINE|re.DOTALL)
+    regex = re.compile(pattern, re.VERBOSE | re.MULTILINE | re.DOTALL)
     noncomments = [m.group(2) for m in regex.finditer(text) if m.group(2)]
     return "".join(noncomments)
+
 
 def getShortName(input_file):
     """ Get product short name using config json file
@@ -73,10 +75,15 @@ def getShortName(input_file):
             shortname(string): product short name
     """
     shortnamePaths = config["ShortNamePath"]
-    if isinstance(input_file, str): inf = h5py.File(input_file, 'r')
-    else: inf = input_file
+    if isinstance(input_file, str):
+        inf = h5py.File(input_file, 'r')
+    else:
+        inf = input_file
+
     for path in shortnamePaths:
-        if path.endswith("/"): path = path[:-1]
+        if path.endswith("/"):
+            path = path[:-1]
+
         shortnamePath = path.rpartition("/")[0]
         label = path.rpartition("/")[2]
         if shortnamePath in inf:
@@ -84,6 +91,7 @@ def getShortName(input_file):
                 shortName = inf[shortnamePath].attrs[label]
                 break
     return shortName
+
 
 def getGridMappingGroup(shortName, datasetName):
     """ Get grid mapping group projection for CF-Compliance
@@ -95,7 +103,9 @@ def getGridMappingGroup(shortName, datasetName):
     gridMappingGroups = config["Grid_Mapping_Group"]
     mappingGroup = ""
     for i, (key, value) in enumerate(gridMappingGroups.items()):
-        if not isinstance(shortName, str): shortName = shortName.decode()
+        if not isinstance(shortName, str):
+            shortName = shortName.decode()
+
         if re.match(key, shortName):
             for j, (key2, value2) in enumerate(value.items()):
                 if re.match(key2, datasetName):
@@ -103,6 +113,7 @@ def getGridMappingGroup(shortName, datasetName):
                     break
             break
     return mappingGroup
+
 
 def getGridMappingData(mappingGroup):
     """ Get grip mapping data for CF-Compliance
@@ -113,11 +124,5 @@ def getGridMappingData(mappingGroup):
     """
     gridMappingData = config["Grid_Mapping_Data"]
     for i, (key, value) in enumerate(gridMappingData.items()):
-        if re.match(key, mappingGroup): return value
-
-
-
-
-
-
-
+        if re.match(key, mappingGroup):
+            return value

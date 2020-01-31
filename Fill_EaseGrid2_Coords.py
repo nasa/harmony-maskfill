@@ -19,7 +19,7 @@ from pymods.Ease2Grid import \
     Ease2GridResolution, \
     Ease2GridType
 
-lat_array, long_array = [[],[]], [[],[]] # (2) 2D ([x, y]) grids
+lat_array, long_array = [[], []], [[], []]  # (2) 2D ([x, y]) grids
 
 
 def main():
@@ -64,6 +64,7 @@ def get_latitude(h5_dataset):
     """
     if lat_array is None:
         get_lat_long_arrays(h5_dataset)
+
     return lat_array
 
 
@@ -76,6 +77,7 @@ def get_longitude(h5_dataset):
     """
     if long_array is None:
         get_lat_long_arrays(h5_dataset)
+
     return long_array
 
 
@@ -88,7 +90,7 @@ def get_lat_long_arrays(h5_dataset):
     ease2grid = Ease2Grid(Ease2GridResolution.r_36K,
                           Ease2GridType.t_polar)
     rows, cols = h5_dataset.shape
-    global lat_array; global long_array
+    global lat_array, long_array
 
     # Get x and y projected meters corresponding to each row and column in image array
     for i in range(rows):

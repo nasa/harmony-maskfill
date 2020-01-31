@@ -7,6 +7,7 @@ import h5py
 import numpy as np
 from rasterio import features  # as in geographic features, shapes, polygons
 
+
 def get_projected_shapes(proj4, shape_path):
     """ Projects the shapes in the given shapefile to a new coordinate reference system.
         Args:

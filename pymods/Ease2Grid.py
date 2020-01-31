@@ -66,7 +66,7 @@ EASE2_GRIDS = {
         }
     }
 
-    
+ 
 class Ease2Grid:
     def __init__(self, resolution: Ease2GridResolution,
                  grid_type: Ease2GridType):
@@ -95,7 +95,7 @@ class Ease2Grid:
 
 # process main
 if __name__ == '__main__':
-    def print_vars(obj:object):
+    def print_vars(obj: object):
         attrs = vars(obj)
         print('\n '.join("%s: %s" % item for item in attrs.items()))
 

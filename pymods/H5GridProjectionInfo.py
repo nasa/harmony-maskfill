@@ -38,20 +38,24 @@ def get_hdf_proj4(h5_dataset: Dataset, shortname: str) -> str:
 
     return get_proj4(grid_mapping)
 
+
 def _get_short_name(h5_dataset: Dataset) -> str:
     """ Get collection shortname for the hdf5 dataset (file)
         redefined here for convenience and clarification  """
     return CFConfig.getShortName(h5_dataset.file)
+
 
 def _get_grid_mapping_group(shortname: str, objname: str) -> str:
     """ Get the grid_mapping name (projection name), used as CF grid_mapping variable name
         Redefined here for convenience and clarification """
     return CFConfig.getGridMappingGroup(shortname, objname)
 
+
 def _get_grid_mapping_data(projection: str) -> Dict[str, str]:
     """ Get the grid_mapping data (attributes, values) assigned to the CF grid_mapping variable
         Redefined here for conveneience and clarification """
     return CFConfig.getGridMappingData(projection)
+
 
 def get_lat_lon_datasets(h5_dataset: Dataset) -> Tuple[Dataset, Dataset]:
     """ Finds the lat/lon datsets corresponding to the given HDF5 dataset.
@@ -66,10 +70,12 @@ def get_lat_lon_datasets(h5_dataset: Dataset) -> Tuple[Dataset, Dataset]:
     for coordinate in coordinate_list:
         if 'lat' in coordinate:
             latitude = file[coordinate]
+
         if 'lon' in coordinate:
             longitude = file[coordinate]
 
     return longitude, latitude
+
 
 def get_dimension_datasets(h5_dataset: Dataset) -> Tuple[Dataset, Dataset]:
     """ Finds the dimension scales datasets corresponding to the given HDF5 dataset.
@@ -84,10 +90,14 @@ def get_dimension_datasets(h5_dataset: Dataset) -> Tuple[Dataset, Dataset]:
 
     for ref in dim_list:
         dim = file[ref[0]]
-        if len(dim[:]) == h5_dataset.shape[0]: y = dim
-        if len(dim[:]) == h5_dataset.shape[1]: x = dim
+        if len(dim[:]) == h5_dataset.shape[0]:
+            y = dim
+
+        if len(dim[:]) == h5_dataset.shape[1]:
+            x = dim
 
     return x, y
+
 
 def get_proj4(grid_mapping: Dataset) -> str:
     """ Returns the proj4 string corresponding to a grid mapping dataset.
@@ -115,10 +125,11 @@ def decode_bytes(dictionary):
             dictionary (dict): A dictionary whose values may be byte objects
     """
     for key, value in dictionary.items():
-        if isinstance(value, bytes): dictionary[key] = value.decode()
+        if isinstance(value, bytes):
+            dictionary[key] = value.decode()
 
 
-def get_transform(h5_dataset:Dataset) -> affine.Affine:
+def get_transform(h5_dataset: Dataset) -> affine.Affine:
     """ Determines the transform from the index coordinates of the HDF5 dataset
         to projected coordinates (meters) in the coordinate reference frame of the HDF5 dataset.
         See https://pypi.org/project/affine/ for more information.
@@ -217,7 +228,7 @@ def get_corner_points_from_lat_lon(h5_dataset: Dataset) \
 
 
 def get_dimension_arrays(h5_dataset: Dataset) \
-        -> Tuple[List[float],List[float]]:  # projected meters - x-coordinates, y-coordinates
+        -> Tuple[List[float], List[float]]:  # projected meters - x-coordinates, y-coordinates
     """ Gets the dimension scales arrays of the HDF5 dataset.
         Args:
              h5_dataset (h5py._hl.dataset.Dataset): The HDF5 dataset
@@ -227,8 +238,9 @@ def get_dimension_arrays(h5_dataset: Dataset) \
     x, y = get_dimension_datasets(h5_dataset)
     return x[:], y[:]
 
+
 def get_lat_lon_arrays(h5_dataset: Dataset) \
-        -> Tuple[List[float],List[float]]:  # degrees - lat, lon
+        -> Tuple[List[float], List[float]]:  # degrees - lat, lon
     """ Gets the lat/lon arrays of the HDF5 dataset.
         Args:
              h5_dataset (h5py._hl.dataset.Dataset): The HDF5 dataset
@@ -236,10 +248,13 @@ def get_lat_lon_arrays(h5_dataset: Dataset) \
             tuple: The x coordinate array and the y coordinate array
     """
     x, y = get_lat_lon_datasets(h5_dataset)
-    if len(x.shape) == 2: return x[0], y[:,0]
-    elif len(x.shape) == 3: return x[0][0], y[0][:,0]
+    if len(x.shape) == 2:
+        return x[0], y[:, 0]
+    elif len(x.shape) == 3:
+        return x[0][0], y[0][:, 0]
 
     return x[:], y[:]
+
 
 def get_fill_value(h5_dataset: Dataset, default_fill_value: float) -> float:
     """ Returns the fill value for the given HDF5 dataset.
@@ -250,7 +265,9 @@ def get_fill_value(h5_dataset: Dataset, default_fill_value: float) -> float:
         Returns:
             float: The fill value
     """
-    if h5_dataset.attrs.__contains__('_FillValue'): return h5_dataset.attrs['_FillValue']
+    if h5_dataset.attrs.__contains__('_FillValue'):
+        return h5_dataset.attrs['_FillValue']
+
     logging.info(f'The dataset {h5_dataset.name} does not have a fill value, '
                  f'so the default fill value {default_fill_value} will be used')
     return default_fill_value

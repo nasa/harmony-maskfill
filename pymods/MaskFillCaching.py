@@ -17,6 +17,7 @@ mask_grid_cache_values = ['ignore_and_delete',
                           'use_cache_delete',
                           'maskgrid_only']
 
+
 def get_cached_mask_array(data, shape_path, cache_dir, mask_grid_cache):
     """
         Returns the corresponding cached mask array if it exists, and None otherwise.
@@ -32,7 +33,8 @@ def get_cached_mask_array(data, shape_path, cache_dir, mask_grid_cache):
     mask_array_path = get_mask_array_path(data, shape_path, cache_dir)
 
     mask_array = None
-    if 'use' in mask_grid_cache and os.path.exists(mask_array_path): mask_array = np.load(mask_array_path)
+    if 'use' in mask_grid_cache and os.path.exists(mask_array_path):
+        mask_array = np.load(mask_array_path)
 
     return mask_array
 
@@ -46,9 +48,11 @@ def get_mask_array_id(data, shape_path):
             str: The mask id
     """
     # GeoTIFF case
-    if type(data) is str and data.lower().endswith('.tif'): mask_id = GeotiffMaskFill.get_mask_array_id(data, shape_path)
+    if isinstance(data, str) and data.lower().endswith('.tif'):
+        mask_id = GeotiffMaskFill.get_mask_array_id(data, shape_path)
     # HDF5 case
-    else: mask_id = H5MaskFill.get_mask_array_id(data, shape_path)
+    else:
+        mask_id = H5MaskFill.get_mask_array_id(data, shape_path)
 
     return mask_id
 
@@ -126,4 +130,5 @@ def cache_mask_arrays(mask_arrays, cache_dir, mask_grid_cache):
         for mask_id, mask_array in mask_arrays.items():
             mask_array_path = get_mask_array_path_from_id(mask_id, cache_dir)
             np.save(mask_array_path, mask_array)
+
         logging.debug('Cached all mask arrays')

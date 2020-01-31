@@ -26,7 +26,8 @@ def produce_masked_geotiff(geotiff_path, shape_path, output_dir, cache_dir, mask
     mask_grid_cache = mask_grid_cache.lower()
     mask_array = get_mask_array(geotiff_path, shape_path, cache_dir, mask_grid_cache)
 
-    if mask_grid_cache == 'maskgrid_only': return None
+    if mask_grid_cache == 'maskgrid_only':
+        return None
 
     # Perform mask fill
     raster_arr, fill_value = gdal_array.LoadFile(geotiff_path), get_fill_value(geotiff_path, default_fill_value)

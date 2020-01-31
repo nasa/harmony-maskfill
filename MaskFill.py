@@ -4,7 +4,7 @@
     Writes a log file to the current working directory.
 
     Input parameters:
-        --FILE_URLS: Path to a GeoTIFF or HDF5 file 
+        --FILE_URLS: Path to a GeoTIFF or HDF5 file
 
         --BOUNDINGSHAPE: Path to a shapefile or the native GeoJson string (shp, kml, geojson, etc.)
 
@@ -14,7 +14,7 @@
         --MASK_GRID_CACHE: (optional) Value determining how the mask arrays used in the mask fill are cached and used.
             Valid values: ignore_and_delete  | ignore_and_save | use_cache  | use_cache_delete | MaskGrid_Only
 
-            ignore_and_delete - ignore any existing MaskGrid (create new) and delete the MaskGrid after processing 
+            ignore_and_delete - ignore any existing MaskGrid (create new) and delete the MaskGrid after processing
             input file (default if MaskGridCache not specified)
             ignore_and_save - save the MaskGrid in output directory and continue (ignore any existing)
             use_cache | use_and_save - use any existing and save/preserve MaskGrid in output directory
@@ -40,6 +40,7 @@ import H5MaskFill
 default_fill_value = -9999
 default_mask_grid_cache = 'ignore_and_delete'
 
+
 def mask_fill():
     """ Performs a mask fill on the given data file using RQS agent call input parameters.
 
@@ -52,11 +53,14 @@ def mask_fill():
     input_file, shape_file, output_dir, identifier, mask_grid_cache, fill_value, debug = format_parameters(args)
 
     output_dir = os.path.join(output_dir, identifier)
-    if not os.path.exists(output_dir): os.makedirs(output_dir)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
     configure_logger(output_dir)
 
     error_message = validate_input_parameters(input_file, shape_file, output_dir, fill_value, debug)
-    if error_message is not None: return error_message
+    if error_message is not None:
+        return error_message
 
     # Perform mask fill according to input file type
     input_extension = os.path.splitext(input_file)[1].lower()
@@ -130,7 +134,7 @@ def check_shapefile_geojson(shape_file, output_dir):
             str: An ESI standard XML error response if something is wrong; otherwise, file path of the shapefile
     """
     # We have a native geojson string passed in
-    if (re.search(r'{..*}',shape_file)):
+    if (re.search(r'{..*}', shape_file)):
         unique_filename = str(uuid.uuid4())
         with open(f"{output_dir}/shape_{unique_filename}.geojson", "w") as new_shape_file:
             new_shape_file.write(shape_file)
@@ -140,6 +144,7 @@ def check_shapefile_geojson(shape_file, output_dir):
     # Otherwise return input shape_file path. It's existence is checked in validate_input_parameters
     else:
         return shape_file
+
 
 def validate_input_parameters(input_file, shape_file, output_dir, fill_value, debug):
     """ Ensures that all required input parameters exist, and that all given parameters are valid. If not, returns an XML
@@ -223,17 +228,22 @@ def get_xml_error_response(output_dir, exit_status=None, error_message=None, cod
     """
     if exit_status == 1:
         code = "InvalidParameterValue"
-        if error_message is None: error_message = "Invalid parameter specified for given dataset(s)."
+        if error_message is None:
+            error_message = "Incorrect parameter specified for given dataset(s)."
     elif exit_status == 2:
         code = "MissingParameterValue"
-        if error_message is None: error_message = "A given parameter is missing a value"
+        if error_message is None:
+            error_message = "No parameter value(s) specified for given dataset(s)."
     elif exit_status == 3:
         code = "NoMatchingData"
-        if error_message is None: error_message = "No data found that matched the subset constraints."
+        if error_message is None:
+            error_message = "No data found that matched the subset constraints."
     else:
         exit_status = None
 
-    if error_message is None: error_message = "An internal error occurred."
+    if error_message is None:
+        error_message = "An internal error occurred."
+
     logging.error(error_message)
 
     xml_response = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -243,7 +253,7 @@ def get_xml_error_response(output_dir, exit_status=None, error_message=None, cod
         xmlns:esi="http://eosdis.nasa.gov/esi/rsp"
         xmlns:ssw="http://newsroom.gsfc.nasa.gov/esi/rsp/ssw"
         xmlns:eesi="http://eosdis.nasa.gov/esi/rsp/e"
-        xsi:schemaLocation="http://eosdis.nasa.gov/esi/rsp/i 
+        xsi:schemaLocation="http://eosdis.nasa.gov/esi/rsp/i
         http://newsroom.gsfc.nasa.gov/esi/8.1/schemas/ESIAgentResponseInternal.xsd">
         <Code>{code}</Code>
         <Message>
@@ -289,4 +299,3 @@ def get_xml_success_response(input_file, shape_file, output_file):
 if __name__ == '__main__':
     response = mask_fill()
     print(response)
-
