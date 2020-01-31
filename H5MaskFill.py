@@ -59,8 +59,6 @@ def get_config_file_path():
             str: The path to the MaskFillConfig.json file.
     """
     current_file_path = os.path.abspath(__file__)
-#    pymods_directory = os.path.dirname(current_file_path)
-#    scripts_directory = os.path.dirname(pymods_directory)
     scripts_directory = os.path.dirname(current_file_path)
     data_directory = os.path.join(scripts_directory, "data")
     config_file_path = os.path.join(data_directory, "MaskFillConfig.json")

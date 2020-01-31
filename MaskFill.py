@@ -47,7 +47,7 @@ def mask_fill():
             str: An ESI standard XML string for either normal (successful) completion,
             including the download-URL for accessing the output file, or an exception response if necessary.
     """
-    # Parse and format input parameters
+    # Parse, format and validate input parameters
     args = get_input_parameters()
     input_file, shape_file, output_dir, identifier, mask_grid_cache, fill_value, debug = format_parameters(args)
 
@@ -55,43 +55,45 @@ def mask_fill():
     if not os.path.exists(output_dir): os.makedirs(output_dir)
     configure_logger(output_dir)
 
-    error_message = validate_input_parameters(args)
+    error_message = validate_input_parameters(input_file, shape_file, output_dir, fill_value, debug)
     if error_message is not None: return error_message
 
     # Perform mask fill according to input file type
+    input_extension = os.path.splitext(input_file)[1].lower()
+
     try:
         # GeoTIFF case
-        if input_file.lower().endswith('.tif'):
+        if input_extension == '.tif':
             logging.info(f'Performing mask fill with GeoTIFF {input_file} and shapefile {shape_file}')
             output_file = GeotiffMaskFill.produce_masked_geotiff(input_file, shape_file, output_dir, output_dir,
                                                                  mask_grid_cache, fill_value)
         # HDF5 case
-        if input_file.lower().endswith('.h5'):
+        elif input_extension == '.h5':
             logging.info(f'Performing mask fill with HDF5 file {input_file} and shapefile {shape_file}')
             output_file = H5MaskFill.produce_masked_hdf(input_file, shape_file, output_dir, output_dir, mask_grid_cache,
                                                         fill_value)
-        return get_xml_success_response(input_file, shape_file, output_file)
     except Exception as e:
         # Logs stack traceback
         logging.exception(e)
-        return get_xml_error_response(error_message=repr(e))
+        return get_xml_error_response(output_dir, error_message=repr(e))
+
+    return get_xml_success_response(input_file, shape_file, output_file)
 
 
 def configure_logger(output_dir):
     """ Configures the logger for the mask fill process, setting the log level to INFO."""
-    log_file_path = os.path.join(output_dir, 'mask_fill.log')
-    logging.basicConfig(level=logging.INFO, filename=log_file_path)
+    logging.basicConfig(level=logging.INFO, filename=get_log_file_path(output_dir))
     logging.info('Logger configured')
 
 
-def get_log_file_path():
+def get_log_file_path(output_dir):
     """ Gets the file path to the log file for the mask fill process.
-        The file will be in the current working directory with filename 'mask_fill.log'.
+        The file will be in the output directory with filename 'mask_fill.log'.
 
         Returns:
             str: The log file path
     """
-    return os.path.join(os.getcwd(), 'mask_fill.log')
+    return os.path.join(output_dir, 'mask_fill.log')
 
 
 def get_input_parameters():
@@ -108,7 +110,7 @@ def get_input_parameters():
     parser.add_argument('--OUTPUT_DIR', dest='output_dir', help='Name of the output directory to put the output file',
                         default=os.getcwd())
     parser.add_argument('--IDENTIFIER', dest='identifier', default="",
-                        help='Identifier of the reuqest used to determine output directory');
+                        help='Identifier of the request used to determine output directory')
     parser.add_argument('--MASK_GRID_CACHE', dest='mask_grid_cache',
                         help='ignore_and_delete | ignore_and_save | use_cache | use_cache_delete | MaskGrid_Only',
                         default=default_mask_grid_cache)
@@ -130,21 +132,16 @@ def check_shapefile_geojson(shape_file, output_dir):
     # We have a native geojson string passed in
     if (re.search(r'{..*}',shape_file)):
         unique_filename = str(uuid.uuid4())
-        new_shape_file = open(output_dir + "/" + 'shape_' + unique_filename + '.geojson', "w")
-        new_shape_file.write(shape_file)
-        new_shape_file.close()
+        with open(f"{output_dir}/shape_{unique_filename}.geojson", "w") as new_shape_file:
+            new_shape_file.write(shape_file)
+
         return new_shape_file
 
-    # Otherwise just check that the path is correct
+    # Otherwise return input shape_file path. It's existence is checked in validate_input_parameters
     else:
-        path = shape_file.replace("'", ""); # DAS-452, revised updates
-        if not os.path.exists(path):
-            error_message = f"The path {path} does not exist"
-            return get_xml_error_response(exit_status=2, error_message=error_message)
-        
-    return shape_file    
+        return shape_file
 
-def validate_input_parameters(params):
+def validate_input_parameters(input_file, shape_file, output_dir, fill_value, debug):
     """ Ensures that all required input parameters exist, and that all given parameters are valid. If not, returns an XML
         error response. Otherwise, returns None.
 
@@ -152,38 +149,34 @@ def validate_input_parameters(params):
             str: An ESI standard XML error response if something is wrong; otherwise, None
     """
     # Ensure that an input file and a shape file are given
-    if params.input_file is None:
-        error_message = "An input data file is required for the mask fill utility"
-        return get_xml_error_response(exit_status=2, error_message=error_message)
-    if params.shape_file is None:
-        error_message = "A shapefile is required for the mask fill utility"
-        return get_xml_error_response(exit_status=2, error_message=error_message)
+    required_files = [[input_file, "An input data file"],
+                      [shape_file, "A shapefile"]]
+
+    for file_type in required_files:
+        if file_type[0] is None:
+            error_message = f"{file_type[1]} is required for the mask fill utility"
+            return get_xml_error_response(output_dir, exit_status=2, error_message=error_message)
 
     # Ensure the input file and shape file are valid file types
-    if not params.input_file.replace("'", "").endswith('.tif') and not params.input_file.replace("'", "").endswith(
-            '.h5'):
+    if not os.path.splitext(input_file)[1].lower() in [".tif", ".h5"]:
         error_message = "The input data file must be a GeoTIFF or HDF5 file type"
-        return get_xml_error_response(exit_status=1, error_message=error_message)
+        return get_xml_error_response(output_dir, exit_status=1, error_message=error_message)
 
     # Ensure that all given paths exist
-    paths = {params.input_file, params.output_dir}
-    for path in paths:
-        path = path.replace("'", "");
+    for path in {input_file, shape_file, output_dir}:
         if not os.path.exists(path):
             error_message = f"The path {path} does not exist"
-            return get_xml_error_response(exit_status=2, error_message=error_message)
+            return get_xml_error_response(output_dir, exit_status=2, error_message=error_message)
 
-    shape_file = check_shapefile_geojson(params.shape_file, params.output_dir)
+    shape_file = check_shapefile_geojson(shape_file, output_dir)
     # Ensure that fill_value is a float
-    try:
-        params.fill_value = float(params.fill_value)
-    except ValueError:
+    if not isinstance(fill_value, (float, int)):
         error_message = "The default fill value must be a number"
-        return get_xml_error_response(exit_status=1, error_message=error_message)
+        return get_xml_error_response(output_dir, exit_status=1, error_message=error_message)
 
     # Set logging level to DEBUG if the input parameter is true
-    if params.debug is not None and params.debug.replace("'", "").lower() == 'true': logging.getLogger().setLevel(
-        logging.DEBUG)
+    if debug is not None and debug.lower() == 'true':
+        logging.getLogger().setLevel(logging.DEBUG)
 
     # If no issues are found, return None
     logging.debug('All input parameters are valid')
@@ -203,11 +196,13 @@ def format_parameters(params):
                   params.fill_value, params.debug)
 
     # Remove any single quotes around parameters
-    parameters = (param.replace("\'", "") if param is not None and type(param) is str else param for param in parameters)
-    return parameters
+    return (param.replace("\'", "")
+            if param is not None and isinstance(param, str)
+            else param
+            for param in parameters)
 
 
-def get_xml_error_response(exit_status=None, error_message=None, code="InternalError"):
+def get_xml_error_response(output_dir, exit_status=None, error_message=None, code="InternalError"):
     """ Returns an XML error response corresponding to the input exit status, error message, and code.
         If no code is given, the default code will be InternalError; if no error message is given, the default error
         message will be "An internal error occurred."
@@ -254,7 +249,7 @@ def get_xml_error_response(exit_status=None, error_message=None, code="InternalE
         <Message>
                 {error_message}
                 MaskFillUtility failed with code {exit_status}
-                Log file path: {get_log_file_path()}
+                Log file path: {get_log_file_path(output_dir)}
         </Message>
     </iesi:Exception>"""
 

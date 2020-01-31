@@ -2,7 +2,7 @@
     for Polar LAEA data in HDF5 files, with recomputed, correct coordinates.
 
     Input parameters:
-        --FILE_URLS: Path to an HDF5 file 
+        --FILE_URLS: Path to an HDF5 file
 
         --OUTPUT_DIR: (optional) Path to the output directory where the corrected file will be written.
             If not provided, the current working directory will be used.
@@ -104,5 +104,6 @@ def get_lat_long_arrays(h5_dataset):
 
     return lat_array, long_array
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

@@ -106,5 +106,6 @@ def apply_2D(data, process, *args):  # , name = ""  ??? - unused!
 
     # For more than two dimensions, mask fill each dimension recursively
     for i in range(len(data)):
-        data[i] = apply_2D(data[i], process, *args) # , name=name  ??? - unused!
+        data[i] = apply_2D(data[i], process, *args)
+
     return data
