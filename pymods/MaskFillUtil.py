@@ -2,10 +2,16 @@
 """
 import os
 
+import gdal
 import geopandas as gpd
 import h5py
 import numpy as np
+import rasterio
+from osgeo import osr
 from rasterio import features  # as in geographic features, shapes, polygons
+
+from pymods import H5GridProjectionInfo
+from pymods import MaskFillCaching
 
 
 def get_projected_shapes(proj4, shape_path):
@@ -64,6 +70,83 @@ def get_masked_file_path(original_file_path, output_dir):
     base_name = os.path.basename(original_file_path)
     file_name, extension = os.path.splitext(base_name)
     return os.path.join(output_dir, file_name + "_mf" + extension)
+
+
+def get_h5_mask_array_id(h5_dataset, shape_path, shortname):
+    """ Creates an ID corresponding to the given shape file, projection
+    information and shape of a dataset, which determine the mask array for the
+    dataset.
+
+    Args:
+        h5_dataset (h5._hl.dataset.Dataset): The given HDF5 dataset
+        shape_path (str): Path to a shape file used to create the mask array
+            for the mask fill.
+
+    Returns:
+        str: The ID
+    """
+    # The mask array is determined by the CRS of the dataset, the dataset's
+    # transform, the shape of the dataset, and the shapes used in the mask.
+    proj_string = H5GridProjectionInfo.get_hdf_proj4(h5_dataset, shortname)
+    transform = H5GridProjectionInfo.get_transform(h5_dataset)
+    dataset_shape = h5_dataset[:].shape
+
+    return MaskFillCaching.create_mask_array_id(proj_string, transform, dataset_shape, shape_path)
+
+
+def get_geotiff_mask_array_id(geotiff_path, shape_path):
+    """ Creates an ID corresponding to the given shape file, projection
+    information and shape of a dataset, which determine the mask array for the
+    dataset.
+
+    Args:
+        geotiff_path (str): Path to the GeoTIFF dataset.
+        shape_path (str): Path to a shape file used to create the mask array
+            for the mask fill.
+
+    Returns:
+        str: The ID.
+    """
+    # The mask array is determined by the CRS of the dataset, the dataset's
+    # transform, the shape of the dataset, and the shapes used in the mask.
+    proj_string = get_geotiff_proj4(geotiff_path)
+    dataset_shape, transform = get_geotiff_info(geotiff_path)
+
+    return MaskFillCaching.create_mask_array_id(proj_string, transform, dataset_shape, shape_path)
+
+
+def get_geotiff_proj4(geotiff_path):
+    """ Returns the proj4 string corresponding to the coordinate reference
+    system of the GeoTIFF file.
+
+    Args:
+        geotiff_path (str): The path to the GeoTIFF file
+
+    Returns:
+        str: The proj4 string corresponding to the given file.
+    """
+    data = gdal.Open(geotiff_path)
+    proj_text = data.GetProjection()
+    srs = osr.SpatialReference()
+    srs.ImportFromWkt(proj_text)
+    return srs.ExportToProj4()
+
+
+def get_geotiff_info(geotiff_path):
+    """ Retuns the shape and transform of the given GeoTIFF.
+
+    Args:
+        geotiff_path (str): The path to the GeoTIFF
+
+    Returns:
+        tuple: The shape (tuple) and transform (affine.Affine) corresponding to
+            the GeoTIFF.
+    """
+    raster = rasterio.open(geotiff_path)
+    shape = raster.read(1).shape
+    transform = raster.transform
+
+    return shape, transform
 
 
 def process_h5_file(file_path, process, *args):

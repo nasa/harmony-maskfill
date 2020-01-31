@@ -7,8 +7,7 @@ import os
 
 import numpy as np
 
-import GeotiffMaskFill
-import H5MaskFill
+from pymods import MaskFillUtil
 
 mask_grid_cache_values = ['ignore_and_delete',
                           'ignore_and_save',
@@ -49,10 +48,10 @@ def get_mask_array_id(data, shape_path):
     """
     # GeoTIFF case
     if isinstance(data, str) and data.lower().endswith('.tif'):
-        mask_id = GeotiffMaskFill.get_mask_array_id(data, shape_path)
+        mask_id = MaskFillUtil.get_geotiff_mask_array_id(data, shape_path)
     # HDF5 case
     else:
-        mask_id = H5MaskFill.get_mask_array_id(data, shape_path)
+        mask_id = MaskFillUtil.get_h5_mask_array_id(data, shape_path)
 
     return mask_id
 

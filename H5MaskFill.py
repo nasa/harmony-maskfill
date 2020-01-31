@@ -20,7 +20,7 @@ import shutil
 import numpy as np
 
 from pymods import H5GridProjectionInfo, MaskFillUtil, CFConfig, MaskFillCaching
-from pymods.MaskFillUtil import process_h5_file, apply_2D
+from pymods.MaskFillUtil import apply_2D, get_h5_mask_array_id, process_h5_file
 
 mask_grid_cache_values = ['ignore_and_delete',
                           'ignore_and_save',
@@ -125,7 +125,7 @@ def get_mask_array(h5_dataset, shape_path, cache_dir, mask_grid_cache, saved_mas
             numpy.ndarray: The mask array
     """
     # Get the mask id which corresponds to the mask required for the HDF5 dataset and shapefile
-    mask_id = get_mask_array_id(h5_dataset, shape_path, shortname)
+    mask_id = get_h5_mask_array_id(h5_dataset, shape_path, shortname)
 
     # If the required mask array is in the set of saved mask arrays, get and return the mask array from the set
     if mask_id in saved_mask_arrays:
@@ -144,26 +144,6 @@ def get_mask_array(h5_dataset, shape_path, cache_dir, mask_grid_cache, saved_mas
     # Save and return the mask array
     saved_mask_arrays[mask_id] = mask_array
     return mask_array
-
-
-def get_mask_array_id(h5_dataset, shape_path, shortname):
-    """ Creates an id corresponding to the given shapefile, projection information, and shape of a dataset,
-        which determine the mask array for the dataset.
-
-        Args:
-            h5_dataset (h5py._hl.dataset.Dataset): The given HDF5 dataset
-            shape_path (str): Path to a shape file used to create the mask array for the mask fill
-
-        Returns:
-            str: The id
-    """
-    # The mask array is determined by the CRS of the dataset, the dataset's transform, the shape of the dataset,
-    # and the shapes used in the mask
-    proj_string = H5GridProjectionInfo.get_hdf_proj4(h5_dataset, shortname)
-    transform = H5GridProjectionInfo.get_transform(h5_dataset)
-    dataset_shape = h5_dataset[:].shape
-
-    return MaskFillCaching.create_mask_array_id(proj_string, transform, dataset_shape, shape_path)
 
 
 def get_mask_array_path(mask_id, cache_dir):

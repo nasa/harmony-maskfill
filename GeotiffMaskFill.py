@@ -113,23 +113,6 @@ def get_fill_value(geotiff_path, default_fill_value):
     return fill_value
 
 
-def get_mask_array_id(geotiff_path, shape_path):
-    """ Creates an id corresponding to the given shapefile, projection information, and shape of a dataset,
-        which determine the mask array for the dataset.
-        Args:
-            geotiff_path (str): The given path to a geotiff file
-            shape_path (str): Path to a shape file used to create the mask array for the mask fill
-        Returns:
-            str: The id
-    """
-    # The mask array is determined by the CRS of the dataset, the dataset's transform, the shape of the dataset,
-    # and the shapes used in the mask
-    proj_string = get_geotiff_proj4(geotiff_path)
-    dataset_shape, transform = get_geotiff_info(geotiff_path)
-
-    return MaskFillCaching.create_mask_array_id(proj_string, transform, dataset_shape, shape_path)
-
-
 def get_geotiff_info(geotiff_path):
     """ Returns the shape and transform of the given GeoTIFF
         Args:
