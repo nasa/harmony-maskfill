@@ -1,5 +1,6 @@
 """ Utility functions to support MaskFill processing
 """
+import hashlib
 import os
 
 import gdal
@@ -11,7 +12,6 @@ from osgeo import osr
 from rasterio import features  # as in geographic features, shapes, polygons
 
 from pymods import H5GridProjectionInfo
-from pymods import MaskFillCaching
 
 
 def get_projected_shapes(proj4, shape_path):
@@ -91,7 +91,7 @@ def get_h5_mask_array_id(h5_dataset, shape_path, shortname):
     transform = H5GridProjectionInfo.get_transform(h5_dataset)
     dataset_shape = h5_dataset[:].shape
 
-    return MaskFillCaching.create_mask_array_id(proj_string, transform, dataset_shape, shape_path)
+    return create_mask_array_id(proj_string, transform, dataset_shape, shape_path)
 
 
 def get_geotiff_mask_array_id(geotiff_path, shape_path):
@@ -112,7 +112,25 @@ def get_geotiff_mask_array_id(geotiff_path, shape_path):
     proj_string = get_geotiff_proj4(geotiff_path)
     dataset_shape, transform = get_geotiff_info(geotiff_path)
 
-    return MaskFillCaching.create_mask_array_id(proj_string, transform, dataset_shape, shape_path)
+    return create_mask_array_id(proj_string, transform, dataset_shape, shape_path)
+
+
+def create_mask_array_id(proj_string, transform, dataset_shape, shape_file_path):
+    """ Creates an id corresponding to the given shapefile, projection information, and shape of a dataset,
+        which determine the mask array for the dataset.
+        Args:
+            proj_string (str): A proj4 string which describes the projection information of the data
+            transform (affine.Affine): The affine transform corresponding to the data
+            dataset_shape (tuple): The shape of the data
+            shape_file_path (str): The path to the given shapefile
+        Returns:
+            str: The mask id
+    """
+    mask_id = proj_string + str(transform) + str(dataset_shape) + shape_file_path
+
+    # Hash the mask id and return
+    mask_id = hashlib.sha224(mask_id.encode()).hexdigest()
+    return mask_id
 
 
 def get_geotiff_proj4(geotiff_path):
