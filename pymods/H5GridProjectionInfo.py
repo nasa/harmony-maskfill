@@ -12,7 +12,7 @@ from pyproj import CRS, Proj
 from pymods import CFConfig
 
 
-def get_hdf_proj4(h5_dataset: Dataset, shortname: str) ->str:
+def get_hdf_proj4(h5_dataset: Dataset, shortname: str) -> str:
     # TODO: have this function call get_shortname internally
     """ Returns the proj4 string corresponding to the coordinate reference system of the HDF5 dataset.
         Args:
@@ -64,8 +64,10 @@ def get_lat_lon_datasets(h5_dataset: Dataset) -> Tuple[Dataset, Dataset]:
     coordinate_list = re.split('[, ]', h5_dataset.attrs['coordinates'].decode())
 
     for coordinate in coordinate_list:
-        if 'lat' in coordinate: latitude = file[coordinate]
-        if 'lon' in coordinate: longitude = file[coordinate]
+        if 'lat' in coordinate:
+            latitude = file[coordinate]
+        if 'lon' in coordinate:
+            longitude = file[coordinate]
 
     return longitude, latitude
 
@@ -173,7 +175,7 @@ def get_cell_size_from_lat_lon(h5_dataset: Dataset) -> Tuple[float, float]:
 
 
 def get_corner_points_from_dimensions(h5_dataset: Dataset) \
-        -> Tuple[float, float, float, float]:  # projected meters, x_min, x_max, y_min, y_max
+        -> Tuple[float, float, float, float]:  # projected meters, ul_x, x_max, y_min, ul_y
     """ Finds the min and max locations in both coordinate axes of the dataset.
         Args:
              h5_dataset (h5py._hl.dataset.Dataset): The HDF5 dataset

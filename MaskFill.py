@@ -107,7 +107,7 @@ def get_input_parameters():
     parser.add_argument('--BOUNDINGSHAPE', dest='shape_file', help='Shapefile or native GeoJson with which to perform the mask fill')
     parser.add_argument('--OUTPUT_DIR', dest='output_dir', help='Name of the output directory to put the output file',
                         default=os.getcwd())
-    parser.add_argument('--IDENTIFIER', dest='identifier',
+    parser.add_argument('--IDENTIFIER', dest='identifier', default="",
                         help='Identifier of the reuqest used to determine output directory');
     parser.add_argument('--MASK_GRID_CACHE', dest='mask_grid_cache',
                         help='ignore_and_delete | ignore_and_save | use_cache | use_cache_delete | MaskGrid_Only',
@@ -228,10 +228,10 @@ def get_xml_error_response(exit_status=None, error_message=None, code="InternalE
     """
     if exit_status == 1:
         code = "InvalidParameterValue"
-        if error_message is None: error_message = "Incorrect parameter specified for given dataset(s)."
+        if error_message is None: error_message = "Invalid parameter specified for given dataset(s)."
     elif exit_status == 2:
         code = "MissingParameterValue"
-        if error_message is None: error_message = "No parameter value(s) specified for given dataset(s)."
+        if error_message is None: error_message = "A given parameter is missing a value"
     elif exit_status == 3:
         code = "NoMatchingData"
         if error_message is None: error_message = "No data found that matched the subset constraints."

@@ -9,11 +9,9 @@ from rasterio import features  # as in geographic features, shapes, polygons
 
 def get_projected_shapes(proj4, shape_path):
     """ Projects the shapes in the given shapefile to a new coordinate reference system.
-
         Args:
             proj4 (string): The proj4 string representing the new coordinate reference system
             shape_path (string): The path to the shape file which is to be converted
-
         Returns:
             geopandas.geoseries.GeoSeries: A geopandas GeoSeries containing the projected shape information.
     """
@@ -28,12 +26,10 @@ def get_projected_shapes(proj4, shape_path):
 
 def get_mask_array(shapes, out_shape, transform):
     """ Rasterizes the given shapes to create a mask array.
-
         Args:
             shapes (geopandas.geoseries.GeoSeries): The shapes to be rasterized
             out_shape (tuple): The shape of the resultant mask array
             transform (affine.Affine): A transform mapping from image coordinates to world coordinates
-
         Returns:
             numpy.ndarray: A numpy array representing the rasterized shapes
     """
@@ -44,12 +40,10 @@ def get_mask_array(shapes, out_shape, transform):
 
 def mask_fill_array(raster_arr, mask_array, fill_value):
     """ Performs a mask fill on raster_arr using the mask mask_array
-
         Args:
             raster_arr (numpy.ndarray): The array to be mask filled
             mask_array (numpy.ndarray): The mask array which will be applied to raster_arr
             fill_value (float): Value used to fill in the masked values when necessary
-
         Returns:
             numpy.ndarray: The mask filled array
     """
@@ -59,11 +53,9 @@ def mask_fill_array(raster_arr, mask_array, fill_value):
 
 def get_masked_file_path(original_file_path, output_dir):
     """ Returns the path to the mask filled output file.
-
         Args:
             original_file_path (str): The original file which is to be mask filled
             output_dir (str): The directory to which the output file will be written
-
         Returns:
             str: The path to the mask filled version of the original file
 
@@ -75,7 +67,6 @@ def get_masked_file_path(original_file_path, output_dir):
 
 def process_h5_file(file_path, process, *args):
     """ Performs the given process on all datasets in the HDF5 file.
-
         Args:
             file_path (str): The path to the input HDF5 file
             process (function): The process to be performed on the datasets in the file
@@ -114,5 +105,6 @@ def apply_2D(data, process, *args):  # , name = ""  ??? - unused!
         return data
 
     # For more than two dimensions, mask fill each dimension recursively
-    for i in range(len(data)): data[i] = apply_2D(data[i], process, *args, name=name)
+    for i in range(len(data)):
+        data[i] = apply_2D(data[i], process, *args) # , name=name  ??? - unused!
     return data

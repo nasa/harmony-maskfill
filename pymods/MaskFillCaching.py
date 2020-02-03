@@ -20,14 +20,12 @@ mask_grid_cache_values = ['ignore_and_delete',
 def get_cached_mask_array(data, shape_path, cache_dir, mask_grid_cache):
     """
         Returns the corresponding cached mask array if it exists, and None otherwise.
-
         Args:
             data (obj): The path to a GeoTIFF file (str) or an HDF5 dataset (h5py._hl.dataset.Dataset)
             shape_path (str): Path to a shape file used to create the mask array for the mask fill
             cache_dir (str): The path to the cache directory where cached mask array files are stored
-            mask_grid_cache (str): Value determining whether to use previously cached mask arrays and whether to cache newly
-                                   created mask arrays
-
+            mask_grid_cache (str): Value determining whether to use previously cached mask arrays
+                                   and whether to cache newly created mask arrays
         Returns:
             numpy.ndarray: The mask array
     """
@@ -41,11 +39,9 @@ def get_cached_mask_array(data, shape_path, cache_dir, mask_grid_cache):
 
 def get_mask_array_id(data, shape_path):
     """ Gets the id of the mask array corresponding to the given data and shape file.
-
         Args:
             data (obj): The path to a GeoTIFF file (str) or an HDF5 dataset (h5py._hl.dataset.Dataset)
             shape_path (str): Path to a shape file used to create the mask array for the mask fill
-
         Returns:
             str: The mask id
     """
@@ -60,13 +56,11 @@ def get_mask_array_id(data, shape_path):
 def create_mask_array_id(proj_string, transform, dataset_shape, shape_file_path):
     """ Creates an id corresponding to the given shapefile, projection information, and shape of a dataset,
         which determine the mask array for the dataset.
-
         Args:
             proj_string (str): A proj4 string which describes the projection information of the data
             transform (affine.Affine): The affine transform corresponding to the data
             dataset_shape (tuple): The shape of the data
             shape_file_path (str): The path to the given shapefile
-
         Returns:
             str: The mask id
     """
@@ -80,12 +74,10 @@ def create_mask_array_id(proj_string, transform, dataset_shape, shape_file_path)
 def get_mask_array_path(data, shape_path, cache_dir):
     """ Returns the path to cached mask array file corresponding to the given data and shapefile. If the file does not
         exist, the at which path it would reside is returned.
-
         Args:
             data (obj): The path to a GeoTIFF file (str) or an HDF5 dataset (h5py._hl.dataset.Dataset)
             shape_path (str): Path to a shape file used to create the mask array for the mask fill
             cache_dir (str): The path to the directory where the mask arrays are cached
-
         Returns:
             str: The path to the mask array file
     """
@@ -96,11 +88,9 @@ def get_mask_array_path(data, shape_path, cache_dir):
 
 def get_mask_array_path_from_id(mask_id, cache_dir):
     """ Returns the path to the file containing a mask array corresponding to the given mask_id and cache directory.
-
         Args:
             mask_id (str): An id corresponding to the desired mask array file
             cache_dir (str): The directory where mask array files are cached
-
         Returns:
             str: The path to the mask array file
     """
@@ -110,14 +100,13 @@ def get_mask_array_path_from_id(mask_id, cache_dir):
 def cache_mask_array(mask_array, data, shape_path, cache_dir, mask_grid_cache):
     """ Caches the mask array corresponding to the given data and shapefile as a .npy file in the cache directory,
         if the mask grid cache value allows.
-
         Args:
             mask_array (numpy.ndarray): The mask array to be cached
             data (obj): The path to a GeoTIFF file (str) or an HDF5 dataset (h5py._hl.dataset.Dataset)
             shape_path (str): Path to a shape file used to create the mask array for the mask fill
             cache_dir (str): The path to the cache directory where cached mask array files are stored
-            mask_grid_cache (str): Value determining whether to use previously cached mask arrays and whether to cache newly
-                                   created mask arrays
+            mask_grid_cache (str): Value determining whether to use previously cached mask arrays
+                                   and whether to cache newly created mask arrays
     """
     if 'save' in mask_grid_cache or mask_grid_cache == 'maskgrid_only':
         mask_array_path = get_mask_array_path(data, shape_path, cache_dir)
@@ -126,11 +115,11 @@ def cache_mask_array(mask_array, data, shape_path, cache_dir, mask_grid_cache):
 
 def cache_mask_arrays(mask_arrays, cache_dir, mask_grid_cache):
     """ Caches all of the given mask arrays as a .npy file in the cache directory, if the mask grid cache value allows.
-
-        mask_arrays (dict): A dictionary mapping from mask ids to the corresponding mask arrays
-        cache_dir (str): The path to the cache directory where cached mask array files are stored
-        mask_grid_cache (str): Value determining whether to use previously cached mask arrays and whether to cache newly
-                               created mask arrays
+        Args:
+            mask_arrays (dict): A dictionary mapping from mask ids to the corresponding mask arrays
+            cache_dir (str): The path to the cache directory where cached mask array files are stored
+            mask_grid_cache (str): Value determining whether to use previously cached mask arrays
+                                   and whether to cache newly created mask arrays
     """
     # Save mask arrays if the mask_grid_cache value requires
     if 'delete' not in mask_grid_cache:

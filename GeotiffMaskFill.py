@@ -15,13 +15,11 @@ from pymods import MaskFillUtil, MaskFillCaching
 def produce_masked_geotiff(geotiff_path, shape_path, output_dir, cache_dir, mask_grid_cache, default_fill_value):
     """ Performs a mask fill on the given GeoTIFF using the shapes in the given shapefile.
         Writes the resulting GeoTIFF to output_dir.
-
         Args:
             geotiff_path (str): The path to the GeoTIFF
             shape_path (str): The path to the shape file
             output_dir (str): The path to the output directory
             default_fill_value (float): The fill value used for the mask fill if the GeoTIFF has no fill value
-
         Returns:
             str: The path to the output GeoTIFF file
     """
@@ -51,13 +49,11 @@ def get_mask_array(geotiff_path, shape_path, cache_dir, mask_grid_cache):
     """ Gets the mask array corresponding the GeoTIFF file and shape file from the cache directory (if the mask grid cache
         value allows).
         If the mask array file does not already exist, it is created and cached (if the mask grid cache value allows).
-
         Args:
             geotiff_path (str): The path to the GeoTIFF
             shape_path (str): The path to the shape file
             cache_dir (str): The path to the cache directory
             default_fill_value (float): The fill value used for the mask fill if the GeoTIFF has no fill value
-
         Returns:
             numpy.ndarray: The mask array
     """
@@ -72,11 +68,9 @@ def get_mask_array(geotiff_path, shape_path, cache_dir, mask_grid_cache):
 
 def create_mask_array(geotiff_path, shape_path):
     """ Rasterizes the shapes in the given shape file to create a mask array for the given GeoTIFF.
-
         Args:
             geotiff_path (str): The GeoTIFF for which a mask array will be created
             shape_path (str): The path to the shape file which will be rasterized
-
         Returns:
             numpy.ndarray: A numpy array representing the rasterized shapes from the shape file
     """
@@ -87,10 +81,8 @@ def create_mask_array(geotiff_path, shape_path):
 
 def get_geotiff_proj4(geotiff_path):
     """ Returns the proj4 string corresponding to the coordinate reference system of the GeoTIFF file.
-
         Args:
             geotiff_path (str): The path to the GeoTIFF file
-
         Returns:
             str: The proj4 string corresponding to the given file
     """
@@ -104,11 +96,9 @@ def get_geotiff_proj4(geotiff_path):
 def get_fill_value(geotiff_path, default_fill_value):
     """ Returns the fill value for the given GeoTIFF.
         If the GeoTIFF has no fill value, returns the given default fill value.
-
         Args:
             geotiff_path (str): The path to a GeoTIFF file
             default_fill_value (float): The default value which is returned if no fill value is found in the GeoTIFF
-
         Returns:
             float: The fill value
     """
@@ -125,11 +115,9 @@ def get_fill_value(geotiff_path, default_fill_value):
 def get_mask_array_id(geotiff_path, shape_path):
     """ Creates an id corresponding to the given shapefile, projection information, and shape of a dataset,
         which determine the mask array for the dataset.
-
         Args:
-            h5_dataset (h5py._hl.dataset.Dataset): The given HDF5 dataset
+            geotiff_path (str): The given path to a geotiff file
             shape_path (str): Path to a shape file used to create the mask array for the mask fill
-
         Returns:
             str: The id
     """

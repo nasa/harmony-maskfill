@@ -29,6 +29,7 @@ mask_grid_cache_values = ['ignore_and_delete',
                           'use_cache_delete',
                           'maskgrid_only']
 
+
 def produce_masked_hdf(hdf_path, shape_path, output_dir, cache_dir, mask_grid_cache, default_fill_value):
     mask_grid_cache = mask_grid_cache.lower()
     saved_mask_arrays = dict()
@@ -37,8 +38,8 @@ def produce_masked_hdf(hdf_path, shape_path, output_dir, cache_dir, mask_grid_ca
     shortname = CFConfig.getShortName(hdf_path)
 
     if mask_grid_cache == 'maskgrid_only':
-        process_h5_file(hdf_path, mask_fill, shape_path, cache_dir, mask_grid_cache, default_fill_value, saved_mask_arrays,
-                        shortname)
+        process_h5_file(hdf_path, mask_fill, shape_path, cache_dir, mask_grid_cache,
+                        default_fill_value, saved_mask_arrays, shortname)
     else:
         new_file_path = MaskFillUtil.get_masked_file_path(hdf_path, output_dir)
         shutil.copy(hdf_path, new_file_path)
@@ -48,7 +49,8 @@ def produce_masked_hdf(hdf_path, shape_path, output_dir, cache_dir, mask_grid_ca
 
     MaskFillCaching.cache_mask_arrays(saved_mask_arrays, cache_dir, mask_grid_cache)
 
-    if mask_grid_cache != 'maskgrid_only': return MaskFillUtil.get_masked_file_path(hdf_path, output_dir)
+    if mask_grid_cache != 'maskgrid_only':
+        return MaskFillUtil.get_masked_file_path(hdf_path, output_dir)
 
 
 def get_config_file_path():
@@ -57,15 +59,17 @@ def get_config_file_path():
             str: The path to the MaskFillConfig.json file.
     """
     current_file_path = os.path.abspath(__file__)
-    pymods_directory = os.path.dirname(current_file_path)
-    scripts_directory = os.path.dirname(pymods_directory)
+#    pymods_directory = os.path.dirname(current_file_path)
+#    scripts_directory = os.path.dirname(pymods_directory)
+    scripts_directory = os.path.dirname(current_file_path)
     data_directory = os.path.join(scripts_directory, "data")
     config_file_path = os.path.join(data_directory, "MaskFillConfig.json")
 
     return config_file_path
 
 
-def mask_fill(h5_dataset, shape_path, cache_dir, mask_grid_cache, default_fill_value, saved_mask_arrays, shortname):
+def mask_fill(h5_dataset, shape_path, cache_dir, mask_grid_cache,
+              default_fill_value, saved_mask_arrays, shortname):
     """ Replaces the data in the HDF5 dataset with a mask filled version of the data.
 
         Args:
@@ -74,30 +78,36 @@ def mask_fill(h5_dataset, shape_path, cache_dir, mask_grid_cache, default_fill_v
             cache_dir (str): The path to a cache directory
             mask_grid_cache (str): Value determining how the mask arrays used in the mask fill are created and cached
             default_fill_value (float): The default fill value for the mask fill if no other fill values are provided
+            saved_mask_arrays (?):
+            shortname (str):
     """
     # Ensure dataset has at least two dimensions and can be mask filled
     if len(h5_dataset.shape) < 2 or not h5_dataset.attrs.__contains__('coordinates'):
         logging.debug(
-            f'The dataset {h5_dataset.name} is not two dimensional or does not contain coordinates attribute, and cannot be mask filled')
+            f'The dataset {h5_dataset.name} is not two dimensional '
+            f'or does not contain coordinates attribute, and cannot be mask filled')
         return
 
     # Get the mask array corresponding to the HDF5 dataset and the shapefile
     mask_array = get_mask_array(h5_dataset, shape_path, cache_dir, mask_grid_cache, saved_mask_arrays, shortname)
 
-    # Perform mask fill and write the new mask filled data to the h5_dataset,
+    # Perform mask fill and write the new mask filled data to the dataset,
     # unless the mask_grid_cache value only requires us to create a mask array
     if mask_grid_cache != 'maskgrid_only':
         fill_value = H5GridProjectionInfo.get_fill_value(h5_dataset, default_fill_value)
-        mask_filled_data = apply_2D(h5_dataset[:], MaskFillUtil.mask_fill_array, mask_array, fill_value, name = h5_dataset.name)
+        mask_filled_data = apply_2D(h5_dataset[:], MaskFillUtil.mask_fill_array, mask_array, fill_value)
         h5_dataset.write_direct(mask_filled_data)
 
         # Get all values in mask_filled_data excluding the fill value
         unfilled_data = mask_filled_data[mask_filled_data != fill_value]
 
         # Update statistics in the h5_dataset
-        if h5_dataset.attrs.__contains__('observed_max'): h5_dataset.attrs.modify('observed_max', max(unfilled_data))
-        if h5_dataset.attrs.__contains__('observed_min'): h5_dataset.attrs.modify('observed_min', min(unfilled_data))
-        if h5_dataset.attrs.__contains__('observed_mean'): h5_dataset.attrs.modify('observed_mean', np.mean(unfilled_data))
+        if h5_dataset.attrs.__contains__('observed_max'):
+            h5_dataset.attrs.modify('observed_max', max(unfilled_data))
+        if h5_dataset.attrs.__contains__('observed_min'):
+            h5_dataset.attrs.modify('observed_min', min(unfilled_data))
+        if h5_dataset.attrs.__contains__('observed_mean'):
+            h5_dataset.attrs.modify('observed_mean', np.mean(unfilled_data))
 
         logging.debug(f'Mask filled the dataset {h5_dataset.name}')
 
