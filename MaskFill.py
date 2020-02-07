@@ -137,11 +137,11 @@ def check_shapefile_geojson(shape_file, output_dir):
     """
     # We have a native geojson string passed in
     if (re.search(r'{..*}', shape_file)):
-        unique_filename = str(uuid.uuid4())
-        with open(f"{output_dir}/shape_{unique_filename}.geojson", "w") as new_shape_file:
+        unique_filename = f"{output_dir}/shape_{str(uuid.uuid4())}.geojson"
+        with open(unique_filename, "w") as new_shape_file:
             new_shape_file.write(shape_file)
 
-        return new_shape_file
+        return unique_filename
 
     # Otherwise return input shape_file path. It's existence is checked in validate_input_parameters
     else:
@@ -197,7 +197,7 @@ def format_parameters(params):
             params (argparse.Namespace): The input parameters
 
         Returns:
-            tuple: The quote stripped parameters
+            generator: Producing quote stripped parameters
     """
     parameters = (params.input_file, params.shape_file, params.output_dir, params.identifier, params.mask_grid_cache,
                   params.fill_value, params.debug)

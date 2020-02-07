@@ -14,7 +14,9 @@ def readConfigFile(configFile):
             configFile(string): config file path
     """
     global config
-    configString = open(configFile).read()
+    with open(configFile, 'r') as file_handler:
+        configString = file_handler.read()
+
     configStringWoComments = removeComments(configString)
     config = json.loads(configStringWoComments)
 

@@ -66,7 +66,7 @@ EASE2_GRIDS = {
         }
     }
 
- 
+
 class Ease2Grid:
     def __init__(self, resolution: Ease2GridResolution,
                  grid_type: Ease2GridType):
