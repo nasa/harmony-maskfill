@@ -86,7 +86,9 @@ def mask_fill():
 
 def configure_logger(output_dir):
     """ Configures the logger for the mask fill process, setting the log level to INFO."""
-    logging.basicConfig(level=logging.INFO, filename=get_log_file_path(output_dir))
+    logger = logging.getLogger()
+    logger.setLevel(logging.INFO)
+    logger.addHandler(logging.FileHandler(get_log_file_path(output_dir)))
     logging.info('Logger configured')
 
 
