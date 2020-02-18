@@ -1,27 +1,33 @@
-#!/tools/miniconda/bin/python
-import os
-import sys
+''' Utilities for reading and interpreting the CF configuration file
+    Allows processing of hdf-5 files that do not fully follow the CF conventions
+    Where the configuration file provides the missing information.
+'''
 import json
 import re
+
 import h5py
 
-""" Read the config json file
-    Args:
-        configFile(string): config file path
-"""
+
 def readConfigFile(configFile):
+    """ Read the config json file
+        Args:
+            configFile(string): config file path
+    """
     global config
-    configString = open(configFile).read()
+    with open(configFile, 'r') as file_handler:
+        configString = file_handler.read()
+
     configStringWoComments = removeComments(configString)
     config = json.loads(configStringWoComments)
 
-""" Remove c-style comments.
-    Args:
-        txt(string): blob of text with comments (can include newlines)
-    Return:
-        text with comments removed
-"""
+
 def removeComments(text):
+    """ Remove c-style comments.
+        Args:
+            txt(string): blob of text with comments (can include newlines)
+        Return:
+            text with comments removed
+    """
     pattern = r"""
                         ##  --------- COMMENT ---------
        /\*              ##  Start of /* ... */ comment
@@ -32,7 +38,7 @@ def removeComments(text):
                         ##    but do end with '*'
        /                ##  End of /* ... */ comment
      |                  ##  -OR-  various things which aren't comments:
-       (                ## 
+       (                ##
                         ##  ------ " ... " STRING ------
          "              ##  Start of " ... " string
          (              ##
@@ -58,22 +64,28 @@ def removeComments(text):
          [^/"'\\]*      ##  Chars which doesn't start a comment, string
        )                ##    or escape
     """
-    regex = re.compile(pattern, re.VERBOSE|re.MULTILINE|re.DOTALL)
+    regex = re.compile(pattern, re.VERBOSE | re.MULTILINE | re.DOTALL)
     noncomments = [m.group(2) for m in regex.finditer(text) if m.group(2)]
     return "".join(noncomments)
 
-""" Get product short name using config json file
-    Args:
-        input_file(string): input file path
-    Returns:
-        shortname(string): product short name
-"""
+
 def getShortName(input_file):
+    """ Get product short name using config json file
+        Args:
+            input_file(string): input file path
+        Returns:
+            shortname(string): product short name
+    """
     shortnamePaths = config["ShortNamePath"]
-    if isinstance(input_file, str): inf = h5py.File(input_file, 'r')
-    else: inf = input_file
+    if isinstance(input_file, str):
+        inf = h5py.File(input_file, 'r')
+    else:
+        inf = input_file
+
     for path in shortnamePaths:
-        if path.endswith("/"): path = path[:-1]
+        if path.endswith("/"):
+            path = path[:-1]
+
         shortnamePath = path.rpartition("/")[0]
         label = path.rpartition("/")[2]
         if shortnamePath in inf:
@@ -82,17 +94,20 @@ def getShortName(input_file):
                 break
     return shortName
 
-""" Get grid mapping group projection for CF-Compliance
-    Args:
-        shortName(string): product short name
-    Return:
-        grid mapping group projection
-"""
+
 def getGridMappingGroup(shortName, datasetName):
+    """ Get grid mapping group projection for CF-Compliance
+        Args:
+            shortName(string): product short name
+        Return:
+            grid mapping group projection
+    """
     gridMappingGroups = config["Grid_Mapping_Group"]
     mappingGroup = ""
     for i, (key, value) in enumerate(gridMappingGroups.items()):
-        if not isinstance(shortName, str): shortName = shortName.decode()
+        if not isinstance(shortName, str):
+            shortName = shortName.decode()
+
         if re.match(key, shortName):
             for j, (key2, value2) in enumerate(value.items()):
                 if re.match(key2, datasetName):
@@ -101,20 +116,15 @@ def getGridMappingGroup(shortName, datasetName):
             break
     return mappingGroup
 
-""" Get grip mapping data for CF-Compliance
-    Args:
-        mappingGroup(string): mapping group projection
-    Return:
-        grid mapping information
-"""
+
 def getGridMappingData(mappingGroup):
+    """ Get grip mapping data for CF-Compliance
+        Args:
+            mappingGroup(string): mapping group projection
+        Return:
+            grid mapping information
+    """
     gridMappingData = config["Grid_Mapping_Data"]
     for i, (key, value) in enumerate(gridMappingData.items()):
-        if re.match(key, mappingGroup): return value
-
-
-
-
-
-
-
+        if re.match(key, mappingGroup):
+            return value
