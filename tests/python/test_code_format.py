@@ -1,7 +1,7 @@
 from pathlib import Path
 from unittest import TestCase
 
-import pep8
+import pycodestyle
 
 
 class TestCodeFormat(TestCase):
@@ -19,7 +19,7 @@ class TestCodeFormat(TestCase):
         characters.
 
         """
-        pep8style = pep8.StyleGuide(ignore='E501')
+        pep8style = pycodestyle.StyleGuide(ignore='E501')
         result = pep8style.check_files(self.python_files)
         self.assertEqual(result.total_errors, 0,
                          'Found code style errors (and warnings).')
