@@ -24,6 +24,9 @@ class TestMaskFill(TestCase):
         self.output_h5_file = self.create_output_file_name(self.input_h5_file)
         self.output_geotiff_template = 'tests/data/SMAP_L4_SMAU_output.tif'
         self.output_h5_template = 'tests/data/SMAP_L4_SMAU_output.h5'
+        self.input_corner_file = 'tests/data/SMAP_L3_corners_input.h5'
+        self.output_corner_file = self.create_output_file_name(self.input_corner_file)
+        self.output_corner_template = 'tests/data/SMAP_L3_corners_output.h5'
 
         self.default_parameters = {'debug': 'true',
                                    'fill_value': default_fill_value,
@@ -197,3 +200,22 @@ class TestMaskFill(TestCase):
                                                             self.output_geotiff_file))
 
         self.compare_geotiff_files(self.output_geotiff_template, self.output_geotiff_file)
+
+    @patch('MaskFill.get_input_parameters')
+    def test_mask_fill_h5_extrapolating_corner(self, mock_get_input_parameters):
+        """A full test of the `mask_fill` utility using an HDF-5 input file
+        that has filled data in the upper right corner of the longitude and
+        latitude arrays.
+
+        """
+        corner_parameters = self.default_parameters
+        corner_parameters['input_file'] = self.input_corner_file
+
+        mock_get_input_parameters.return_value = self.create_parameters_namespace(corner_parameters)
+        response = mask_fill()
+
+        self.assertEqual(response, get_xml_success_response(self.input_corner_file,
+                                                            self.shape_file,
+                                                            self.output_corner_file))
+
+        self.compare_h5_files(self.output_corner_template, self.output_corner_file)

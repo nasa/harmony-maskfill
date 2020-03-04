@@ -79,11 +79,19 @@ def mask_fill(h5_dataset, shape_path, cache_dir, mask_grid_cache,
             saved_mask_arrays (?):
             shortname (str):
     """
+
     # Ensure dataset has at least two dimensions and can be mask filled
     if len(h5_dataset.shape) < 2 or not h5_dataset.attrs.__contains__('coordinates'):
-        logging.debug(
-            f'The dataset {h5_dataset.name} is not two dimensional '
-            f'or does not contain coordinates attribute, and cannot be mask filled')
+        logging.debug(f'The dataset {h5_dataset.name} is not two dimensional '
+                      'or does not contain coordinates attribute, and cannot '
+                      'be mask filled')
+        return
+    elif H5GridProjectionInfo.dataset_all_fill_value(h5_dataset, default_fill_value):
+        logging.debug(f'The dataset {h5_dataset.name} only contains fill value.')
+        return
+    elif H5GridProjectionInfo.dataset_all_outside_valid_range(h5_dataset):
+        logging.debug(f'The dataset {h5_dataset.name} only contains values '
+                      'outside the specified valid range.')
         return
 
     # Get the mask array corresponding to the HDF5 dataset and the shapefile
@@ -97,7 +105,7 @@ def mask_fill(h5_dataset, shape_path, cache_dir, mask_grid_cache,
         h5_dataset.write_direct(mask_filled_data)
 
         # Get all values in mask_filled_data excluding the fill value
-        unfilled_data = mask_filled_data[mask_filled_data != fill_value]
+        unfilled_data = mask_filled_data[np.where(mask_filled_data != fill_value)]
 
         # Update statistics in the h5_dataset
         if h5_dataset.attrs.__contains__('observed_max'):

@@ -1,8 +1,12 @@
 ## Overview:
 
-The mask fill utility works with gridded data, applying a fill value in all pixels outside of a provided shape.
-Mask fill is the second step of Subset by Shape/Polygon, following the cropping of the grid to a minimally surrounding bounding box.
-The utility accepts HDF5 files which follow CF conventions and GeoTIFFs. 
+The `MaskFill` utility works with gridded data, applying a fill value in all pixels
+outside of a provided shape. When downloading granules from Earthdata search,
+`MaskFill` is the second step of Subset by Shape/Polygon step within the
+customizable download options. This step follows the cropping of the grid to a
+minimally surrounding bounding box.
+
+The utility accepts HDF-5 files which follow CF conventions and GeoTIFFs.
 
 ## Installation:
 
@@ -13,6 +17,22 @@ This simplifies dependency management. Run these commands to create a mask fill 
 conda create --name maskfill --file pymods/mask_fill_conda_requirements.txt
 source activate maskfill
 pip install -r pymods/mask_fill_pip_requirements.txt
+```
+
+## Running locally:
+
+Within the `maskfill` Conda environment, the main `MaskFill` utility can be run via:
+
+```bash
+python MaskFill.py --FILE_URLS [data_file_path] --BOUNDINGSHAPE [shape_file_path] --OUTPUT_DIR [output_directory_path] --IDENTIFIER [output_subdirectory]
+```
+
+There are other parameters that can be supplied to the script, but these are optional:
+
+```
+--DEBUG True
+--DEFAULT_FILL [value]
+--MASK_GRID_CACHE [ignore_and_delete|ignore_and_save|use_cache|use_cache_delete|MaskGrid_Only]
 ```
 
 ## Testing:
