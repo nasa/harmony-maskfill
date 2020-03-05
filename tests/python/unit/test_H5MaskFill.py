@@ -37,8 +37,7 @@ class TestH5MaskFill(TestCase):
 
         test_args = [['1-d data', np.ones((3)), True, 0, -1, 2],
                      ['No coordinates', np.ones((3, 2)), False, 0, -1, 2],
-                     ['All fill values', np.ones((3, 2)), True, 1, -1, 2],
-                     ['All outside range', np.ones((3, 2)), True, 0, 3, 4]]
+                     ['All fill values', np.ones((3, 2)), True, 1, -1, 2]]
 
         for description, data, coordinates_present, fill_value, valid_min, valid_max in test_args:
             with self.subTest(description):

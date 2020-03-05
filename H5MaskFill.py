@@ -87,11 +87,8 @@ def mask_fill(h5_dataset, shape_path, cache_dir, mask_grid_cache,
                       'be mask filled')
         return
     elif H5GridProjectionInfo.dataset_all_fill_value(h5_dataset, default_fill_value):
-        logging.debug(f'The dataset {h5_dataset.name} only contains fill value.')
-        return
-    elif H5GridProjectionInfo.dataset_all_outside_valid_range(h5_dataset):
-        logging.debug(f'The dataset {h5_dataset.name} only contains values '
-                      'outside the specified valid range.')
+        logging.debug(f'The dataset {h5_dataset.name} only contains fill value,'
+                      ' so there is no need to mask fill.')
         return
 
     # Get the mask array corresponding to the HDF5 dataset and the shapefile

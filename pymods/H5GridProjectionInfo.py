@@ -402,13 +402,19 @@ def get_valid_coordinates_extent(latitude: np.array, longitude: np.array,
                 top-right corner of the array with a non-fill value in both
                 the latitude and longitude arrays.
     """
+    # Create lists of indices matching criteria, where i and j are
+    # array indices: ([i_0, i_1, i_2], [j_0, j_1, j_2])
     data_indices_lat = np.where(latitude[()] != lat_fill_value)
     data_indices_lon = np.where(longitude[()] != lon_fill_value)
 
+    # Convert into tuples of these indices: {[i_0, j_0], [i_1, j_1], [i_2, j_2]}
+    # More infomation on zip: https://docs.python.org/3.6/library/functions.html#zip
     zipped_lat_indices = {item for item in zip(*data_indices_lat)}
     zipped_lon_indices = {item for item in zip(*data_indices_lon)}
     valid_lat_and_lon = list(zipped_lat_indices.intersection(zipped_lon_indices))
 
+    # Calculate the euclidean distance between the indices (not coordinates)
+    # of the lower left corner and each point with valid latitude and longitude.
     diff_from_lower_left = [euclidean_distance(lower_left_tuple, coordinates)
                             for coordinates
                             in valid_lat_and_lon]

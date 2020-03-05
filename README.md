@@ -1,10 +1,7 @@
 ## Overview:
 
 The `MaskFill` utility works with gridded data, applying a fill value in all pixels
-outside of a provided shape. When downloading granules from Earthdata search,
-`MaskFill` is the second step of Subset by Shape/Polygon step within the
-customizable download options. This step follows the cropping of the grid to a
-minimally surrounding bounding box.
+outside of a provided shape.
 
 The utility accepts HDF-5 files which follow CF conventions and GeoTIFFs.
 
