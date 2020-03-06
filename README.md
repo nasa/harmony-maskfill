@@ -51,3 +51,17 @@ Tests within `tests/python/test_MaskFill.py` are designed to test the full use
 of the functionality, taking an input file, creating an output file and comparing
 that output file to a template. Those within `tests/python/unit` are designed
 as more granular unit tests of the logic and behaviour of individual functions.
+
+### Unit tests in Docker:
+
+The unit tests can also be run within a Docker container:
+
+```bash
+mkdir test-reports
+docker build -f tests/Dockerfile -t maskfill
+docker run -v /full/path/to/test-reports:/home/tests/reports maskfill:latest
+```
+
+The terminal should display output from the test results, with the failures
+from `unittest`. Additionally, the XML test reports should be saved to the new
+`test-reports` directory.
