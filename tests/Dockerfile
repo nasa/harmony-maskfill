@@ -30,5 +30,8 @@ SHELL ["conda", "run", "--name", "maskfill", "/bin/bash", "-c"]
 RUN pip install -r pymods/mask_fill_pip_requirements.txt
 
 # Set the tests to run when the container is created.
+# The output is redirected from the terminal to ensure that Bamboo doesn't
+# detect output and wrongly consider there to be a failure.
 ENTRYPOINT ["conda", "run", "--name", "maskfill", "python", "-m", \
-			"xmlrunner", "discover", "tests/python", "-o", "tests/reports"]
+			"xmlrunner", "discover", "tests/python", "-o", "tests/reports", \
+			">", "tests.log", "2>&1"]
