@@ -7,14 +7,19 @@ from unittest.mock import Mock, patch
 import h5py
 import numpy as np
 
+from pymods.exceptions import InsufficientDataError
 from pymods.H5GridProjectionInfo import (BAD_FILL_VALUE_DATASETS,
                                          dataset_all_fill_value,
                                          dataset_all_outside_valid_range,
                                          euclidean_distance,
                                          extrapolate_coordinate,
+                                         get_cell_size_from_dimensions,
+                                         get_cell_size_from_lat_lon,
+                                         get_corner_points_from_dimensions,
                                          get_corner_points_from_lat_lon,
                                          get_fill_value,
                                          get_pixel_size_from_data_extent,
+                                         get_transform,
                                          get_valid_coordinates_extent)
 
 
@@ -207,7 +212,8 @@ class TestH5GridProjectionInfo(TestCase):
         """The correct pixel extents should be calculated for both dimensions,
         and if one is invalid (largely due to date being in a single column or row),
         the assumption of square pixels should be applied. Finally, if both
-        pixel scales are found to be zero, a ValueError should be raised.
+        pixel scales are found to be zero, a custom exception, InsufficientDataError,
+        should be raised.
 
         Note: Python indices for 2-D arrays are array[row][column]
 
@@ -226,29 +232,16 @@ class TestH5GridProjectionInfo(TestCase):
                 scales
             )
 
-        with self.subTest('x extent zero'):
-            same_column_indices = (upper_right_indices[0], lower_left_indices[1])
-            self.assertEqual(
-                get_pixel_size_from_data_extent(x_one, y_one, x_one, y_two,
-                                                lower_left_indices,
-                                                same_column_indices),
-                scales
-            )
+        test_args = [['x extent zero', x_one, y_one, x_one, y_two],
+                     ['y extent zero', x_one, y_one, x_two, y_one],
+                     ['both extents zero', x_one, y_one, x_one, y_one]]
 
-        with self.subTest('y extent zero'):
-            same_row_indices = (lower_left_indices[0], upper_right_indices[1])
-            self.assertEqual(
-                get_pixel_size_from_data_extent(x_one, y_one, x_two, y_one,
-                                                lower_left_indices,
-                                                same_row_indices),
-                scales
-            )
-
-        with self.subTest('both extents zero'):
-            with self.assertRaises(ValueError) as context_manager:
-                get_pixel_size_from_data_extent(x_one, y_one, x_one, y_one,
-                                                lower_left_indices,
-                                                lower_left_indices)
+        for description, x_0, y_0, x_N, y_M in test_args:
+            with self.subTest(description):
+                with self.assertRaises(InsufficientDataError) as context_manager:
+                    get_pixel_size_from_data_extent(x_0, y_0, x_N, y_M,
+                                                    lower_left_indices,
+                                                    lower_left_indices)
 
     def test_get_valid_coordinates_extent(self):
         """The indices of the points containing valid data in both arrays,
@@ -290,8 +283,8 @@ class TestH5GridProjectionInfo(TestCase):
                                             mock_get_shortname,
                                             mock_get_proj4):
         """Ensure extrapolation occurs where expected, corners with valid points
-        are used outright, and a ValueError is returned for entirely filled
-        coordinate arrays.
+        are used outright, and a InsufficientDataError is returned for entirely
+        filled coordinate arrays.
 
         This test circumvents the retrieval of the Proj4 string at the start of
         the function, as the functionality being tested is that the extrapolation
@@ -351,8 +344,8 @@ class TestH5GridProjectionInfo(TestCase):
                 self.assertAlmostEqual(y_ll, y_lower_left)
                 self.assertAlmostEqual(y_ur, y_upper_right)
 
-        with self.subTest('Entirely filled latitude should raise a ValueError'):
-            with self.assertRaises(ValueError) as context_manager:
+        with self.subTest('Entirely filled latitude should raise an InsufficientDataError'):
+            with self.assertRaises(InsufficientDataError) as context_manager:
                 lat_copy = np.copy(lat_array)
                 lon_copy = np.copy(lon_array)
                 lat_copy.fill(fill_value)
@@ -365,3 +358,170 @@ class TestH5GridProjectionInfo(TestCase):
                 data.attrs['coordinates'] = f'{lat_name} {lon_name}'.encode('utf-8')
 
                 x_ll, x_ur, y_ll, y_ur = get_corner_points_from_lat_lon(data)
+
+        h5_file.close()
+
+    def test_get_cell_size_from_dimensions(self):
+        """Given an input dataset, check the returned cell_width and cell_height."""
+        data_array = np.ones((3, 4))
+        x_array = np.array([1, 2, 3, 4])
+        y_array = np.array([2, 4, 6])
+
+        h5_file = h5py.File(self.test_h5_name, 'w')
+        data = h5_file.create_dataset('data', data=data_array)
+        x = h5_file.create_dataset('x', data=x_array)
+        y = h5_file.create_dataset('y', data=y_array)
+        data.attrs.create('DIMENSION_LIST', ((y.ref, ), (x.ref, )), dtype=h5py.ref_dtype)
+
+        cell_width, cell_height = get_cell_size_from_dimensions(data)
+
+        self.assertEqual(cell_width, 1)
+        self.assertEqual(cell_height, 2)
+
+        h5_file.close()
+
+    @patch('pymods.H5GridProjectionInfo.get_proj4')
+    @patch('pymods.H5GridProjectionInfo._get_short_name')
+    @patch('pymods.H5GridProjectionInfo._get_grid_mapping_group')
+    @patch('pymods.H5GridProjectionInfo._get_grid_mapping_data')
+    def test_get_cell_size_from_lon_lat(self, mock_get_grid_data,
+                                        mock_get_grid_group, mock_get_shortname,
+                                        mock_get_proj4):
+        """Given an input dataset, check the returned cell_width and cell_height."""
+        mock_get_proj4.return_value = {'proj': 'lonlat'}
+
+        data_array = np.ones((3, 4))
+        lon_array = np.array([[1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4]])
+        lat_array = np.array([[2, 2, 2, 2], [4, 4, 4, 4], [6, 6, 6, 6]])
+
+        h5_file = h5py.File(self.test_h5_name, 'w')
+        data = h5_file.create_dataset('data', data=data_array)
+        lon = h5_file.create_dataset('longitude', data=lon_array)
+        lat = h5_file.create_dataset('latitude', data=lat_array)
+
+        data.attrs['coordinates'] = b'/longitude /latitude'
+
+        cell_width, cell_height = get_cell_size_from_lat_lon(data)
+
+        self.assertAlmostEqual(cell_width, 1)
+        self.assertAlmostEqual(cell_height, 2)
+
+        h5_file.close()
+
+    def test_get_corner_points_from_dimensions(self):
+        """Ensure the [0, 0] and [-1, -1] corner coordinates are returned in
+        the case that they are specified via dimensions.
+
+        """
+        data_array = np.ones((3, 4))
+        x_array = np.array([1, 2, 3, 4])
+        y_array = np.array([2, 4, 6])
+
+        h5_file = h5py.File(self.test_h5_name, 'w')
+        data = h5_file.create_dataset('data', data=data_array)
+        x = h5_file.create_dataset('x', data=x_array)
+        y = h5_file.create_dataset('y', data=y_array)
+        data.attrs.create('DIMENSION_LIST', ((y.ref, ), (x.ref, )), dtype=h5py.ref_dtype)
+
+        x_0, x_N, y_0, y_M = get_corner_points_from_dimensions(data)
+
+        self.assertEqual(x_0, 1)
+        self.assertEqual(x_N, 4)
+        self.assertEqual(y_0, 2)
+        self.assertEqual(y_M, 6)
+
+        h5_file.close()
+
+    @patch('pymods.H5GridProjectionInfo.get_cell_size_from_lat_lon')
+    @patch('pymods.H5GridProjectionInfo.get_corner_points_from_lat_lon')
+    def test_get_transform_dimensions(self, mock_get_corner_points_from_lat_lon,
+                                      mock_get_cell_size_from_lat_lon):
+        """Ensure the correct Affine transformation matrix is formed for a
+        dataset that has a DIMENSION_LIST attribute. This should not call
+        `get_corner_points_from_lat_lon` or `get_cell_size_from_lat_lon`.
+
+        The expected transformation:
+
+        [[a, b, c],      [[1, 0, 2],
+         [d, e, f],   =   [0, 3, 4],
+         [g, h, i]]       [0, 0, 1]]
+
+        """
+        data_array = np.ones((3, 4))
+        x_array = np.array([2, 3, 4, 5])
+        y_array = np.array([4, 7, 10])
+
+        h5_file = h5py.File(self.test_h5_name, 'w')
+        data = h5_file.create_dataset('data', data=data_array)
+        x = h5_file.create_dataset('x', data=x_array)
+        y = h5_file.create_dataset('y', data=y_array)
+        data.attrs.create('DIMENSION_LIST', ((y.ref, ), (x.ref, )), dtype=h5py.ref_dtype)
+
+        affine_transformation = get_transform(data)
+
+        self.assertEqual(affine_transformation.a, 1)
+        self.assertEqual(affine_transformation.b, 0)
+        self.assertEqual(affine_transformation.c, 2)
+        self.assertEqual(affine_transformation.d, 0)
+        self.assertEqual(affine_transformation.e, 3)
+        self.assertEqual(affine_transformation.f, 4)
+        self.assertEqual(affine_transformation.g, 0)
+        self.assertEqual(affine_transformation.h, 0)
+        self.assertEqual(affine_transformation.i, 1)
+        mock_get_corner_points_from_lat_lon.assert_not_called()
+        mock_get_cell_size_from_lat_lon.assert_not_called()
+
+        h5_file.close()
+
+    @patch('pymods.H5GridProjectionInfo.get_cell_size_from_dimensions')
+    @patch('pymods.H5GridProjectionInfo.get_corner_points_from_dimensions')
+    @patch('pymods.H5GridProjectionInfo.get_proj4')
+    @patch('pymods.H5GridProjectionInfo._get_short_name')
+    @patch('pymods.H5GridProjectionInfo._get_grid_mapping_group')
+    @patch('pymods.H5GridProjectionInfo._get_grid_mapping_data')
+    def test_get_transform_dimensions(self, mock_get_grid_data, mock_get_grid_group,
+                                      mock_get_shortname, mock_get_proj4,
+                                      mock_get_corner_points_from_dimensions,
+                                      mock_get_cell_size_from_dimensions):
+        """Ensure the correct Affine transformation matrix is formed for a
+        dataset that uses the coordinate attribute. This should not call
+        `get_corner_points_from_dimensions` or `get_cell_size_from_dimensions`.
+
+        The expected transformation:
+
+        [[a, b, c],      [[1, 0, 2],
+         [d, e, f],   =   [0, 3, 4],
+         [g, h, i]]       [0, 0, 1]]
+
+        """
+        mock_get_proj4.return_value = {'proj': 'lonlat'}
+
+        data_array = np.ones((3, 3))
+        lon_array = np.array([[2, 3, 4], [2, 3, 4], [2, 3, 4]])
+        lat_array = np.array([[4, 4, 4], [7, 7, 7], [10, 10, 10]])
+
+        h5_file = h5py.File(self.test_h5_name, 'w')
+        data = h5_file.create_dataset('data', data=data_array)
+        lon = h5_file.create_dataset('longitude', data=lon_array)
+        lat = h5_file.create_dataset('latitude', data=lat_array)
+
+        data.attrs['coordinates'] = b'/longitude /latitude'
+        data_array = np.ones((3, 4))
+        x_array = np.array([2, 3, 4, 5])
+        y_array = np.array([4, 7, 10])
+
+        affine_transformation = get_transform(data)
+
+        self.assertEqual(affine_transformation.a, 1)
+        self.assertEqual(affine_transformation.b, 0)
+        self.assertEqual(affine_transformation.c, 2)
+        self.assertEqual(affine_transformation.d, 0)
+        self.assertEqual(affine_transformation.e, 3)
+        self.assertEqual(affine_transformation.f, 4)
+        self.assertEqual(affine_transformation.g, 0)
+        self.assertEqual(affine_transformation.h, 0)
+        self.assertEqual(affine_transformation.i, 1)
+        mock_get_corner_points_from_dimensions.assert_not_called()
+        mock_get_cell_size_from_dimensions.assert_not_called()
+
+        h5_file.close()
