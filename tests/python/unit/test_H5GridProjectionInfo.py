@@ -42,19 +42,34 @@ class TestH5GridProjectionInfo(TestCase):
         
         """
         h5_file = h5py.File(self.test_h5_name, 'w')
+        fill_value = 1.0
         dimensions = (3, 2)
-        data_ones = np.ones((3, 2))
+        data_ones = np.ones(dimensions)
+        data_zeros = np.zeros(dimensions)
         data = np.ones(dimensions)
         data[0][0] = 0
 
-        test_args = [['All elements are fill value', 'filled', data_ones, 1.0, True],
-                     ['Noelements are fill value', 'not_filled', data_ones, 0.0, False],
-                     ['Only some elements are filled', 'some_filled', data, 1.0, False]]
+        test_args = [['All elements are fill value', 'filled', data_ones, True],
+                     ['No elements are fill value', 'not_filled', data_zeros, False],
+                     ['Only some elements are filled', 'some_filled', data, False]]
 
-        for description, dataset_name, data, fill_value, result in test_args:
+        for description, dataset_name, data, result in test_args:
             with self.subTest(description):
-                dataset = h5_file.create_dataset(dataset_name, data=data, fillvalue = fill_value)
+                dataset = h5_file.create_dataset(dataset_name, data=data, fillvalue=fill_value)
                 self.assertEqual(dataset_all_fill_value(dataset, fill_value), result)
+
+        data_3d = np.stack([data_ones, data_zeros, data])
+
+        dataset_3d = h5_file.create_dataset('data_3d', data=data_3d, fillvalue=fill_value)
+
+        test_args_3d = [['3-D all band elements are fill value', 0, True],
+                        ['3-D no band elements are fill value', 1, False],
+                        ['3-D some band elements are fill value', 2, False]]
+
+        for description, band, result in test_args_3d:
+            with self.subTest(description):
+                self.assertEqual(dataset_all_fill_value(dataset_3d, fill_value, band),
+                                 result)
 
         h5_file.close()
 
@@ -178,6 +193,7 @@ class TestH5GridProjectionInfo(TestCase):
         filled_array = np.array([[fill_value, 0.1, 0.2],
                                  [fill_value, 0.1, 0.2],
                                  [fill_value, 0.1, 0.2]])
+        data_3d = np.stack([data_array, filled_array])
 
         reference_indices = (2, 2)
         target_indices = (0, 0)
@@ -188,23 +204,33 @@ class TestH5GridProjectionInfo(TestCase):
         filled_dataset = h5_file.create_dataset('filled_test',
                                                 data=filled_array,
                                                 fillvalue=fill_value)
-        
-        with self.subTest('Corner point is extrapolated'):
-            self.assertEqual(
-                extrapolate_coordinate(filled_dataset, fill_value, 'x',
-                                       filled_array[reference_indices],
-                                       reference_indices, 1,
-                                       target_indices, pixel_scale_x),
-                0.0
-            )
-        with self.subTest('Corner point has data in it, and is returned.'):
-            self.assertEqual(
-                extrapolate_coordinate(dataset, fill_value, 'x',
-                                       data_array[reference_indices],
-                                       reference_indices, 1,
-                                       target_indices, pixel_scale_x),
-                0.0
-            )
+        dataset_3d = h5_file.create_dataset('three_dim', data=data_3d, fillvalue=fill_value)
+
+        test_args_2d = [['2-D corner extrapolated.', filled_dataset],
+                        ['2-D corner has data in it.', dataset]]
+
+        for description, test_dataset in test_args_2d:
+            with self.subTest(description):
+                self.assertEqual(
+                    extrapolate_coordinate(test_dataset, fill_value, 'x',
+                                           data_array[reference_indices],
+                                           reference_indices, 1,
+                                           target_indices, pixel_scale_x),
+                    0.0
+                )
+
+        test_args_3d = [['3-D corner extrapolated.', 1],
+                        ['3-D corner has data in it.', 0]]
+
+        for description, band in test_args_3d:
+            with self.subTest(description):
+                self.assertEqual(
+                    extrapolate_coordinate(dataset_3d, fill_value, 'x',
+                                           data_3d[band][reference_indices],
+                                           (band, 2, 2), 2, (band, 0, 0),
+                                           pixel_scale_x),
+                    0.0
+                )
 
         h5_file.close()
 
@@ -220,28 +246,37 @@ class TestH5GridProjectionInfo(TestCase):
         """
         x_two, y_two = (15.0, 5.0)
         x_one, y_one = (10.0, 10.0)
-        lower_left_indices = (0, 0)
-        upper_right_indices = (5, 5)
+        ll_indices = (0, 0)
+        ur_indices = (5, 5)
+        ll_indices_3d = (0, 0, 0)
+        ur_indices_3d = (0, 5, 5)
         scales = (1.0, -1.0)
 
-        with self.subTest('Both extents non-zero'):
-            self.assertEqual(
-                get_pixel_size_from_data_extent(x_one, y_one, x_two, y_two,
-                                                lower_left_indices,
-                                                upper_right_indices),
-                scales
-            )
+        valid_test_args = [['2-D both extents non-zero', ll_indices, ur_indices],
+                           ['3-D both extents non-zero', ll_indices_3d, ur_indices_3d]]
 
-        test_args = [['x extent zero', x_one, y_one, x_one, y_two],
-                     ['y extent zero', x_one, y_one, x_two, y_one],
-                     ['both extents zero', x_one, y_one, x_one, y_one]]
+        for description, ll_inds, ur_inds in valid_test_args:
+            with self.subTest(description):
+                self.assertEqual(
+                    get_pixel_size_from_data_extent(x_one, y_one, x_two, y_two,
+                                                    ll_inds, ur_inds),
+                    scales
+                )
 
-        for description, x_0, y_0, x_N, y_M in test_args:
+        test_args = [['2-D x extent zero', x_one, y_one, x_one, y_two, ll_indices, ur_indices],
+                     ['2-D y extent zero', x_one, y_one, x_two, y_one, ll_indices, ur_indices],
+                     ['2-D both extents zero', x_one, y_one, x_one, y_one, ll_indices, ur_indices],
+                     ['3-D x extent zero', x_one, y_one, x_one, y_two, ll_indices_3d, ur_indices_3d],
+                     ['3-D y extent zero', x_one, y_one, x_two, y_one, ll_indices_3d, ur_indices_3d],
+                     ['3-D both extents zero', x_one, y_one, x_one, y_one, ll_indices_3d, ur_indices_3d],
+                     ['Divide by zero x', x_one, y_one, x_two, y_two, (0, 0), (5, 0)],
+                     ['Divide by zero y', x_one, y_one, x_two, y_two, (0, 0), (0, 5)]]
+
+        for description, x_0, y_0, x_N, y_M, ll_inds, ur_inds in test_args:
             with self.subTest(description):
                 with self.assertRaises(InsufficientDataError) as context_manager:
                     get_pixel_size_from_data_extent(x_0, y_0, x_N, y_M,
-                                                    lower_left_indices,
-                                                    lower_left_indices)
+                                                    ll_inds, ur_inds)
 
     def test_get_valid_coordinates_extent(self):
         """The indices of the points containing valid data in both arrays,
@@ -269,6 +304,20 @@ class TestH5GridProjectionInfo(TestCase):
                 lower_left_valid, upper_right_valid = get_valid_coordinates_extent(
                     data_one, data_two, fill_value, fill_value, lower_left_tuple,
                     upper_right_tuple
+                )
+                self.assertEqual(lower_left_valid, result_ll)
+                self.assertEqual(upper_right_valid, result_ur)
+
+        data_3d = np.stack([data_array, data_bad_both])
+
+        test_args = [['3-D corners valid', data_3d, data_3d, (0, 0, 0), (0, 2, 2), 0],
+                     ['3-D corner invalid', data_3d, data_3d, (1, 0, 1), (1, 1, 2), 1]]
+
+        for description, data_one, data_two, result_ll, result_ur, band in test_args:
+            with self.subTest(description):
+                lower_left_valid, upper_right_valid = get_valid_coordinates_extent(
+                    data_one, data_two, fill_value, fill_value, lower_left_tuple,
+                    upper_right_tuple, band
                 )
                 self.assertEqual(lower_left_valid, result_ll)
                 self.assertEqual(upper_right_valid, result_ur)
@@ -304,6 +353,10 @@ class TestH5GridProjectionInfo(TestCase):
                               [5.0, 10.0, 15.0, 20.0],
                               [5.0, 10.0, 15.0, 20.0]])
 
+        data_array_3d = np.stack([data_array, data_array, data_array, data_array])
+        lat_array_3d = np.stack([lat_array, lat_array, lat_array, lat_array])
+        lon_array_3d = np.stack([lon_array, lon_array, lon_array, lon_array])
+
         x_lower_left = 556597.453966368
         y_lower_left = 1113194.9079327357
         x_upper_right = 2226389.815865471
@@ -311,38 +364,55 @@ class TestH5GridProjectionInfo(TestCase):
 
         h5_file = h5py.File(self.test_h5_name, 'w')
         data = h5_file.create_dataset('data', data=data_array, fillvalue=fill_value)
+        data_3d = h5_file.create_dataset('data_3d', data=data_array_3d, fillvalue=fill_value)
 
-        test_args = [['Neither_corner_filled', False, False],
-                     ['Lower_leftcorner_filled', True, False],
-                     ['Upper_right_corner_filled', False, True],
-                     ['Both_corners_filled', True, True]]
+        test_args = [['Neither_corner_filled', False, False, False],
+                     ['Lower_leftcorner_filled', True, False, False],
+                     ['Upper_right_corner_filled', False, True, False],
+                     ['Both_corners_filled', True, True, False],
+                     ['3-D_Neither_corner_filled', False, False, True],
+                     ['3-D_Lower_leftcorner_filled', True, False, True],
+                     ['3-D_Upper_right_corner_filled', False, True, True],
+                     ['3-D_Both_corners_filled', True, True, True]]
 
-        for description, fill_ll_corner, fill_ur_corner in test_args:
+        for description, fill_ll_corner, fill_ur_corner, is_3d in test_args:
             with self.subTest(description):
-                lat_copy = np.copy(lat_array)
-                lon_copy = np.copy(lon_array)
+                if is_3d:
+                    dataset = data_3d
+                    lat_copy = np.copy(lat_array_3d)
+                    lon_copy = np.copy(lon_array_3d)
+                    lat_slice = lat_copy[0]
+                    lon_slice = lon_copy[0]
+                else:
+                    dataset = data
+                    lat_copy = np.copy(lat_array)
+                    lon_copy = np.copy(lon_array)
+                    lat_slice = lat_copy
+                    lon_slice = lon_copy
 
                 if fill_ll_corner:
-                    lat_copy[0][0] = fill_value
-                    lon_copy[0][0] = fill_value
+                    lat_slice[0][0] = fill_value
+                    lon_slice[0][0] = fill_value
 
                 if fill_ur_corner:
-                    lat_copy[-1][-1] = fill_value
-                    lon_copy[-1][-1] = fill_value
+                    lat_slice[-1][-1] = fill_value
+                    lon_slice[-1][-1] = fill_value
 
                 lat_name = f'/lat_{description}'
                 lon_name = f'/lon_{description}'
                 h5_file.create_dataset(lat_name, data=lat_copy, fillvalue=fill_value)
                 h5_file.create_dataset(lon_name, data=lon_copy, fillvalue=fill_value)
 
-                data.attrs['coordinates'] = f'{lat_name} {lon_name}'.encode('utf-8')
+                dataset.attrs['coordinates'] = f'{lat_name} {lon_name}'.encode('utf-8')
 
-                x_ll, x_ur, y_ll, y_ur = get_corner_points_from_lat_lon(data)
+                x_ll, x_ur, y_ll, y_ur = get_corner_points_from_lat_lon(dataset)
 
                 self.assertAlmostEqual(x_ll, x_lower_left)
                 self.assertAlmostEqual(x_ur, x_upper_right)
                 self.assertAlmostEqual(y_ll, y_lower_left)
                 self.assertAlmostEqual(y_ur, y_upper_right)
+
+
 
         with self.subTest('Entirely filled latitude should raise an InsufficientDataError'):
             with self.assertRaises(InsufficientDataError) as context_manager:

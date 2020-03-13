@@ -3,7 +3,7 @@
 """
 import logging
 import re
-from typing import Dict, Tuple, List
+from typing import Dict, List, Optional, Tuple
 
 import affine
 import numpy as np
@@ -15,10 +15,12 @@ from pymods.exceptions import InsufficientDataError
 
 
 BAD_FILL_VALUE_DATASETS = {
+    '/Freeze_Thaw_Retrieval_Data_Polar/latitude': -9999.0,
     '/Freeze_Thaw_Retrieval_Data_Polar/latitude.Bands_01': -9999.0,
     '/Freeze_Thaw_Retrieval_Data_Polar/latitude.Bands_02': -9999.0,
+    '/Freeze_Thaw_Retrieval_Data_Polar/longitude': -9999.0,
     '/Freeze_Thaw_Retrieval_Data_Polar/longitude.Bands_01': -9999.0,
-    '/Freeze_Thaw_Retrieval_Data_Polar/longitude.Bands_02': -9999.0
+    '/Freeze_Thaw_Retrieval_Data_Polar/longitude.Bands_02': -9999.0,
 }
 
 
@@ -225,27 +227,45 @@ def get_corner_points_from_lat_lon(h5_dataset: Dataset) \
         Returns:
             tuple: x min, x max, y min, y max
     """
+    if len(h5_dataset.shape) == 3:
+        # If there are 3 dimensions, select the first for corner point location.
+        # TODO: refactor MaskFill so each band in a 3-D dataset is reprojected
+        # and masked separately, instead of using coordinate data only from
+        # one band.
+        logging.debug('{h5_dataset.name} is 3-D, using first band for coordinates.')
+        band = 0
+    else:
+        band = None
+
     shortname = _get_short_name(h5_dataset)
     proj4_str = _get_grid_mapping_data(_get_grid_mapping_group(shortname, h5_dataset.name))
     p = Proj(get_proj4(proj4_str))
 
     lon, lat = get_lon_lat_datasets(h5_dataset)
     lon_fill_value, lat_fill_value = get_lon_lat_fill_values(h5_dataset)
-    lower_left_tuple = tuple(0 for _ in range(len(lat.shape)))
-    upper_right_tuple = tuple(extent - 1 for extent in lat.shape)
 
-    if dataset_all_fill_value(lon, None) or dataset_all_fill_value(lat, None):
+    lower_left_tuple = tuple(0 for _ in lat.shape[-2:])
+    upper_right_tuple = tuple(extent - 1 for extent in lat.shape[-2:])
+
+    if band is not None:
+        lon_corner_values = [lon[band][lower_left_tuple], lon[band][upper_right_tuple]]
+        lat_corner_values = [lat[band][lower_left_tuple], lat[band][upper_right_tuple]]
+    else:
+        lon_corner_values = [lon[lower_left_tuple], lon[upper_right_tuple]]
+        lat_corner_values = [lat[lower_left_tuple], lat[upper_right_tuple]]
+
+    if (dataset_all_fill_value(lon, None, band)
+        or dataset_all_fill_value(lat, None, band)):
         # The longitude or latitude arrays are entirely fill values
         raise InsufficientDataError('{lon.name} or {lat.name} have no valid data.')
-    elif (lon_fill_value in [lon[lower_left_tuple], lon[upper_right_tuple]]
-          or lat_fill_value in [lat[lower_left_tuple], lat[upper_right_tuple]]):
+    elif lon_fill_value in lon_corner_values or lat_fill_value in lat_corner_values:
         # At least one of the top right or bottom left have a fill value in
         # either (or both) the latitude and longitude arrays.
 
         # Get indices of the lower left and upper right points with valid coordinates
         lower_left_indices, upper_right_indices = get_valid_coordinates_extent(
             lat, lon, lat_fill_value, lon_fill_value, lower_left_tuple,
-            upper_right_tuple
+            upper_right_tuple, band
         )
 
         x_ll_data, y_ll_data = p(lon[lower_left_indices], lat[lower_left_indices])
@@ -257,33 +277,33 @@ def get_corner_points_from_lat_lon(h5_dataset: Dataset) \
             upper_right_indices
         )
 
-        if lower_left_tuple == lower_left_indices:
+        if lower_left_tuple == tuple(lower_left_indices[-2:]):
             # The bottom left corner of the array has valid lon and lat data
-            x1, y1 = p(lon[lower_left_tuple], lat[lower_left_tuple])
+            x1, y1 = p(lon_corner_values[0], lat_corner_values[0])
         else:
             x1 = extrapolate_coordinate(lon, lon_fill_value, h5_dataset.name,
-                                        x_ll_data, lower_left_indices, 1,
-                                        lower_left_tuple, pixel_scale_x)
+                                        x_ll_data, lower_left_indices, -1,
+                                        lower_left_tuple, pixel_scale_x, band)
 
             y1 = extrapolate_coordinate(lat, lat_fill_value, h5_dataset.name,
-                                        y_ll_data, lower_left_indices, 0,
-                                        lower_left_tuple, pixel_scale_y)
+                                        y_ll_data, lower_left_indices, -2,
+                                        lower_left_tuple, pixel_scale_y, band)
 
-        if upper_right_tuple == upper_right_indices:
+        if upper_right_tuple == tuple(upper_right_indices[-2:]):
             # The upper right corner of the array has valid lon and lat data
-            x2, y2 = p(lon[upper_right_tuple], lat[upper_right_tuple])
+            x2, y2 = p(lon_corner_values[1], lat_corner_values[1])
         else:
             x2 = extrapolate_coordinate(lon, lon_fill_value, h5_dataset.name,
-                                        x_ur_data, upper_right_indices, 1,
-                                        upper_right_tuple, pixel_scale_x)
+                                        x_ur_data, upper_right_indices, -1,
+                                        upper_right_tuple, pixel_scale_x, band)
 
             y2 = extrapolate_coordinate(lat, lat_fill_value, h5_dataset.name,
-                                        y_ur_data, upper_right_indices, 0,
-                                        upper_right_tuple, pixel_scale_y)
+                                        y_ur_data, upper_right_indices, -2,
+                                        upper_right_tuple, pixel_scale_y, band)
     else:
         # The bottom left and top right both have valid latitudes and longitudes
-        x1, y1 = p(lon[lower_left_tuple], lat[lower_left_tuple])
-        x2, y2 = p(lon[upper_right_tuple], lat[upper_right_tuple])
+        x1, y1 = p(lon_corner_values[0], lat_corner_values[0])
+        x2, y2 = p(lon_corner_values[1], lat_corner_values[1])
 
     return x1, x2, y1, y2
 
@@ -320,15 +340,14 @@ def get_lon_lat_arrays(h5_dataset: Dataset) \
              h5_dataset (h5py._hl.dataset.Dataset): The HDF5 dataset
         Returns:
             tuple: The x coordinate array (longitude) and the y coordinate
-               array (latitude)
+               array (latitude), if the data are 3-dimensional, return the
+               first band.
     """
     x, y = get_lon_lat_datasets(h5_dataset)
     if len(x.shape) == 2:
         return x[0], y[:, 0]
     elif len(x.shape) == 3:
         return x[0][0], y[0][:, 0]
-
-    return x[:], y[:]
 
 
 def get_lon_lat_fill_values(h5_dataset: Dataset) -> Tuple[float, float]:
@@ -382,13 +401,14 @@ def get_fill_value(h5_dataset: Dataset, default_fill_value: float) -> float:
 def get_valid_coordinates_extent(latitude: np.array, longitude: np.array,
                                  lat_fill_value: float, lon_fill_value: float,
                                  lower_left_tuple: Tuple[int],
-                                 upper_right_tuple: Tuple[int]) -> Tuple[Tuple[int]]:
+                                 upper_right_tuple: Tuple[int],
+                                 band: Optional[int]=None) -> Tuple[Tuple[int]]:
     """ Find the indices of the bottom-left-most and top-right-most points that
         do not have a fill value in either the latitude or longitude arrays.
 
         Args:
-            latitude: Numpy ndarray (2 or 3 dimensions).
-            longitude: Numpy ndarray (2 or 3 dimensions). The value for a given
+            latitude: h5py.Dataset (2 or 3 dimensions).
+            longitude: h5py.Dataset (2 or 3 dimensions). The value for a given
                 set of indices (e.g. longitude[0][0]) pairs with the
                 latitude value at the same array location (e.g. latitude[0][0]).
             lat_fill_value: Either the value taken directly from the latitude
@@ -407,10 +427,19 @@ def get_valid_coordinates_extent(latitude: np.array, longitude: np.array,
                 top-right corner of the array with a non-fill value in both
                 the latitude and longitude arrays.
     """
+    if band is not None:
+        # Three dimensional case, only considering the specified band.
+        lat_array = latitude[band][:]
+        lon_array = longitude[band][:]
+    else:
+        # Two dimensional case
+        lat_array = latitude[:]
+        lon_array = longitude[:]
+
     # Create lists of indices matching criteria, where i and j are
     # array indices: ([i_0, i_1, i_2], [j_0, j_1, j_2])
-    data_indices_lat = np.where(latitude[()] != lat_fill_value)
-    data_indices_lon = np.where(longitude[()] != lon_fill_value)
+    data_indices_lat = np.where(lat_array != lat_fill_value)
+    data_indices_lon = np.where(lon_array != lon_fill_value)
 
     # Convert into tuples of these indices: {[i_0, j_0], [i_1, j_1], [i_2, j_2]}
     # More infomation on zip: https://docs.python.org/3.6/library/functions.html#zip
@@ -426,7 +455,12 @@ def get_valid_coordinates_extent(latitude: np.array, longitude: np.array,
 
     lower_left_data = valid_lat_and_lon[diff_from_lower_left.index(min(diff_from_lower_left))]
     upper_right_data = valid_lat_and_lon[diff_from_lower_left.index(max(diff_from_lower_left))]
-    return lower_left_data, upper_right_data
+
+    if band is not None:
+        # Prepend band on to output indices.
+        return (band, ) + lower_left_data, (band, ) + upper_right_data
+    else:
+        return lower_left_data, upper_right_data
 
 
 def get_pixel_size_from_data_extent(x_lower_left: np.float32, y_lower_left: np.float32,
@@ -461,15 +495,15 @@ def get_pixel_size_from_data_extent(x_lower_left: np.float32, y_lower_left: np.f
             pixel_scale_y:
 
     """
-    if upper_right_indices[1] != lower_left_indices[1]:
+    if upper_right_indices[-1] != lower_left_indices[-1]:
         pixel_scale_x = ((x_upper_right - x_lower_left)
-                         / (upper_right_indices[1] - lower_left_indices[1]))
+                         / (upper_right_indices[-1] - lower_left_indices[-1]))
     else:
         pixel_scale_x = 0.0
 
-    if upper_right_indices[0] != lower_left_indices[0]:
+    if upper_right_indices[-2] != lower_left_indices[-2]:
         pixel_scale_y = ((y_upper_right - y_lower_left)
-                         / (upper_right_indices[0] - lower_left_indices[0]))
+                         / (upper_right_indices[-2] - lower_left_indices[-2]))
     else:
         pixel_scale_y = 0.0
 
@@ -489,7 +523,8 @@ def get_pixel_size_from_data_extent(x_lower_left: np.float32, y_lower_left: np.f
 def extrapolate_coordinate(coordinate_dataset: Dataset, coordinate_fill_value: float,
                            dataset_name: str, reference_value: float,
                            reference_indices: Tuple[int], coordinate_dim: int,
-                           target_indices: Tuple[int], pixel_scale: float) -> np.float64:
+                           target_indices: Tuple[int], pixel_scale: float,
+                           band: Optional[int]=None) -> np.float64:
     """ Extrapolate data in one dimension from a point with a known value to
         another point in an array.
 
@@ -503,8 +538,8 @@ def extrapolate_coordinate(coordinate_dataset: Dataset, coordinate_fill_value: f
                 reference point.
             coordinate_dim: Which of the dimensions in the coordinate array
                 that corresponds to a change in that coordinate:
-                latitude: 0
-                longitude: 1
+                latitude: -2
+                longitude: -1
             target_indices: The indices of the point being extrapolated to.
             pixel_scale: The change in the coordinate dimension per pixel.
         Returns:
@@ -512,7 +547,12 @@ def extrapolate_coordinate(coordinate_dataset: Dataset, coordinate_fill_value: f
                 longitude, at the target point.
 
     """
-    if coordinate_dataset[target_indices] == coordinate_fill_value:
+    if band is not None:
+        band_dataset = coordinate_dataset[band]
+    else:
+        band_dataset = coordinate_dataset
+
+    if band_dataset[target_indices] == coordinate_fill_value:
         logging.info(f'{dataset_name}: Detected fill value in '
                      f'{coordinate_dataset.name} at {target_indices}.')
         return reference_value + ((target_indices[coordinate_dim]
@@ -521,7 +561,8 @@ def extrapolate_coordinate(coordinate_dataset: Dataset, coordinate_fill_value: f
         return coordinate_dataset[target_indices]
 
 
-def dataset_all_fill_value(dataset: Dataset, default_fill_value: float) -> bool:
+def dataset_all_fill_value(dataset: Dataset, default_fill_value: float,
+                           band: Optional[int]=None) -> bool:
     """ Check if an HDF5 dataset only contains a fill value.
 
         Args:
@@ -529,11 +570,16 @@ def dataset_all_fill_value(dataset: Dataset, default_fill_value: float) -> bool:
                 attribute.
             default_fill_value: The fill value to check for if there is no
                 assigned fill value on the dataset.
+            band: If the data are three dimensional, the band to use.
         Returns:
             is_filled: boolean
     """
     fill_value = get_fill_value(dataset, default_fill_value)
-    return np.all(dataset[()] == fill_value)
+
+    if band is not None:
+        return np.all(dataset[band][:] == fill_value)
+    else:
+        return np.all(dataset[:] == fill_value)
 
 def dataset_all_outside_valid_range(dataset: Dataset) -> bool:
     """ Check if an HDF-5 dataset contains only values outside of the range
