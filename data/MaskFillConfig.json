@@ -7,8 +7,7 @@
         },
         "SPL3FT(A|P|_E)": {
             "(?i).*polar.*" : "EASE2_Polar",
-            "(?i).*global.*": "EASE2_Global",
-            ".*": "GEOGRAPHIC"
+            "(?i).*global.*": "EASE2_Global"
         }
     },
     "Grid_Mapping_Data": {

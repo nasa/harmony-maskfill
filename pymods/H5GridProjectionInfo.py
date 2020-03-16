@@ -215,7 +215,6 @@ def get_corner_points_from_dimensions(h5_dataset: Dataset) \
             tuple: x_0, x_N, y 0, y M
     """
     x, y = get_dimension_arrays(h5_dataset)
-    cell_width, cell_height = get_cell_size_from_dimensions(h5_dataset)
     return x[0], x[-1], y[0], y[-1]
 
 
