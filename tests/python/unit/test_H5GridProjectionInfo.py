@@ -482,6 +482,8 @@ class TestH5GridProjectionInfo(TestCase):
         """Ensure the [0, 0] and [-1, -1] corner coordinates are returned in
         the case that they are specified via dimensions.
 
+        Note - the corner point values are the cell corners.
+
         """
         data_array = np.ones((3, 4))
         x_array = np.array([1, 2, 3, 4])
@@ -495,10 +497,10 @@ class TestH5GridProjectionInfo(TestCase):
 
         x_0, x_N, y_0, y_M = get_corner_points_from_dimensions(data)
 
-        self.assertEqual(x_0, 1)
-        self.assertEqual(x_N, 4)
-        self.assertEqual(y_0, 2)
-        self.assertEqual(y_M, 6)
+        self.assertEqual(x_0, 0.5)
+        self.assertEqual(x_N, 4.5)
+        self.assertEqual(y_0, 1)
+        self.assertEqual(y_M, 7)
 
         h5_file.close()
 
@@ -559,8 +561,8 @@ class TestH5GridProjectionInfo(TestCase):
 
         The expected transformation:
 
-        [[a, b, c],      [[1, 0, 2],
-         [d, e, f],   =   [0, 3, 4],
+        [[a, b, c],      [[1, 0, 1.5],
+         [d, e, f],   =   [0, 3, 2.5],
          [g, h, i]]       [0, 0, 1]]
 
         """
@@ -584,10 +586,10 @@ class TestH5GridProjectionInfo(TestCase):
 
         self.assertEqual(affine_transformation.a, 1)
         self.assertEqual(affine_transformation.b, 0)
-        self.assertEqual(affine_transformation.c, 2)
+        self.assertEqual(affine_transformation.c, 1.5)
         self.assertEqual(affine_transformation.d, 0)
         self.assertEqual(affine_transformation.e, 3)
-        self.assertEqual(affine_transformation.f, 4)
+        self.assertEqual(affine_transformation.f, 2.5)
         self.assertEqual(affine_transformation.g, 0)
         self.assertEqual(affine_transformation.h, 0)
         self.assertEqual(affine_transformation.i, 1)
