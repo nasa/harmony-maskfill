@@ -176,7 +176,6 @@ def create_mask_array(h5_dataset, shape_path, shortname):
     """
     proj4 = H5GridProjectionInfo.get_hdf_proj4(h5_dataset, shortname)
     shapes = MaskFillUtil.get_projected_shapes(proj4, shape_path)
-    raster_arr = h5_dataset[:]
     transform = H5GridProjectionInfo.get_transform(h5_dataset)
 
-    return MaskFillUtil.get_mask_array(shapes, raster_arr.shape[-2:], transform)
+    return MaskFillUtil.get_mask_array(shapes, h5_dataset.shape[-2:], transform)

@@ -27,6 +27,9 @@ class TestMaskFill(TestCase):
         self.input_corner_file = 'tests/data/SMAP_L3_corners_input.h5'
         self.output_corner_file = self.create_output_file_name(self.input_corner_file)
         self.output_corner_template = 'tests/data/SMAP_L3_corners_output.h5'
+        self.input_polar_file = 'tests/data/SMAP_L3_polar_3d_input.h5'
+        self.output_polar_file = self.create_output_file_name(self.input_polar_file)
+        self.output_polar_template = 'tests/data/SMAP_L3_polar_3d_output.h5'
 
         self.default_parameters = {'debug': 'true',
                                    'fill_value': default_fill_value,
@@ -219,3 +222,28 @@ class TestMaskFill(TestCase):
                                                             self.output_corner_file))
 
         self.compare_h5_files(self.output_corner_template, self.output_corner_file)
+
+    @patch('MaskFill.get_input_parameters')
+    def test_mask_fill_h5_polar_3d(self, mock_get_input_parameters):
+        """A full test of the `mask_fill` utility using an HDF-5 input file
+        that contains SMAP L3 FTP polar data. These data are 3-dimensional,
+        such that array indices [i, j, k] corresond to:
+
+            - i: data band
+            - j: projected x
+            - k: projected y
+
+        The data use the NSIDC EASE-2 polar standard grid.
+
+        """
+        polar_parameters = self.default_parameters
+        polar_parameters['input_file'] = self.input_polar_file
+
+        mock_get_input_parameters.return_value = self.create_parameters_namespace(polar_parameters)
+        response = mask_fill()
+
+        self.assertEqual(response, get_xml_success_response(self.input_polar_file,
+                                                            self.shape_file,
+                                                            self.output_polar_file))
+
+        self.compare_h5_files(self.output_polar_template, self.output_polar_file)
