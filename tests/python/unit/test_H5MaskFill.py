@@ -26,13 +26,15 @@ class TestH5MaskFill(TestCase):
             rmtree(self.output_dir)
 
 
+    @patch('pymods.CFConfig.getShortName')
     @patch('H5MaskFill.get_mask_array')
-    def test_mask_fill_no_processing(self, mock_get_mask_array):
+    def test_mask_fill_no_processing(self, mock_get_mask_array, mock_getShortName):
         """Ensure that a dataset that fails to meet the required criteria is
         not processed in any way. Instead, the function should return prior to
         that point.
 
         """
+        mock_getShortName.return_value = 'SPL3FTP'
         h5_file = h5py.File(self.test_h5_name, 'w')
 
         test_args = [['1-d data', np.ones((3)), True, 0, -1, 2],

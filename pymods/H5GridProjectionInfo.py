@@ -14,16 +14,6 @@ from pymods import CFConfig
 from pymods.exceptions import InsufficientDataError
 
 
-BAD_FILL_VALUE_DATASETS = {
-    '/Freeze_Thaw_Retrieval_Data_Polar/latitude': -9999.0,
-    '/Freeze_Thaw_Retrieval_Data_Polar/latitude.Bands_01': -9999.0,
-    '/Freeze_Thaw_Retrieval_Data_Polar/latitude.Bands_02': -9999.0,
-    '/Freeze_Thaw_Retrieval_Data_Polar/longitude': -9999.0,
-    '/Freeze_Thaw_Retrieval_Data_Polar/longitude.Bands_01': -9999.0,
-    '/Freeze_Thaw_Retrieval_Data_Polar/longitude.Bands_02': -9999.0,
-}
-
-
 def get_hdf_proj4(h5_dataset: Dataset, shortname: str) -> str:
     # TODO: have this function call get_shortname internally
     """ Returns the proj4 string corresponding to the coordinate reference system of the HDF5 dataset.
@@ -368,6 +358,16 @@ def get_lon_lat_fill_values(h5_dataset: Dataset) -> Tuple[float, float]:
     return get_fill_value(lon_dataset, None), get_fill_value(lat_dataset, None)
 
 
+def _get_config_fill_value(h5_dataset: Dataset):
+    """Checks the global configuration object to see if an overriding fill
+    value is present for the dataset in question. If so, that value is returned,
+    otherwise, a None is returned.
+
+    """
+    short_name = _get_short_name(h5_dataset)
+    return CFConfig.get_dataset_config_fill_value(short_name, h5_dataset.name)
+
+
 def get_fill_value(h5_dataset: Dataset, default_fill_value: float) -> float:
     """ Returns the fill value for the given HDF5 dataset.
         If the HDF5 dataset has no fill value, returns the given default fill value.
@@ -386,10 +386,12 @@ def get_fill_value(h5_dataset: Dataset, default_fill_value: float) -> float:
         Returns:
             float: The fill value
     """
-    if h5_dataset.name in list(BAD_FILL_VALUE_DATASETS.keys()):
+    config_fill_value = _get_config_fill_value(h5_dataset)
+
+    if config_fill_value is not None:
         logging.debug(f'The dataset {h5_dataset.name} has a known incorrect fill '
-                      f'value. Using {BAD_FILL_VALUE_DATASETS[h5_dataset.name]} instead.')
-        return BAD_FILL_VALUE_DATASETS[h5_dataset.name]
+                      f'value. Using {config_fill_value} instead.')
+        return config_fill_value
 
     fill_value_attribute = h5_dataset.attrs.get('_FillValue')
 

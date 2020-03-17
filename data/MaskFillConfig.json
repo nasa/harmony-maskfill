@@ -1,4 +1,14 @@
 {
+    "Corrected_Fill_Value": {
+        "SPL3FT(A|P|_E)": {
+            "/Freeze_Thaw_Retrieval_Data_Polar/latitude": -9999.0,
+            "/Freeze_Thaw_Retrieval_Data_Polar/latitude.Bands_01": -9999.0,
+			"/Freeze_Thaw_Retrieval_Data_Polar/latitude.Bands_02": -9999.0,
+            "/Freeze_Thaw_Retrieval_Data_Polar/longitude": -9999.0,
+            "/Freeze_Thaw_Retrieval_Data_Polar/longitude.Bands_01": -9999.0,
+            "/Freeze_Thaw_Retrieval_Data_Polar/longitude.Bands_02": -9999.0
+        }
+    },
     "ShortNamePath": ["/Metadata/DatasetIdentification/shortName/","/METADATA/SeriesIdentification/shortName/"],
 
     "Grid_Mapping_Group": {
