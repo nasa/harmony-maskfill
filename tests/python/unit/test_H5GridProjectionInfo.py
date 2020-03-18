@@ -3,12 +3,13 @@ from os.path import isdir, join
 from shutil import rmtree
 from unittest import TestCase
 from unittest.mock import Mock, patch
+import json
 
 import h5py
 import numpy as np
 
 from pymods.exceptions import InsufficientDataError
-from pymods.H5GridProjectionInfo import (BAD_FILL_VALUE_DATASETS,
+from pymods.H5GridProjectionInfo import (_get_short_name,
                                          dataset_all_fill_value,
                                          dataset_all_outside_valid_range,
                                          euclidean_distance,
@@ -36,11 +37,14 @@ class TestH5GridProjectionInfo(TestCase):
         if isdir(self.output_dir):
             rmtree(self.output_dir)
 
-    def test_dataset_all_fill_value_fill(self):
+    @patch('pymods.CFConfig.getShortName')
+    def test_dataset_all_fill_value(self, mock_get_short_name):
         """Ensure that a dataset is correctly identified as only containing
         fill values.
         
         """
+        mock_get_short_name.return_value = 'SPL3FTP'
+
         h5_file = h5py.File(self.test_h5_name, 'w')
         fill_value = 1.0
         dimensions = (3, 2)
@@ -118,11 +122,20 @@ class TestH5GridProjectionInfo(TestCase):
 
         h5_file.close()
 
-    def test_get_fill_value(self):
+    @patch('pymods.CFConfig.getShortName')
+    def test_get_fill_value(self, mock_get_short_name):
         """The correct fill value should be returned. If it is entirely lacking,
         the default value supplied to the function should be returned instead.
         
         """
+        with open('data/MaskFillConfig.json') as file_handler:
+            config = json.load(file_handler)
+
+        bad_dataset_name = list(config['Corrected_Fill_Value']['SPL3FT(A|P|_E)'].keys())[0]
+        bad_dataset_value = config['Corrected_Fill_Value']['SPL3FT(A|P|_E)'][bad_dataset_name]
+
+        mock_get_short_name.return_value = 'SPL3FTP'
+
         data_array = np.ones((3,2))
         default_fill_value = 1.0
         fill_value_attr = 2.0
@@ -131,13 +144,12 @@ class TestH5GridProjectionInfo(TestCase):
         h5_file = h5py.File(self.test_h5_name, 'w')
 
         with self.subTest('Override default value for specific named datasets'):
-            bad_dataset = list(BAD_FILL_VALUE_DATASETS.keys())[0]
-            dataset = h5_file.create_dataset(bad_dataset,
+            dataset = h5_file.create_dataset(bad_dataset_name,
                                              data=data_array,
                                              fillvalue=fill_value_class)
             dataset.attrs['_FillValue'] = fill_value_attr
             self.assertEqual(get_fill_value(dataset, default_fill_value),
-                             BAD_FILL_VALUE_DATASETS[bad_dataset])
+                             bad_dataset_value)
 
         with self.subTest('_FillValue attribute should take precedence.'):
             dataset = h5_file.create_dataset('attribute',
@@ -329,7 +341,7 @@ class TestH5GridProjectionInfo(TestCase):
     def test_get_corner_points_from_lat_lon(self,
                                             mock_get_grid_data,
                                             mock_get_grid_group,
-                                            mock_get_shortname,
+                                            mock_get_short_name,
                                             mock_get_proj4):
         """Ensure extrapolation occurs where expected, corners with valid points
         are used outright, and a InsufficientDataError is returned for entirely
@@ -340,6 +352,7 @@ class TestH5GridProjectionInfo(TestCase):
         is consistent with expectations.
 
         """
+        mock_get_short_name.return_value = 'SPL3FTP'
         mock_get_proj4.return_value = {'proj': 'eqc'}
 
         fill_value = -1
@@ -455,9 +468,10 @@ class TestH5GridProjectionInfo(TestCase):
     @patch('pymods.H5GridProjectionInfo._get_grid_mapping_group')
     @patch('pymods.H5GridProjectionInfo._get_grid_mapping_data')
     def test_get_cell_size_from_lon_lat(self, mock_get_grid_data,
-                                        mock_get_grid_group, mock_get_shortname,
+                                        mock_get_grid_group, mock_get_short_name,
                                         mock_get_proj4):
         """Given an input dataset, check the returned cell_width and cell_height."""
+        mock_get_short_name.return_value = 'SPL3FTP'
         mock_get_proj4.return_value = {'proj': 'lonlat'}
 
         data_array = np.ones((3, 4))
@@ -552,7 +566,7 @@ class TestH5GridProjectionInfo(TestCase):
     @patch('pymods.H5GridProjectionInfo._get_grid_mapping_group')
     @patch('pymods.H5GridProjectionInfo._get_grid_mapping_data')
     def test_get_transform_dimensions(self, mock_get_grid_data, mock_get_grid_group,
-                                      mock_get_shortname, mock_get_proj4,
+                                      mock_get_short_name, mock_get_proj4,
                                       mock_get_corner_points_from_dimensions,
                                       mock_get_cell_size_from_dimensions):
         """Ensure the correct Affine transformation matrix is formed for a
@@ -566,6 +580,7 @@ class TestH5GridProjectionInfo(TestCase):
          [g, h, i]]       [0, 0, 1]]
 
         """
+        mock_get_short_name.return_value = 'SPL3FTP'
         mock_get_proj4.return_value = {'proj': 'lonlat'}
 
         data_array = np.ones((3, 3))

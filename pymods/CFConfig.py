@@ -92,6 +92,7 @@ def getShortName(input_file):
             if label in inf[shortnamePath].attrs:
                 shortName = inf[shortnamePath].attrs[label]
                 break
+
     return shortName
 
 
@@ -128,3 +129,30 @@ def getGridMappingData(mappingGroup):
     for i, (key, value) in enumerate(gridMappingData.items()):
         if re.match(key, mappingGroup):
             return value
+
+
+def get_dataset_config_fill_value(short_name: str, dataset_name: str):
+    """ Check MaskFill global configuration object for predefined FillValues.
+        These are known data issues, where the FillValue attribute in a dataset
+        does not correspond to the used value.
+
+        Args:
+            short_name: Product short name. e.g. "SPL3FTP"
+            dataset_name
+        Return:
+            value, or None if there is no corresponding value in the configuration
+            file.
+    """
+    if not isinstance(short_name, str):
+        short_name = short_name.decode()
+
+    config_fill_values = config['Corrected_Fill_Value']
+
+    for key, value in config_fill_values.items():
+        if re.match(key, short_name):
+            if dataset_name in config_fill_values[key]:
+                return config_fill_values[key][dataset_name]
+            else:
+                return None
+
+    return None
