@@ -4,7 +4,7 @@ from shutil import rmtree
 from unittest import TestCase
 from unittest.mock import patch
 
-from numpy import array, array_equal, ndarray
+from numpy import array, array_equal, ndarray, where
 from osgeo import gdal
 import h5py
 
@@ -30,6 +30,10 @@ class TestMaskFill(TestCase):
         self.input_polar_file = 'tests/data/SMAP_L3_polar_3d_input.h5'
         self.output_polar_file = self.create_output_file_name(self.input_polar_file)
         self.output_polar_template = 'tests/data/SMAP_L3_polar_3d_output.h5'
+        self.input_comparison_geo = 'tests/data/SMAP_L4_comparison.tif'
+        self.input_comparison_h5 = 'tests/data/SMAP_L4_comparison.h5'
+        self.output_comparison_geo = self.create_output_file_name(self.input_comparison_geo)
+        self.output_comparison_h5 = self.create_output_file_name(self.input_comparison_h5)
 
         self.default_parameters = {'debug': 'true',
                                    'fill_value': default_fill_value,
@@ -61,7 +65,7 @@ class TestMaskFill(TestCase):
         :type file_two_name: str
 
         """
-        dataset_one= gdal.Open(file_one_name)
+        dataset_one = gdal.Open(file_one_name)
         dataset_two = gdal.Open(file_two_name)
 
         band_one = array(dataset_one.ReadAsArray())
@@ -247,3 +251,54 @@ class TestMaskFill(TestCase):
                                                             self.output_polar_file))
 
         self.compare_h5_files(self.output_polar_template, self.output_polar_file)
+
+    @patch('MaskFill.get_input_parameters')
+    def test_mask_fill_compare_h5_geo(self, mock_get_input_parameters):
+        """Run MaskFill over the same input data in both GeoTIFF and HDF-5
+        format to ensure the output is consistent between the two methologies.
+
+        """
+        shape_file = 'tests/data/comparison.geo.json'
+
+        geotiff_parameters = self.default_parameters.copy()
+        geotiff_parameters['input_file'] = self.input_comparison_geo
+        geotiff_parameters['shape_file'] = shape_file
+
+        h5_parameters = self.default_parameters.copy()
+        h5_parameters['input_file'] = self.input_comparison_h5
+        h5_parameters['shape_file'] = shape_file
+
+        mock_get_input_parameters.side_effect = [
+            self.create_parameters_namespace(h5_parameters),
+            self.create_parameters_namespace(geotiff_parameters),
+        ]
+
+        response_h5 = mask_fill()
+        response_geo = mask_fill()
+
+        self.assertEqual(response_h5, get_xml_success_response(self.input_comparison_h5,
+                                                               shape_file,
+                                                               self.output_comparison_h5))
+        self.assertEqual(response_geo, get_xml_success_response(self.input_comparison_geo,
+                                                                shape_file,
+                                                                self.output_comparison_geo))
+
+
+        geo_dataset = gdal.Open(self.output_comparison_geo)
+        geo_array = array(geo_dataset.ReadAsArray())
+
+        h5_file = h5py.File(self.output_comparison_h5, 'r')
+        h5_array = h5_file['Analysis_Data']['sm_profile_analysis'][:]
+        h5_file.close()
+
+        # Initial (fastest) check that the arrays match in size:
+        self.assertEqual(h5_array.shape, geo_array.shape)
+
+        # Next check that the same pixels are masked/unmasked
+        good_geo = where(geo_array != -9999.0)
+        good_h5 = where(h5_array != -9999.0)
+        self.assertTrue(array_equal(good_h5[0], good_geo[0]))
+        self.assertTrue(array_equal(good_h5[1], good_geo[1]))
+
+        # Finally, check all pixel values are identical (slowest check)
+        self.assertTrue(array_equal(h5_array, geo_array))

@@ -169,6 +169,9 @@ def get_transform(h5_dataset: Dataset) -> affine.Affine:
         cell_width, cell_height = get_cell_size_from_lat_lon(h5_dataset)
         x_0, _, y_0, _ = get_corner_points_from_lat_lon(h5_dataset)
 
+        x_0 -= cell_width / 2.0
+        y_0 -= cell_height / 2.0
+
     return affine.Affine(cell_width, 0, x_0, 0, cell_height, y_0)
 
 
@@ -215,7 +218,10 @@ def get_corner_points_from_dimensions(h5_dataset: Dataset) \
             tuple: x_0, x_N, y 0, y M
     """
     x, y = get_dimension_arrays(h5_dataset)
-    return x[0], x[-1], y[0], y[-1]
+    cell_width, cell_height = get_cell_size_from_dimensions(h5_dataset)
+    x_0, x_N = x[0] - cell_width / 2.0, x[-1] + cell_width / 2.0
+    y_0, y_M = y[0] - cell_height / 2.0, y[-1] + cell_height / 2.0
+    return x_0, x_N, y_0, y_M
 
 
 def get_corner_points_from_lat_lon(h5_dataset: Dataset) \
