@@ -104,15 +104,22 @@ def mask_fill(h5_dataset, shape_path, cache_dir, mask_grid_cache,
         # Get all values in mask_filled_data excluding the fill value
         unfilled_data = mask_filled_data[np.where(mask_filled_data != fill_value)]
 
+        if unfilled_data.size > 0:
+            observed_max = np.max(unfilled_data)
+            observed_min = np.min(unfilled_data)
+            observed_mean = np.mean(unfilled_data)
+        else:
+            observed_max = observed_min = observed_mean = fill_value
+
         # Update statistics in the h5_dataset
         if h5_dataset.attrs.__contains__('observed_max'):
-            h5_dataset.attrs.modify('observed_max', max(unfilled_data))
+            h5_dataset.attrs.modify('observed_max', observed_max)
 
         if h5_dataset.attrs.__contains__('observed_min'):
-            h5_dataset.attrs.modify('observed_min', min(unfilled_data))
+            h5_dataset.attrs.modify('observed_min', observed_min)
 
         if h5_dataset.attrs.__contains__('observed_mean'):
-            h5_dataset.attrs.modify('observed_mean', np.mean(unfilled_data))
+            h5_dataset.attrs.modify('observed_mean', observed_mean)
 
         logging.debug(f'Mask filled the dataset {h5_dataset.name}')
 
