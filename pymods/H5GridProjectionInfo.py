@@ -11,7 +11,7 @@ from h5py import Dataset
 from pyproj import CRS, Proj
 
 from pymods import CFConfig
-from pymods.exceptions import InsufficientDataError
+from pymods.exceptions import InsufficientDataError, MissingCoordinateDataset
 
 
 def get_hdf_proj4(h5_dataset: Dataset, shortname: str) -> str:
@@ -70,11 +70,14 @@ def get_lon_lat_datasets(h5_dataset: Dataset) -> Tuple[Dataset, Dataset]:
     coordinate_list = re.split('[, ]', h5_dataset.attrs['coordinates'].decode())
 
     for coordinate in coordinate_list:
-        if 'lat' in coordinate:
-            latitude = h5_file[coordinate]
+        try:
+            if 'lat' in coordinate:
+                latitude = h5_file[coordinate]
 
-        if 'lon' in coordinate:
-            longitude = h5_file[coordinate]
+            if 'lon' in coordinate:
+                longitude = h5_file[coordinate]
+        except KeyError:
+            raise MissingCoordinateDataset(h5_file.filename, coordinate)
 
     return longitude, latitude
 

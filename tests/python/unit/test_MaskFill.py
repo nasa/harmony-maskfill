@@ -7,7 +7,10 @@ from unittest.mock import patch
 
 from MaskFill import (check_shapefile_geojson, default_fill_value,
                       format_parameters, get_log_file_path,
-                      validate_input_parameters)
+                      get_xml_error_response, validate_input_parameters)
+from pymods.exceptions import (InternalError, InvalidParameterValue,
+                               MissingCoordinateDataset, MissingParameterValue,
+                               NoMatchingData)
 
 
 class TestMaskFill(TestCase):
@@ -95,22 +98,17 @@ class TestMaskFill(TestCase):
 
         self.assertEqual(saved_geojson_string, geojson_string)
 
-    @patch('MaskFill.get_xml_error_response')
-    def test_validate_input_parameters_all_valid(self, mock_get_error):
-        """No error is returned when all parameters are valid."""
-        mock_get_error.return_value = 'Error'
+    def test_validate_input_parameters_all_valid(self):
+        """No exception is raised when all parameters are valid."""
         makedirs(self.output_dir)
         self.assertEqual(validate_input_parameters(self.input_h5_file,
                                                    self.shape_file,
                                                    self.output_dir,
                                                    default_fill_value,
                                                    None), None)
-        mock_get_error.assert_not_called()
 
-    @patch('MaskFill.get_xml_error_response')
-    def test_validate_input_parameters_valid_extensions(self, mock_get_error):
+    def test_validate_input_parameters_valid_extensions(self):
         """Ensure the expected input file extensions are valid."""
-        mock_get_error.return_value = 'Error'
         makedirs(self.output_dir)
 
         for extension in ['h5', 'H5', 'tif', 'TIF']:
@@ -124,12 +122,9 @@ class TestMaskFill(TestCase):
                                                            self.output_dir,
                                                            default_fill_value,
                                                            None), None)
-                mock_get_error.assert_not_called()
 
-    @patch('MaskFill.get_xml_error_response')
-    def test_validate_input_parameters_invalid_extension(self, mock_get_error):
+    def test_validate_input_parameters_invalid_extension(self):
         """Ensure invalid input file extensions are detected."""
-        mock_get_error.return_value = 'Error'
         expected_message = 'The input data file must be a GeoTIFF or HDF5 file type'
         makedirs(self.output_dir)
 
@@ -137,89 +132,60 @@ class TestMaskFill(TestCase):
         with open(input_file, 'w'):
             pass
 
-        self.assertEqual(validate_input_parameters(input_file,
-                                                   self.shape_file,
-                                                   self.output_dir,
-                                                   default_fill_value,
-                                                   None), 'Error')
-        self.assertEqual(mock_get_error.call_count, 1)
-        mock_get_error.assert_called_with(self.output_dir,
-                                          exit_status=1,
-                                          error_message=expected_message)
+        with self.assertRaises(InvalidParameterValue) as context:
+            validate_input_parameters(input_file, self.shape_file,
+                                      self.output_dir, default_fill_value,
+                                      None)
+            self.assertEqual(context.exception.message, expected_message)
 
-    @patch('MaskFill.get_xml_error_response')
-    def test_validate_input_parameters_no_input_file(self, mock_get_error):
+    def test_validate_input_parameters_no_input_file(self):
         """Validation should fail for either None or non-existant file."""
-        mock_get_error.return_value = 'Error'
         expected_message = 'An input data file is required for the mask fill utility'
         makedirs(self.output_dir)
 
         input_file = None
-        self.assertEqual(validate_input_parameters(input_file,
-                                                   self.shape_file,
-                                                   self.output_dir,
-                                                   default_fill_value,
-                                                   None), 'Error')
-        self.assertEqual(mock_get_error.call_count, 1)
-        mock_get_error.assert_called_with(self.output_dir,
-                                          exit_status=2,
-                                          error_message=expected_message)
+        with self.assertRaises(MissingParameterValue) as context:
+            validate_input_parameters(input_file, self.shape_file,
+                                      self.output_dir, default_fill_value,
+                                      None)
+            self.assertEqual(context.exception.message, expected_message)
 
-    @patch('MaskFill.get_xml_error_response')
-    def test_validate_input_parameters_bad_input_file(self, mock_get_error):
+    def test_validate_input_parameters_bad_input_file(self):
         """Validation should fail for either None or non-existant file."""
-        mock_get_error.return_value = 'Error'
         makedirs(self.output_dir)
 
         input_file = 'not_a_real_file.h5'
         expected_message = f'The path {input_file} does not exist'
-        self.assertEqual(validate_input_parameters(input_file,
-                                                   self.shape_file,
-                                                   self.output_dir,
-                                                   default_fill_value,
-                                                   None), 'Error')
-        self.assertEqual(mock_get_error.call_count, 1)
-        mock_get_error.assert_called_with(self.output_dir,
-                                          exit_status=2,
-                                          error_message=expected_message)
 
-    @patch('MaskFill.get_xml_error_response')
-    def test_validate_input_parameters_bad_shape_file(self, mock_get_error):
+        with self.assertRaises(MissingParameterValue) as context:
+            validate_input_parameters(input_file, self.shape_file,
+                                      self.output_dir, default_fill_value,
+                                      None)
+            self.assertEqual(context.exception.message, expected_message)
+
+    def test_validate_input_parameters_bad_shape_file(self):
         """Validation should fail if the shape file doesn't exist."""
-        mock_get_error.return_value = 'Error'
         makedirs(self.output_dir)
         expected_message = 'The path not_a_real_file does not exist'
 
-        self.assertEqual(validate_input_parameters(self.input_h5_file,
-                                                   'not_a_real_file',
-                                                   self.output_dir,
-                                                   default_fill_value,
-                                                   None), 'Error')
-        self.assertEqual(mock_get_error.call_count, 1)
-        mock_get_error.assert_called_with(self.output_dir,
-                                          exit_status=2,
-                                          error_message=expected_message)
+        with self.assertRaises(MissingParameterValue) as context:
+            validate_input_parameters(self.input_h5_file, 'not_a_real_file',
+                                      self.output_dir, default_fill_value,
+                                      None)
+            self.assertEqual(context.exception.message, expected_message)
 
-    @patch('MaskFill.get_xml_error_response')
-    def test_validate_input_parameters_bad_output_dir(self, mock_get_error):
+    def test_validate_input_parameters_bad_output_dir(self):
         """Validation should fail if the output directory doesn't exist."""
-        mock_get_error.return_value = 'Error'
         expected_message = f'The path {self.output_dir} does not exist'
 
-        self.assertEqual(validate_input_parameters(self.input_h5_file,
-                                                   self.shape_file,
-                                                   self.output_dir,
-                                                   default_fill_value,
-                                                   None), 'Error')
-        self.assertEqual(mock_get_error.call_count, 1)
-        mock_get_error.assert_called_with(self.output_dir,
-                                          exit_status=2,
-                                          error_message=expected_message)
+        with self.assertRaises(MissingParameterValue) as context:
+            validate_input_parameters(self.input_h5_file, self.shape_file,
+                                      self.output_dir, default_fill_value,
+                                      None)
+            self.assertEqual(context.exception.message, expected_message)
 
-    @patch('MaskFill.get_xml_error_response')
-    def test_validate_input_parameters_valid_fill_value_type(self, mock_get_error):
+    def test_validate_input_parameters_valid_fill_value_type(self):
         """Validation should only pass for floats or integers."""
-        mock_get_error.return_value = 'Error'
         makedirs(self.output_dir)
 
         for fill_value in [1, 1.234]:
@@ -228,21 +194,37 @@ class TestMaskFill(TestCase):
                                                        self.output_dir,
                                                        fill_value,
                                                        None), None)
-            mock_get_error.expect_not_called()
 
-    @patch('MaskFill.get_xml_error_response')
-    def test_validate_input_parameters_invalid_fill_value_type(self, mock_get_error):
+    def test_validate_input_parameters_invalid_fill_value_type(self):
         """Validation should fail for a string fill value."""
-        mock_get_error.return_value = 'Error'
         expected_message='The default fill value must be a number'
         makedirs(self.output_dir)
 
-        self.assertEqual(validate_input_parameters(self.input_h5_file,
-                                                   self.shape_file,
-                                                   self.output_dir,
-                                                   'not a number',
-                                                   None), 'Error')
-        self.assertEqual(mock_get_error.call_count, 1)
-        mock_get_error.assert_called_with(self.output_dir,
-                                          exit_status=1,
-                                          error_message=expected_message)
+        with self.assertRaises(InvalidParameterValue) as context:
+            validate_input_parameters(self.input_h5_file, self.shape_file,
+                                      self.output_dir, 'not a number',
+                                      None)
+            self.assertEqual(context.exception.message, expected_message)
+
+    def test_get_xml_error_response(self):
+        """Exceptions that are designed to be used in XML output should be
+        directly placed in the output message.
+
+        """
+        exception = InvalidParameterValue()
+        xml_error = get_xml_error_response(self.output_dir, exception)
+
+        for text in ['iesi:Exception', '<Code>InvalidParameterValue']:
+            self.assertTrue(text in xml_error)
+
+    def test_get_xml_error_response_non_custom(self):
+        """Exceptions that are not designed to be used in XML output should be
+        replaced with an InternalError in the output message.
+
+        """
+        exception = KeyError('latitude')
+        xml_error = get_xml_error_response(self.output_dir, exception)
+
+        for text in ['iesi:Exception', '<Code>InternalError',
+                     'KeyError(\'latitude\')']:
+            self.assertTrue(text in xml_error)

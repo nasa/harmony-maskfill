@@ -8,7 +8,7 @@ import json
 import h5py
 import numpy as np
 
-from pymods.exceptions import InsufficientDataError
+from pymods.exceptions import InsufficientDataError, MissingCoordinateDataset
 from pymods.H5GridProjectionInfo import (_get_short_name,
                                          dataset_all_fill_value,
                                          dataset_all_outside_valid_range,
@@ -19,6 +19,7 @@ from pymods.H5GridProjectionInfo import (_get_short_name,
                                          get_corner_points_from_dimensions,
                                          get_corner_points_from_lat_lon,
                                          get_fill_value,
+                                         get_lon_lat_datasets,
                                          get_pixel_size_from_data_extent,
                                          get_transform,
                                          get_valid_coordinates_extent)
@@ -612,3 +613,37 @@ class TestH5GridProjectionInfo(TestCase):
         mock_get_cell_size_from_dimensions.assert_not_called()
 
         h5_file.close()
+
+    def test_get_lon_lat_datasets(self):
+        """Ensure the coordinate datasets specified in the 'coordinates'
+        attribute are returned. If either of those datasets are absent, an
+        exception should be raised.
+
+        """
+        lat_array = np.array([[1, 1], [2, 2]])
+        lon_array = np.array([[1, 2], [1, 2]])
+        lat_name = '/latitude'
+        lon_name = '/longitude'
+        bad_lat_name = '/absent_latitude'
+        bad_lon_name = '/absent_longitude'
+
+        h5_file = h5py.File(self.test_h5_name, 'w')
+        dataset = h5_file.create_dataset('data', data=np.ones((2, 2)))
+        lat = h5_file.create_dataset(lat_name, data=lat_array)
+        lon = h5_file.create_dataset(lon_name, data=lon_array)
+        dataset.attrs['coordinates'] = f'{lat_name} {lon_name}'.encode('utf-8')
+
+        with self.subTest('latitude and longitude both present'):
+            lon_out, lat_out = get_lon_lat_datasets(dataset)
+            self.assertEqual(lon_out, lon)
+            self.assertEqual(lat_out, lat)
+
+        test_args = [[f'{lat_name} {bad_lon_name}', f'{bad_lon_name}'],
+                     [f'{bad_lat_name} {lon_name}', f'{bad_lat_name}']]
+
+        for coordinates_attr, missing_coords in test_args:
+            with self.subTest(coordinates_attr):
+                dataset.attrs['coordinates'] = coordinates_attr.encode('utf-8')
+                with self.assertRaises(MissingCoordinateDataset) as context:
+                    lon_out, lat_out = get_lon_lat_datasets(dataset)
+                    self.assertTrue(missing_coords in context.exception.message)
