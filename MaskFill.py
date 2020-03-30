@@ -34,6 +34,9 @@ import os
 import re
 import uuid
 
+from pymods.exceptions import (InternalError, InvalidParameterValue,
+                               MissingCoordinateDataset, MissingParameterValue,
+                               NoMatchingData)
 import GeotiffMaskFill
 import H5MaskFill
 
@@ -48,24 +51,25 @@ def mask_fill():
             str: An ESI standard XML string for either normal (successful) completion,
             including the download-URL for accessing the output file, or an exception response if necessary.
     """
-    # Parse, format and validate input parameters
-    args = get_input_parameters()
-    input_file, shape_file, output_dir, identifier, mask_grid_cache, fill_value, debug = format_parameters(args)
-
-    output_dir = os.path.join(output_dir, identifier)
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    configure_logger(output_dir)
-
-    error_message = validate_input_parameters(input_file, shape_file, output_dir, fill_value, debug)
-    if error_message is not None:
-        return error_message
-
-    # Perform mask fill according to input file type
-    input_extension = os.path.splitext(input_file)[1].lower()
-
     try:
+        # Parse, format and validate input parameters
+        args = get_input_parameters()
+        input_file, shape_file, output_dir, identifier, mask_grid_cache, fill_value, debug = format_parameters(args)
+
+        output_dir = os.path.join(output_dir, identifier)
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        configure_logger(output_dir)
+
+        error_message = validate_input_parameters(input_file, shape_file,
+                                                  output_dir, fill_value, debug)
+        if error_message is not None:
+            return error_message
+
+        # Perform mask fill according to input file type
+        input_extension = os.path.splitext(input_file)[1].lower()
+
         # GeoTIFF case
         if input_extension == '.tif':
             logging.info(f'Performing mask fill with GeoTIFF {input_file} and shapefile {shape_file}')
@@ -76,12 +80,9 @@ def mask_fill():
             logging.info(f'Performing mask fill with HDF5 file {input_file} and shapefile {shape_file}')
             output_file = H5MaskFill.produce_masked_hdf(input_file, shape_file, output_dir, output_dir, mask_grid_cache,
                                                         fill_value)
-    except Exception as e:
-        # Logs stack traceback
-        logging.exception(e)
-        return get_xml_error_response(output_dir, error_message=repr(e))
-
-    return get_xml_success_response(input_file, shape_file, output_file)
+        return get_xml_success_response(input_file, shape_file, output_file)
+    except Exception as exception:
+        return get_xml_error_response(output_dir, exception)
 
 
 def configure_logger(output_dir):
@@ -161,25 +162,21 @@ def validate_input_parameters(input_file, shape_file, output_dir, fill_value, de
 
     for file_type in required_files:
         if file_type[0] is None:
-            error_message = f"{file_type[1]} is required for the mask fill utility"
-            return get_xml_error_response(output_dir, exit_status=2, error_message=error_message)
+            raise MissingParameterValue(f'{file_type[1]} is required for the mask fill utility')
 
     # Ensure the input file and shape file are valid file types
     if not os.path.splitext(input_file)[1].lower() in [".tif", ".h5"]:
-        error_message = "The input data file must be a GeoTIFF or HDF5 file type"
-        return get_xml_error_response(output_dir, exit_status=1, error_message=error_message)
+        raise InvalidParameterValue('The input data file must be a GeoTIFF or HDF5 file type')
 
     # Ensure that all given paths exist
     for path in {input_file, shape_file, output_dir}:
         if not os.path.exists(path):
-            error_message = f"The path {path} does not exist"
-            return get_xml_error_response(output_dir, exit_status=2, error_message=error_message)
+            raise MissingParameterValue(f'The path {path} does not exist')
 
     shape_file = check_shapefile_geojson(shape_file, output_dir)
     # Ensure that fill_value is a float
     if not isinstance(fill_value, (float, int)):
-        error_message = "The default fill value must be a number"
-        return get_xml_error_response(output_dir, exit_status=1, error_message=error_message)
+        raise InvalidParameterValue('The default fill value must be a number')
 
     # Set logging level to DEBUG if the input parameter is true
     if debug is not None and debug.lower() == 'true':
@@ -209,46 +206,33 @@ def format_parameters(params):
             for param in parameters)
 
 
-def get_xml_error_response(output_dir, exit_status=None, error_message=None, code="InternalError"):
+def get_xml_error_response(output_dir: str, raised_exception: Exception) -> str:
     """ Returns an XML error response corresponding to the input exit status, error message, and code.
         If no code is given, the default code will be InternalError; if no error message is given, the default error
         message will be "An internal error occurred."
 
         Args:
-            exit_status (int): A number which represents the type of error: 1 (invalid parameter error),
-                2 (missing parameter error), or 3 (no matching data error); if none of the above, defaults to None
-            error_message (str): A message describing the reason for the error;
-                if None, defaults to "An internal error occurred"
-            code (str): A code which describes the type of error;
-                if the exit status is 1, defaults to "InvalidParameterValue";
-                if the exit status is 2, defaults to "MissingParameterValue";
-                if the exit status is 3, defaults to "NoMatchingData"
-                if no other information is given, defaults to "InternalError"
+            output_dir: Where the products and log of MaskFill should be saved.
+            raised_exception: An Exception describing the reason for the error;
+                if not a MaskFill custom exception, defaults to InternalError.
+
+                * Exit status 1: InvalidParameterValue
+                * Exit status 2: MissingParameterValue
+                * Exit status 3: NoMatchingData
+                * Exit status 4: MissingCoordinateDataset
 
         Returns:
             str: An ESI standard XML error response
     """
-    if exit_status == 1:
-        code = "InvalidParameterValue"
-        if error_message is None:
-            error_message = "Incorrect parameter specified for given dataset(s)."
-    elif exit_status == 2:
-        code = "MissingParameterValue"
-        if error_message is None:
-            error_message = "No parameter value(s) specified for given dataset(s)."
-    elif exit_status == 3:
-        code = "NoMatchingData"
-        if error_message is None:
-            error_message = "No data found that matched the subset constraints."
-    else:
-        exit_status = None
+    if not isinstance(raised_exception, (InvalidParameterValue,
+                                         MissingCoordinateDataset,
+                                         MissingParameterValue,
+                                         NoMatchingData)):
+        raised_exception = InternalError(repr(raised_exception))
 
-    if error_message is None:
-        error_message = "An internal error occurred."
+    logging.error(raised_exception.message)
 
-    logging.error(error_message)
-
-    xml_response = f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+    return f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
     <iesi:Exception
         xmlns:iesi="http://eosdis.nasa.gov/esi/rsp/i"
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -257,15 +241,13 @@ def get_xml_error_response(output_dir, exit_status=None, error_message=None, cod
         xmlns:eesi="http://eosdis.nasa.gov/esi/rsp/e"
         xsi:schemaLocation="http://eosdis.nasa.gov/esi/rsp/i
         http://newsroom.gsfc.nasa.gov/esi/8.1/schemas/ESIAgentResponseInternal.xsd">
-        <Code>{code}</Code>
+        <Code>{raised_exception.exception_type}</Code>
         <Message>
-                {error_message}
-                MaskFillUtility failed with code {exit_status}
+                {raised_exception.message}
+                MaskFillUtility failed with code {raised_exception.exit_status}
                 Log file path: {get_log_file_path(output_dir)}
         </Message>
     </iesi:Exception>"""
-
-    return xml_response
 
 
 def get_xml_success_response(input_file, shape_file, output_file):
