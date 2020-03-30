@@ -226,5 +226,5 @@ class TestMaskFill(TestCase):
         xml_error = get_xml_error_response(self.output_dir, exception)
 
         for text in ['iesi:Exception', '<Code>InternalError',
-                     'KeyError(\'latitude\')']:
+                     'KeyError(\'latitude\'']:
             self.assertTrue(text in xml_error)
