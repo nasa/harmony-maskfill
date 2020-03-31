@@ -59,7 +59,7 @@ def get_hdf_proj4(h5_dataset: Dataset, shortname: str) -> str:
     else:
         logging.debug(f'Dataset {h5_dataset.name} has no projection '
                       'information; using default projection information for the '
-                      '{shortname} collection.')
+                      f'{shortname} collection.')
         return get_proj4(grid_mapping)
 
 
