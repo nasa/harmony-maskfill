@@ -17,6 +17,19 @@ class InsufficientDataError(CustomError):
         super().__init__('InsufficientDataError', message, None)
 
 
+class InsufficientProjectionInformation(CustomError):
+    """Exception raised when there is no projection information in an input
+    granule, and the granule's collection does not have default projection
+    information in the global MaskFill configuration file.
+
+    """
+    def __init__(self, dataset_name):
+        super().__init__('InsufficientProjectionInformation',
+                         ('Cannot find projection information for dataset: '
+                          f'{dataset_name}.'),
+                         None)
+
+
 class InternalError(CustomError):
     """This Exception is used as a default for when a standard (non-MaskFill
     specific) exception is raised. This Exception is used in output error

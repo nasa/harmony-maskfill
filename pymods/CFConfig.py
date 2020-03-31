@@ -2,6 +2,7 @@
     Allows processing of hdf-5 files that do not fully follow the CF conventions
     Where the configuration file provides the missing information.
 '''
+from typing import Dict, Optional, Union
 import json
 import re
 
@@ -96,39 +97,25 @@ def getShortName(input_file):
     return shortName
 
 
-def getGridMappingGroup(shortName, datasetName):
-    """ Get grid mapping group projection for CF-Compliance
+def get_grid_mapping_data(short_name: Union[bytes, str],
+                          dataset_name: str) -> Optional[Dict[str, str]]:
+    """ Get grid mapping data, if present, for CF-Compliance
         Args:
-            shortName(string): product short name
+            short_name: collection short name (e.g. SPL3FTP).
+            dataset_name: string identifier for specific dataset.
         Return:
-            grid mapping group projection
+            grid mapping information, or None if absent.
     """
-    gridMappingGroups = config["Grid_Mapping_Group"]
-    mappingGroup = ""
-    for i, (key, value) in enumerate(gridMappingGroups.items()):
-        if not isinstance(shortName, str):
-            shortName = shortName.decode()
+    if not isinstance(short_name, str):
+        short_name = short_name.decode()
 
-        if re.match(key, shortName):
-            for j, (key2, value2) in enumerate(value.items()):
-                if re.match(key2, datasetName):
-                    mappingGroup = value2
-                    break
-            break
-    return mappingGroup
+    for collection_key, collection in config['Grid_Mapping_Group'].items():
+        if re.match(collection_key, short_name):
+            for dataset_key, grid_mapping_data in collection.items():
+                if re.match(dataset_key, dataset_name):
+                    return config['Grid_Mapping_Data'].get(grid_mapping_data)
 
-
-def getGridMappingData(mappingGroup):
-    """ Get grip mapping data for CF-Compliance
-        Args:
-            mappingGroup(string): mapping group projection
-        Return:
-            grid mapping information
-    """
-    gridMappingData = config["Grid_Mapping_Data"]
-    for i, (key, value) in enumerate(gridMappingData.items()):
-        if re.match(key, mappingGroup):
-            return value
+    return None
 
 
 def get_dataset_config_fill_value(short_name: str, dataset_name: str):
