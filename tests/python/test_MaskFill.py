@@ -283,7 +283,6 @@ class TestMaskFill(TestCase):
                                                                 shape_file,
                                                                 self.output_comparison_geo))
 
-
         geo_dataset = gdal.Open(self.output_comparison_geo)
         geo_array = array(geo_dataset.ReadAsArray())
 

@@ -36,7 +36,6 @@ class TestH5GridProjectionInfo(TestCase):
         mkdir(self.output_dir)
         self.test_h5_name = join(self.output_dir, 'test_output.h5')
 
-
     def tearDown(self):
         """Clean up test artifacts after each test."""
         if isdir(self.output_dir):
@@ -46,7 +45,7 @@ class TestH5GridProjectionInfo(TestCase):
     def test_dataset_all_fill_value(self, mock_get_short_name):
         """Ensure that a dataset is correctly identified as only containing
         fill values.
-        
+
         """
         mock_get_short_name.return_value = 'SPL3FTP'
 
@@ -85,10 +84,10 @@ class TestH5GridProjectionInfo(TestCase):
     def test_dataset_all_outside_valid_range(self):
         """Ensure correct detection of when data in a Dataset all lies outside
         the valid range specified by the `valid_min` and `valid_max` attributes.
-        
+
         Note, this function should also handle cases where only one of the
         attributes is present, or when neither are.
-        
+
         """
         data_array = np.array([[3, 2, 3], [3, 3, 3], [6, 6, 6]])
         h5_file = h5py.File(self.test_h5_name, 'w')
@@ -131,7 +130,7 @@ class TestH5GridProjectionInfo(TestCase):
     def test_get_fill_value(self, mock_get_short_name):
         """The correct fill value should be returned. If it is entirely lacking,
         the default value supplied to the function should be returned instead.
-        
+
         """
         with open('data/MaskFillConfig.json') as file_handler:
             config = json.load(file_handler)
@@ -141,7 +140,7 @@ class TestH5GridProjectionInfo(TestCase):
 
         mock_get_short_name.return_value = 'SPL3FTP'
 
-        data_array = np.ones((3,2))
+        data_array = np.ones((3, 2))
         default_fill_value = 1.0
         fill_value_attr = 2.0
         fill_value_class = 3.0
@@ -184,7 +183,7 @@ class TestH5GridProjectionInfo(TestCase):
         """The correct distance between two tuples of points should be calculated,
         or if the dimensions of the tuples do not match, there should be a None
         return.
-        
+
         """
         tuple_one = (0, 0, 0)
         tuple_two = (4, 3, 12)
@@ -203,7 +202,7 @@ class TestH5GridProjectionInfo(TestCase):
         extrapolated to contains a fill value, then a coordinate should be
         calculated. If it doesn't contain the fill value, it should return
         the array value at the requested indices.
-        
+
         """
         fill_value = -9999.0
         data_array = np.array([[0.0, 0.1, 0.2], [0.0, 0.1, 0.2], [0.0, 0.1, 0.2]])
@@ -427,8 +426,6 @@ class TestH5GridProjectionInfo(TestCase):
                 self.assertAlmostEqual(x_ur, x_upper_right)
                 self.assertAlmostEqual(y_ll, y_lower_left)
                 self.assertAlmostEqual(y_ur, y_upper_right)
-
-
 
         with self.subTest('Entirely filled latitude should raise an InsufficientDataError'):
             with self.assertRaises(InsufficientDataError) as context_manager:

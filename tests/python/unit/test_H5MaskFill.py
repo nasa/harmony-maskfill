@@ -25,7 +25,6 @@ class TestH5MaskFill(TestCase):
         if isdir(self.output_dir):
             rmtree(self.output_dir)
 
-
     @patch('pymods.CFConfig.getShortName')
     @patch('H5MaskFill.get_mask_array')
     def test_mask_fill_no_processing(self, mock_get_mask_array, mock_getShortName):
@@ -52,5 +51,5 @@ class TestH5MaskFill(TestCase):
 
                 mask_fill(dataset, self.shape_file, self.cache_dir, 'maskgrid_only',
                           fill_value, self.saved_mask_arrays, self.shortname)
-                
+
                 mock_get_mask_array.assert_not_called()

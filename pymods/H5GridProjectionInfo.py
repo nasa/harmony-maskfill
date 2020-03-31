@@ -220,8 +220,8 @@ def get_cell_size_from_lat_lon(h5_dataset: Dataset) -> Tuple[float, float]:
     """
     x, y = get_lon_lat_arrays(h5_dataset)
     x_0, x_N, y_0, y_M = get_corner_points_from_lat_lon(h5_dataset)
-    cell_height = (y_M - y_0)/(len(y) - 1)
-    cell_width = (x_N - x_0)/(len(x) - 1)
+    cell_height = (y_M - y_0) / (len(y) - 1)
+    cell_width = (x_N - x_0) / (len(x) - 1)
     return cell_width, cell_height
 
 
@@ -275,8 +275,10 @@ def get_corner_points_from_lat_lon(h5_dataset: Dataset) \
         lon_corner_values = [lon[lower_left_tuple], lon[upper_right_tuple]]
         lat_corner_values = [lat[lower_left_tuple], lat[upper_right_tuple]]
 
-    if (dataset_all_fill_value(lon, None, band)
-        or dataset_all_fill_value(lat, None, band)):
+    if (
+        dataset_all_fill_value(lon, None, band)
+        or dataset_all_fill_value(lat, None, band)
+    ):
         # The longitude or latitude arrays are entirely fill values
         raise InsufficientDataError('{lon.name} or {lat.name} have no valid data.')
     elif lon_fill_value in lon_corner_values or lat_fill_value in lat_corner_values:
@@ -435,7 +437,7 @@ def get_valid_coordinates_extent(latitude: np.array, longitude: np.array,
                                  lat_fill_value: float, lon_fill_value: float,
                                  lower_left_tuple: Tuple[int],
                                  upper_right_tuple: Tuple[int],
-                                 band: Optional[int]=None) -> Tuple[Tuple[int]]:
+                                 band: Optional[int] = None) -> Tuple[Tuple[int]]:
     """ Find the indices of the bottom-left-most and top-right-most points that
         do not have a fill value in either the latitude or longitude arrays.
 
@@ -557,7 +559,7 @@ def extrapolate_coordinate(coordinate_dataset: Dataset, coordinate_fill_value: f
                            dataset_name: str, reference_value: float,
                            reference_indices: Tuple[int], coordinate_dim: int,
                            target_indices: Tuple[int], pixel_scale: float,
-                           band: Optional[int]=None) -> np.float64:
+                           band: Optional[int] = None) -> np.float64:
     """ Extrapolate data in one dimension from a point with a known value to
         another point in an array.
 
@@ -595,7 +597,7 @@ def extrapolate_coordinate(coordinate_dataset: Dataset, coordinate_fill_value: f
 
 
 def dataset_all_fill_value(dataset: Dataset, default_fill_value: float,
-                           band: Optional[int]=None) -> bool:
+                           band: Optional[int] = None) -> bool:
     """ Check if an HDF5 dataset only contains a fill value.
 
         Args:
@@ -613,6 +615,7 @@ def dataset_all_fill_value(dataset: Dataset, default_fill_value: float,
         return np.all(dataset[band][:] == fill_value)
     else:
         return np.all(dataset[:] == fill_value)
+
 
 def dataset_all_outside_valid_range(dataset: Dataset) -> bool:
     """ Check if an HDF-5 dataset contains only values outside of the range
