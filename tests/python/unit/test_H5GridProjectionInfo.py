@@ -8,7 +8,9 @@ import json
 import h5py
 import numpy as np
 
-from pymods.exceptions import InsufficientDataError, MissingCoordinateDataset
+from pymods.exceptions import (InsufficientDataError,
+                               InsufficientProjectionInformation,
+                               MissingCoordinateDataset)
 from pymods.H5GridProjectionInfo import (_get_short_name,
                                          dataset_all_fill_value,
                                          dataset_all_outside_valid_range,
@@ -18,7 +20,9 @@ from pymods.H5GridProjectionInfo import (_get_short_name,
                                          get_cell_size_from_lat_lon,
                                          get_corner_points_from_dimensions,
                                          get_corner_points_from_lat_lon,
+                                         get_dimension_datasets,
                                          get_fill_value,
+                                         get_hdf_proj4,
                                          get_lon_lat_datasets,
                                          get_pixel_size_from_data_extent,
                                          get_transform,
@@ -32,7 +36,6 @@ class TestH5GridProjectionInfo(TestCase):
         mkdir(self.output_dir)
         self.test_h5_name = join(self.output_dir, 'test_output.h5')
 
-
     def tearDown(self):
         """Clean up test artifacts after each test."""
         if isdir(self.output_dir):
@@ -42,7 +45,7 @@ class TestH5GridProjectionInfo(TestCase):
     def test_dataset_all_fill_value(self, mock_get_short_name):
         """Ensure that a dataset is correctly identified as only containing
         fill values.
-        
+
         """
         mock_get_short_name.return_value = 'SPL3FTP'
 
@@ -81,10 +84,10 @@ class TestH5GridProjectionInfo(TestCase):
     def test_dataset_all_outside_valid_range(self):
         """Ensure correct detection of when data in a Dataset all lies outside
         the valid range specified by the `valid_min` and `valid_max` attributes.
-        
+
         Note, this function should also handle cases where only one of the
         attributes is present, or when neither are.
-        
+
         """
         data_array = np.array([[3, 2, 3], [3, 3, 3], [6, 6, 6]])
         h5_file = h5py.File(self.test_h5_name, 'w')
@@ -127,7 +130,7 @@ class TestH5GridProjectionInfo(TestCase):
     def test_get_fill_value(self, mock_get_short_name):
         """The correct fill value should be returned. If it is entirely lacking,
         the default value supplied to the function should be returned instead.
-        
+
         """
         with open('data/MaskFillConfig.json') as file_handler:
             config = json.load(file_handler)
@@ -137,7 +140,7 @@ class TestH5GridProjectionInfo(TestCase):
 
         mock_get_short_name.return_value = 'SPL3FTP'
 
-        data_array = np.ones((3,2))
+        data_array = np.ones((3, 2))
         default_fill_value = 1.0
         fill_value_attr = 2.0
         fill_value_class = 3.0
@@ -180,7 +183,7 @@ class TestH5GridProjectionInfo(TestCase):
         """The correct distance between two tuples of points should be calculated,
         or if the dimensions of the tuples do not match, there should be a None
         return.
-        
+
         """
         tuple_one = (0, 0, 0)
         tuple_two = (4, 3, 12)
@@ -199,7 +202,7 @@ class TestH5GridProjectionInfo(TestCase):
         extrapolated to contains a fill value, then a coordinate should be
         calculated. If it doesn't contain the fill value, it should return
         the array value at the requested indices.
-        
+
         """
         fill_value = -9999.0
         data_array = np.array([[0.0, 0.1, 0.2], [0.0, 0.1, 0.2], [0.0, 0.1, 0.2]])
@@ -337,11 +340,9 @@ class TestH5GridProjectionInfo(TestCase):
 
     @patch('pymods.H5GridProjectionInfo.get_proj4')
     @patch('pymods.H5GridProjectionInfo._get_short_name')
-    @patch('pymods.H5GridProjectionInfo._get_grid_mapping_group')
     @patch('pymods.H5GridProjectionInfo._get_grid_mapping_data')
     def test_get_corner_points_from_lat_lon(self,
                                             mock_get_grid_data,
-                                            mock_get_grid_group,
                                             mock_get_short_name,
                                             mock_get_proj4):
         """Ensure extrapolation occurs where expected, corners with valid points
@@ -426,8 +427,6 @@ class TestH5GridProjectionInfo(TestCase):
                 self.assertAlmostEqual(y_ll, y_lower_left)
                 self.assertAlmostEqual(y_ur, y_upper_right)
 
-
-
         with self.subTest('Entirely filled latitude should raise an InsufficientDataError'):
             with self.assertRaises(InsufficientDataError) as context_manager:
                 lat_copy = np.copy(lat_array)
@@ -466,11 +465,9 @@ class TestH5GridProjectionInfo(TestCase):
 
     @patch('pymods.H5GridProjectionInfo.get_proj4')
     @patch('pymods.H5GridProjectionInfo._get_short_name')
-    @patch('pymods.H5GridProjectionInfo._get_grid_mapping_group')
     @patch('pymods.H5GridProjectionInfo._get_grid_mapping_data')
     def test_get_cell_size_from_lon_lat(self, mock_get_grid_data,
-                                        mock_get_grid_group, mock_get_short_name,
-                                        mock_get_proj4):
+                                        mock_get_short_name, mock_get_proj4):
         """Given an input dataset, check the returned cell_width and cell_height."""
         mock_get_short_name.return_value = 'SPL3FTP'
         mock_get_proj4.return_value = {'proj': 'lonlat'}
@@ -564,9 +561,8 @@ class TestH5GridProjectionInfo(TestCase):
     @patch('pymods.H5GridProjectionInfo.get_corner_points_from_dimensions')
     @patch('pymods.H5GridProjectionInfo.get_proj4')
     @patch('pymods.H5GridProjectionInfo._get_short_name')
-    @patch('pymods.H5GridProjectionInfo._get_grid_mapping_group')
     @patch('pymods.H5GridProjectionInfo._get_grid_mapping_data')
-    def test_get_transform_dimensions(self, mock_get_grid_data, mock_get_grid_group,
+    def test_get_transform_dimensions(self, mock_get_grid_data,
                                       mock_get_short_name, mock_get_proj4,
                                       mock_get_corner_points_from_dimensions,
                                       mock_get_cell_size_from_dimensions):
@@ -647,3 +643,77 @@ class TestH5GridProjectionInfo(TestCase):
                 with self.assertRaises(MissingCoordinateDataset) as context:
                     lon_out, lat_out = get_lon_lat_datasets(dataset)
                     self.assertTrue(missing_coords in context.exception.message)
+
+    def test_get_hdf_proj4(self):
+        """Ensure that a Proj4 string is returned, where possible. The order
+        of projection information should be: DIMENSION_LIST, grid_mapping,
+        configuration file or raise an exception.
+
+        """
+        with open('data/MaskFillConfig.json') as file_handler:
+            config = json.load(file_handler)
+
+        global_proj4 = config['Grid_Mapping_Data']['EASE2_Global']
+        dim_x_name = '/x'
+        dim_y_name = '/y'
+        short_name = 'SPL3FTP'
+        dataset_name = '/Freeze_Thaw_Retrieval_polar/latitude'
+
+        h5_file = h5py.File(self.test_h5_name, 'w')
+        dataset = h5_file.create_dataset('data', data=np.ones((2, 2)))
+        config_dataset = h5_file.create_dataset(dataset_name, data=np.ones((2, 2)))
+        dim_x = h5_file.create_dataset(dim_x_name, data=np.ones((2, )))
+        dim_y = h5_file.create_dataset(dim_y_name, data=np.ones((3, )))
+        grid_mapping = h5_file.create_dataset('grid_mapping', (10, ))
+        grid_mapping.attrs.update(global_proj4)
+
+        with self.subTest('No information, raises an exception.'):
+            with self.assertRaises(InsufficientProjectionInformation):
+                proj4 = get_hdf_proj4(dataset, 'RANDOMSHORTNAME')
+
+        with self.subTest('No information, uses configured defaults.'):
+            proj4 = get_hdf_proj4(config_dataset, short_name)
+            self.assertTrue(proj4.startswith('+proj=laea'))
+
+        with self.subTest('grid_mapping attribute present.'):
+            config_dataset.attrs['grid_mapping'] = grid_mapping.ref
+            proj4 = get_hdf_proj4(config_dataset, short_name)
+            self.assertTrue(proj4.startswith('+proj=cea'))
+
+        with self.subTest('DIMENSION_LIST present, units degrees.'):
+            dim_x.attrs['units'] = bytes('degrees', 'utf-8')
+            config_dataset.attrs.create('DIMENSION_LIST',
+                                        ((dim_x.ref, ), (dim_y.ref, )),
+                                        dtype=h5py.ref_dtype)
+            proj4 = get_hdf_proj4(config_dataset, short_name)
+            self.assertTrue(proj4.startswith('+proj=longlat'))
+
+        with self.subTest('DIMENSION_LIST, non degrees falls back to grid_mapping.'):
+            dim_x.attrs['units'] = bytes('metres', 'utf-8')
+            proj4 = get_hdf_proj4(config_dataset, short_name)
+            self.assertTrue(proj4.startswith('+proj=cea'))
+
+    def test_get_dimension_datasets(self):
+        """If a dataset has a DIMENSION_LIST attribute, the listed references
+        should be extracted and returned. Otherwise, the function should return
+        None.
+
+        """
+        dim_x_name = '/x'
+        dim_y_name = '/y'
+
+        h5_file = h5py.File(self.test_h5_name, 'w')
+        dataset = h5_file.create_dataset('data', data=np.ones((3, 2)))
+        dim_x = h5_file.create_dataset(dim_x_name, data=np.ones((2, )))
+        dim_y = h5_file.create_dataset(dim_y_name, data=np.ones((3, )))
+
+        with self.subTest('No DIMENSION_LIST'):
+            self.assertEqual(get_dimension_datasets(dataset), None)
+
+        with self.subTest('Valid DIMENSION_LIST'):
+            dataset.attrs.create('DIMENSION_LIST', ((dim_y.ref, ),
+                                 (dim_x.ref, )), dtype=h5py.ref_dtype)
+
+            dim_x_out, dim_y_out = get_dimension_datasets(dataset)
+            self.assertEqual(dim_x_out, dim_x)
+            self.assertEqual(dim_y_out, dim_y)

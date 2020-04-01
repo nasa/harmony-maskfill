@@ -19,19 +19,19 @@ POLAR_CRS_TRANSFORM = Transformer.from_crs(POLAR_PROJ, LAT_LONG_PROJ)
 
 
 class Ease2GridResolution(Enum):
-    r_3K    = 3000
-    r_5K    = 5000
+    r_3K = 3000
+    r_5K = 5000
     r_6_25K = 6250
-    r_9K    = 9000
-    r_10K   = 10_000
+    r_9K = 9000
+    r_10K = 10_000
     r_12_5K = 12_500
-    r_25K   = 25_000
-    r_36K   = 36_000
-    r_100K  = 100_000
+    r_25K = 25_000
+    r_36K = 36_000
+    r_100K = 100_000
 
 
 class Ease2GridType(Enum):
-    t_polar  = 'LAEA'
+    t_polar = 'LAEA'
     t_global = 'CEA'
 
 
@@ -49,7 +49,7 @@ EASE2_GRIDS = {
             {'cols': 11_568, 'rows': 1_624,
              'ul_x': -17_367_530.4, 'ul_y': 7_314_540.83,
              'cell_width': 3_002.68507, 'cell_height': -3_002.68507}
-        },
+    },
     Ease2GridType.t_polar: {
         Ease2GridResolution.r_36K:
             {'cols': 500, 'rows': 500,
@@ -63,8 +63,8 @@ EASE2_GRIDS = {
             {'cols': 6_000, 'rows': 6_000,
              'ul_x': -900_000, 'ul_y': 900_000,
              'cell_width': 3_000, 'cell_height': -3_000}
-        }
     }
+}
 
 
 class Ease2Grid:

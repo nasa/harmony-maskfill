@@ -3,7 +3,7 @@
 """
 import logging
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 import affine
 import numpy as np
@@ -11,34 +11,56 @@ from h5py import Dataset
 from pyproj import CRS, Proj
 
 from pymods import CFConfig
-from pymods.exceptions import InsufficientDataError, MissingCoordinateDataset
+from pymods.exceptions import (InsufficientDataError,
+                               InsufficientProjectionInformation,
+                               MissingCoordinateDataset)
 
 
 def get_hdf_proj4(h5_dataset: Dataset, shortname: str) -> str:
     # TODO: have this function call get_shortname internally
-    """ Returns the proj4 string corresponding to the coordinate reference system of the HDF5 dataset.
+    """ Returns the proj4 string corresponding to the coordinate reference
+    system of the HDF5 dataset. Currently logic:
+
+    * Check for DIMENSIONS_LIST attribute on dataset. If present, check the
+      units of the first dimension dataset for "degrees". If present, return
+      geographic.
+    * Next check for the grid_mapping attribute. If present return this variable.
+    * Finally, check the global MaskFill configuration file for default
+      projection information.
+
         Args:
              h5_dataset (h5py._hl.dataset.Dataset): The HDF5 dataset
              shortname: The collection shortname for the file
         Returns:
             str: The proj4 string corresponding to the given dataset
     """
-    objname = h5_dataset.name
+    dimensions = get_dimension_datasets(h5_dataset)
 
-    grid_mapping = _get_grid_mapping_data(_get_grid_mapping_group(shortname, objname))
-    if not grid_mapping:
-        dimensions = get_dimension_datasets(h5_dataset)
-        units = dimensions[0].attrs['units'].decode()
+    if dimensions is not None:
+        units = dimensions[0].attrs.get('units', b'').decode()
 
         if 'degrees' in units:
-            # Geographic proj4 string
-            return "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"
+            logging.debug(f'Dataset {h5_dataset.name} has dimensions with '
+                          'units "degrees". Using Geographic coordinates.')
+            return '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs'
 
-        if h5_dataset.attrs.__contains__('grid_mapping'):
-            grid_mapping_name = h5_dataset.attrs['grid_mapping']
-            grid_mapping = h5_dataset.file[grid_mapping_name]
+    grid_mapping_name = h5_dataset.attrs.get('grid_mapping', None)
 
-    return get_proj4(grid_mapping)
+    if grid_mapping_name is not None:
+        logging.debug(f'Dataset {h5_dataset.name} has grid_mapping attribute,'
+                      'using this to derive projection information.')
+        return get_proj4(h5_dataset.file[grid_mapping_name])
+
+    # Projection absent in granule; get information from MaskFill configuration.
+    grid_mapping = _get_grid_mapping_data(shortname, h5_dataset.name)
+
+    if grid_mapping is None:
+        raise InsufficientProjectionInformation(h5_dataset.name)
+    else:
+        logging.debug(f'Dataset {h5_dataset.name} has no projection '
+                      'information; using default projection information for the '
+                      f'{shortname} collection.')
+        return get_proj4(grid_mapping)
 
 
 def _get_short_name(h5_dataset: Dataset) -> str:
@@ -47,16 +69,14 @@ def _get_short_name(h5_dataset: Dataset) -> str:
     return CFConfig.getShortName(h5_dataset.file)
 
 
-def _get_grid_mapping_group(shortname: str, objname: str) -> str:
-    """ Get the grid_mapping name (projection name), used as CF grid_mapping variable name
-        Redefined here for convenience and clarification """
-    return CFConfig.getGridMappingGroup(shortname, objname)
+def _get_grid_mapping_data(short_name: Union[bytes, str],
+                           dataset_name: str) -> Optional[Dict[str, str]]:
+    """ Get the grid_mapping data (attributes, values) assigned to the CF
+        grid_mapping variable
 
-
-def _get_grid_mapping_data(projection: str) -> Dict[str, str]:
-    """ Get the grid_mapping data (attributes, values) assigned to the CF grid_mapping variable
-        Redefined here for conveneience and clarification """
-    return CFConfig.getGridMappingData(projection)
+        Redefined here for convenience and clarification
+    """
+    return CFConfig.get_grid_mapping_data(short_name, dataset_name)
 
 
 def get_lon_lat_datasets(h5_dataset: Dataset) -> Tuple[Dataset, Dataset]:
@@ -82,7 +102,7 @@ def get_lon_lat_datasets(h5_dataset: Dataset) -> Tuple[Dataset, Dataset]:
     return longitude, latitude
 
 
-def get_dimension_datasets(h5_dataset: Dataset) -> Tuple[Dataset, Dataset]:
+def get_dimension_datasets(h5_dataset: Dataset) -> Optional[Tuple[Dataset, Dataset]]:
     """ Finds the dimension scales datasets corresponding to the given HDF5 dataset.
         Args:
              h5_dataset (h5py._hl.dataset.Dataset): The HDF5 dataset
@@ -90,18 +110,21 @@ def get_dimension_datasets(h5_dataset: Dataset) -> Tuple[Dataset, Dataset]:
             tuple: x coordinate dataset, y coordinate dataset;
                    both datasets are of type h5py._hl.dataset.Dataset
     """
-    file = h5_dataset.file
-    dim_list = h5_dataset.attrs['DIMENSION_LIST']
+    h5_file = h5_dataset.file
+    dim_list = h5_dataset.attrs.get('DIMENSION_LIST', None)
 
-    for ref in dim_list:
-        dim = file[ref[0]]
-        if len(dim[:]) == h5_dataset.shape[0]:
-            y = dim
+    if dim_list is not None:
+        for ref in dim_list:
+            dim = h5_file[ref[0]]
+            if len(dim[:]) == h5_dataset.shape[0]:
+                y = dim
 
-        if len(dim[:]) == h5_dataset.shape[1]:
-            x = dim
+            if len(dim[:]) == h5_dataset.shape[1]:
+                x = dim
 
-    return x, y
+        return x, y
+    else:
+        return None
 
 
 def get_proj4(grid_mapping: Dataset) -> str:
@@ -197,8 +220,8 @@ def get_cell_size_from_lat_lon(h5_dataset: Dataset) -> Tuple[float, float]:
     """
     x, y = get_lon_lat_arrays(h5_dataset)
     x_0, x_N, y_0, y_M = get_corner_points_from_lat_lon(h5_dataset)
-    cell_height = (y_M - y_0)/(len(y) - 1)
-    cell_width = (x_N - x_0)/(len(x) - 1)
+    cell_height = (y_M - y_0) / (len(y) - 1)
+    cell_width = (x_N - x_0) / (len(x) - 1)
     return cell_width, cell_height
 
 
@@ -236,7 +259,7 @@ def get_corner_points_from_lat_lon(h5_dataset: Dataset) \
         band = None
 
     shortname = _get_short_name(h5_dataset)
-    proj4_str = _get_grid_mapping_data(_get_grid_mapping_group(shortname, h5_dataset.name))
+    proj4_str = _get_grid_mapping_data(shortname, h5_dataset.name)
     p = Proj(get_proj4(proj4_str))
 
     lon, lat = get_lon_lat_datasets(h5_dataset)
@@ -252,8 +275,10 @@ def get_corner_points_from_lat_lon(h5_dataset: Dataset) \
         lon_corner_values = [lon[lower_left_tuple], lon[upper_right_tuple]]
         lat_corner_values = [lat[lower_left_tuple], lat[upper_right_tuple]]
 
-    if (dataset_all_fill_value(lon, None, band)
-        or dataset_all_fill_value(lat, None, band)):
+    if (
+        dataset_all_fill_value(lon, None, band)
+        or dataset_all_fill_value(lat, None, band)
+    ):
         # The longitude or latitude arrays are entirely fill values
         raise InsufficientDataError('{lon.name} or {lat.name} have no valid data.')
     elif lon_fill_value in lon_corner_values or lat_fill_value in lat_corner_values:
@@ -412,7 +437,7 @@ def get_valid_coordinates_extent(latitude: np.array, longitude: np.array,
                                  lat_fill_value: float, lon_fill_value: float,
                                  lower_left_tuple: Tuple[int],
                                  upper_right_tuple: Tuple[int],
-                                 band: Optional[int]=None) -> Tuple[Tuple[int]]:
+                                 band: Optional[int] = None) -> Tuple[Tuple[int]]:
     """ Find the indices of the bottom-left-most and top-right-most points that
         do not have a fill value in either the latitude or longitude arrays.
 
@@ -534,7 +559,7 @@ def extrapolate_coordinate(coordinate_dataset: Dataset, coordinate_fill_value: f
                            dataset_name: str, reference_value: float,
                            reference_indices: Tuple[int], coordinate_dim: int,
                            target_indices: Tuple[int], pixel_scale: float,
-                           band: Optional[int]=None) -> np.float64:
+                           band: Optional[int] = None) -> np.float64:
     """ Extrapolate data in one dimension from a point with a known value to
         another point in an array.
 
@@ -572,7 +597,7 @@ def extrapolate_coordinate(coordinate_dataset: Dataset, coordinate_fill_value: f
 
 
 def dataset_all_fill_value(dataset: Dataset, default_fill_value: float,
-                           band: Optional[int]=None) -> bool:
+                           band: Optional[int] = None) -> bool:
     """ Check if an HDF5 dataset only contains a fill value.
 
         Args:
@@ -590,6 +615,7 @@ def dataset_all_fill_value(dataset: Dataset, default_fill_value: float,
         return np.all(dataset[band][:] == fill_value)
     else:
         return np.all(dataset[:] == fill_value)
+
 
 def dataset_all_outside_valid_range(dataset: Dataset) -> bool:
     """ Check if an HDF-5 dataset contains only values outside of the range

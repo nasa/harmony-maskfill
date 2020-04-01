@@ -197,7 +197,7 @@ class TestMaskFill(TestCase):
 
     def test_validate_input_parameters_invalid_fill_value_type(self):
         """Validation should fail for a string fill value."""
-        expected_message='The default fill value must be a number'
+        expected_message = 'The default fill value must be a number'
         makedirs(self.output_dir)
 
         with self.assertRaises(InvalidParameterValue) as context:
