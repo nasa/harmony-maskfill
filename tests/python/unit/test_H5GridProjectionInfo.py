@@ -135,8 +135,8 @@ class TestH5GridProjectionInfo(TestCase):
         with open('data/MaskFillConfig.json') as file_handler:
             config = json.load(file_handler)
 
-        bad_dataset_name = list(config['Corrected_Fill_Value']['SPL3FT(A|P|_E)'].keys())[0]
-        bad_dataset_value = config['Corrected_Fill_Value']['SPL3FT(A|P|_E)'][bad_dataset_name]
+        bad_dataset_name = list(config['Corrected_Fill_Value']['SPL3FT(A|P|P_E)'].keys())[0]
+        bad_dataset_value = config['Corrected_Fill_Value']['SPL3FT(A|P|P_E)'][bad_dataset_name]
 
         mock_get_short_name.return_value = 'SPL3FTP'
 
