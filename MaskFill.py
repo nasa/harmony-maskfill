@@ -169,7 +169,10 @@ def validate_input_parameters(input_file, shape_file, output_dir, fill_value, de
         raise InvalidParameterValue('The input data file must be a GeoTIFF or HDF5 file type')
 
     # Ensure that all given paths exist
-    for path in {input_file, shape_file, output_dir}:
+    #
+    # (We don't check the shapefile path because it could be a geojson input string)
+    #
+    for path in {input_file, output_dir}:
         if not os.path.exists(path):
             raise MissingParameterValue(f'The path {path} does not exist')
 
