@@ -21,13 +21,13 @@ WORKDIR "/home"
 COPY . /home/
 
 # Create Conda environment.
-RUN conda create --name maskfill --file pymods/mask_fill_conda_requirements.txt python=3.6
+RUN conda create --name maskfill --file data/mask_fill_conda_requirements.txt python=3.6
 
 # Make RUN commands use the Conda environment.
 SHELL ["conda", "run", "--name", "maskfill", "/bin/bash", "-c"]
 
 # Install additional Pip dependencies.
-RUN pip install -r pymods/mask_fill_pip_requirements.txt
+RUN pip install -r data/mask_fill_pip_requirements.txt
 
 # Set the tests to run when the container is created.
 # The output is redirected from the terminal to ensure that Bamboo doesn't

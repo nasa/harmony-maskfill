@@ -1,6 +1,6 @@
 {
     "Corrected_Fill_Value": {
-        "SPL3FT(A|P|_E)": {
+        "SPL3FT(A|P|P_E)": {
             "/Freeze_Thaw_Retrieval_Data_Polar/latitude": -9999.0,
             "/Freeze_Thaw_Retrieval_Data_Polar/latitude.Bands_01": -9999.0,
 			"/Freeze_Thaw_Retrieval_Data_Polar/latitude.Bands_02": -9999.0,
@@ -15,9 +15,12 @@
         "SPL4.*": {
             ".*": "EASE2_Global"
         },
-        "SPL3FT(A|P|_E)": {
+        "SPL3FT(P|P_E)": {
             "(?i).*polar.*" : "EASE2_Polar",
             "(?i).*global.*": "EASE2_Global"
+        },
+        "SPL3FTA": {
+            ".*" : "EASE2_Polar"
         }
     },
     "Grid_Mapping_Data": {

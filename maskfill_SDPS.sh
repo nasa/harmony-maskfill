@@ -8,9 +8,9 @@
 
 # Activate environment
 # Need path for conda in order to "source activate"
-# e.g., path="/tools/miniconda/bin"
-path="$(dirname `which conda`)"
-path="$(dirname ${path})/bin"  # sometimes conda is in a special condabin directory
+# path="$(dirname `which conda`)"
+# path="$(dirname ${path})/bin"  # sometimes conda is in a special condabin directory
+path="/tools/miniconda/bin"
 source ${path}/activate maskfill
 
 # Call the Mask Fill Utility, passing on the input parameters
