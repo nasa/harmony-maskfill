@@ -15,7 +15,7 @@ class TestCFConfig(TestCase):
         self.short_name = 'SPL3FTP'
 
         self.dataset, self.fill_value = (
-            list(config_data['Corrected_Fill_Value']['SPL3FT(A|P|_E)'].items())[0]
+            list(config_data['Corrected_Fill_Value']['SPL3FT(A|P|P_E)'].items())[0]
         )
 
         readConfigFile('data/MaskFillConfig.json')

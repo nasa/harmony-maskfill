@@ -11,9 +11,9 @@ MaskFill was developed using the Anaconda distribution of Python (https://www.an
 This simplifies dependency management. Run these commands to create a mask fill conda virtual environment and install all the needed packages:
 
 ```bash
-conda create --name maskfill --file pymods/mask_fill_conda_requirements.txt
+conda create --name maskfill --file data/mask_fill_conda_requirements.txt
 source activate maskfill
-pip install -r pymods/mask_fill_pip_requirements.txt
+pip install -r data/mask_fill_pip_requirements.txt
 ```
 
 ## Running locally:
