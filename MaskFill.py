@@ -168,12 +168,14 @@ def validate_input_parameters(input_file, shape_file, output_dir, fill_value, de
     if not os.path.splitext(input_file)[1].lower() in [".tif", ".h5"]:
         raise InvalidParameterValue('The input data file must be a GeoTIFF or HDF5 file type')
 
+    # Check if the shapefile may be geojson input
+    shape_file = check_shapefile_geojson(shape_file, output_dir)
+
     # Ensure that all given paths exist
     for path in {input_file, shape_file, output_dir}:
         if not os.path.exists(path):
             raise MissingParameterValue(f'The path {path} does not exist')
 
-    shape_file = check_shapefile_geojson(shape_file, output_dir)
     # Ensure that fill_value is a float
     if not isinstance(fill_value, (float, int)):
         raise InvalidParameterValue('The default fill value must be a number')
