@@ -7,7 +7,7 @@ from unittest.mock import patch
 import h5py
 import numpy as np
 
-from H5MaskFill import mask_fill
+from H5MaskFill import get_mask_array, mask_fill
 
 
 class TestH5MaskFill(TestCase):
@@ -28,9 +28,9 @@ class TestH5MaskFill(TestCase):
     @patch('pymods.CFConfig.getShortName')
     @patch('H5MaskFill.get_mask_array')
     def test_mask_fill_no_processing(self, mock_get_mask_array, mock_getShortName):
-        """Ensure that a dataset that fails to meet the required criteria is
-        not processed in any way. Instead, the function should return prior to
-        that point.
+        """ Ensure that a dataset that fails to meet the required criteria is
+            not processed in any way. Instead, the function should return prior
+            to that point.
 
         """
         mock_getShortName.return_value = 'SPL3FTP'
@@ -53,3 +53,56 @@ class TestH5MaskFill(TestCase):
                           fill_value, self.saved_mask_arrays, self.shortname)
 
                 mock_get_mask_array.assert_not_called()
+
+    @patch('H5MaskFill.create_mask_array')
+    def test_get_mask_array(self, mock_create_mask_array):
+        """ Ensure that the following cases correctly occur:
+
+            - `saved_mask_arrays` contains a matching mask, and so that is
+              returned.
+            - A matching cached file file is saved - the numpy array within the
+              file is returned.
+            - No pre-existing mask is saved in either the dictionary or a file,
+              so a new one is calculated.
+
+        """
+        h5_file = h5py.File('tests/data/SMAP_L4_SMAU_input.h5', 'r')
+        dataset = h5_file['/Analysis_Data/sm_profile_analysis']
+
+        # Pre-calculated ID, to use for dictionary key and file name:
+        mask_id = 'a62e96c11d707f2153e4f6a7da7707fc681152a358b816af5c9bcd11'
+
+        saved_mask = np.ones((2, 3))
+        cached_mask = np.ones((3, 4))
+        new_mask = np.ones((4, 5))
+
+        mock_create_mask_array.return_value = new_mask
+
+        with self.subTest('Previously saved mask with matching ID'):
+            saved_masks = {mask_id: saved_mask}
+            mask_array = get_mask_array(dataset, self.shape_file,
+                                        self.output_dir, 'use_cache',
+                                        saved_masks, 'SPL4SMAU')
+            np.testing.assert_array_equal(mask_array, saved_mask)
+            mock_create_mask_array.assert_not_called()
+
+        with self.subTest('Previously cached mask with matching ID'):
+            output_file_path = join(self.output_dir, f'{mask_id}.npy')
+            np.save(output_file_path, cached_mask)
+            mask_array = get_mask_array(dataset, self.shape_file,
+                                        self.output_dir, 'use_cache', {},
+                                        'SPL4SMAU')
+            np.testing.assert_array_equal(mask_array, cached_mask)
+            mock_create_mask_array.assert_not_called()
+            rmtree(self.output_dir)
+
+        with self.subTest('No prior mask (cached or saved)'):
+            mask_array = get_mask_array(dataset, self.shape_file,
+                                        self.output_dir, 'use_cache', {},
+                                        'SPL4SMAU')
+            np.testing.assert_array_equal(mask_array, new_mask)
+            mock_create_mask_array.assert_called_once_with(dataset,
+                                                           self.shape_file,
+                                                           'SPL4SMAU')
+
+        h5_file.close()

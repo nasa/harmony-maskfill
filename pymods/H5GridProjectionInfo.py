@@ -191,6 +191,26 @@ def get_transform(h5_dataset: Dataset) -> affine.Affine:
     return affine.Affine(cell_width, 0, x_0, 0, cell_height, y_0)
 
 
+def get_transform_information(h5_dataset: Dataset) -> str:
+    """ Determine the attributes of an HDF-5 dataset that will be used to
+        determine the Affine transformation between pixel indices and
+        projected coordinates. This function doesn't actually derive the
+        tranform itself, in an effort to minimise computationally intensive
+        operations.
+
+    """
+    dimension_list = h5_dataset.attrs.get('DIMENSION_LIST', None)
+    if dimension_list is not None:
+        h5_file = h5_dataset.file
+        dimension_names = ', '.join([h5_file[reference[0]].name
+                                     for reference in dimension_list])
+        output_string = f'DIMENSION_LIST: {dimension_names}'
+    else:
+        output_string = f'coords: {h5_dataset.attrs["coordinates"].decode()}'
+
+    return output_string
+
+
 def get_cell_size_from_dimensions(h5_dataset: Dataset) -> Tuple[int, int]:
     """ Gets the cell height and width of the gridded HDF5 dataset in the dataset's dimension scales.
         Note: For Affine matrix, the cell height will be negative when the

@@ -26,6 +26,7 @@ from pymods.H5GridProjectionInfo import (_get_short_name,
                                          get_lon_lat_datasets,
                                          get_pixel_size_from_data_extent,
                                          get_transform,
+                                         get_transform_information,
                                          get_valid_coordinates_extent)
 
 
@@ -609,6 +610,29 @@ class TestH5GridProjectionInfo(TestCase):
         mock_get_cell_size_from_dimensions.assert_not_called()
 
         h5_file.close()
+
+    def test_get_transform_information(self):
+        """ Ensure the correct string representation of the supporting dataset
+            information is returned for a science dataset with either a
+            DIMENSION_LIST attribute or a coordinate attribute.
+
+        """
+        with self.subTest('DIMENSION_LIST present'):
+            h5_file = h5py.File('tests/data/SMAP_L4_SMAU_input.h5', 'r')
+            dataset = h5_file['/Analysis_Data/sm_profile_analysis']
+            transform = get_transform_information(dataset)
+            self.assertEqual(transform, 'DIMENSION_LIST: /y, /x')
+            h5_file.close()
+
+        with self.subTest('DIMENSION_LIST absent'):
+            h5_file = h5py.File('tests/data/SMAP_L3_corners_input.h5', 'r')
+            group = '/Freeze_Thaw_Retrieval_Data_Global'
+            dataset = h5_file[f'{group}/altitude_dem.Bands_01']
+            expected_result = (f'coords: {group}/latitude.Bands_01 '
+                               f'{group}/longitude.Bands_01')
+            transform = get_transform_information(dataset)
+            self.assertEqual(transform, expected_result)
+            h5_file.close()
 
     def test_get_lon_lat_datasets(self):
         """Ensure the coordinate datasets specified in the 'coordinates'
