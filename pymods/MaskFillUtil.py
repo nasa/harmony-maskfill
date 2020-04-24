@@ -72,29 +72,32 @@ def get_masked_file_path(original_file_path, output_dir):
     return os.path.join(output_dir, file_name + "_mf" + extension)
 
 
-def get_h5_mask_array_id(h5_dataset, shape_path, shortname):
+def get_h5_mask_array_id(h5_dataset: h5py.Dataset, shape_path: str,
+                         shortname: str) -> str:
     """ Creates an ID corresponding to the given shape file, projection
-    information and shape of a dataset, which determine the mask array for the
-    dataset.
+        information, pixel-to-projected coordinates Affine transformation
+        inputs, and shape of a dataset, which determine the mask array for
+        the dataset.
 
-    Args:
-        h5_dataset (h5._hl.dataset.Dataset): The given HDF5 dataset
-        shape_path (str): Path to a shape file used to create the mask array
-            for the mask fill.
+        Args:
+            h5_dataset: The given HDF5 dataset
+            shape_path: Path to a shape file used to create the mask array
+                for the mask fill.
+            shortname: The short form name of the granule collection.
 
-    Returns:
-        str: The ID
+        Returns:
+            str: A string ID generated via a hashing algorithm, based upon the
+                a combined input string of the shape file path, dataset shape,
+                dataset projection and Affine transformation.
     """
-    # The mask array is determined by the CRS of the dataset, the dataset's
-    # transform, the shape of the dataset, and the shapes used in the mask.
     proj_string = H5GridProjectionInfo.get_hdf_proj4(h5_dataset, shortname)
-    transform = H5GridProjectionInfo.get_transform(h5_dataset)
+    transform = H5GridProjectionInfo.get_transform_information(h5_dataset)
     dataset_shape = h5_dataset[:].shape
 
     return create_mask_array_id(proj_string, transform, dataset_shape, shape_path)
 
 
-def get_geotiff_mask_array_id(geotiff_path, shape_path):
+def get_geotiff_mask_array_id(geotiff_path: str, shape_path: str) -> str:
     """ Creates an ID corresponding to the given shape file, projection
     information and shape of a dataset, which determine the mask array for the
     dataset.
@@ -104,8 +107,10 @@ def get_geotiff_mask_array_id(geotiff_path, shape_path):
         shape_path (str): Path to a shape file used to create the mask array
             for the mask fill.
 
-    Returns:
-        str: The ID.
+        Returns:
+            str: A string ID generated via a hashing algorithm, based upon the
+                a combined input string of the shape file path, dataset shape,
+                dataset projection and Affine transformation.
     """
     # The mask array is determined by the CRS of the dataset, the dataset's
     # transform, the shape of the dataset, and the shapes used in the mask.
@@ -124,7 +129,9 @@ def create_mask_array_id(proj_string, transform, dataset_shape, shape_file_path)
             dataset_shape (tuple): The shape of the data
             shape_file_path (str): The path to the given shapefile
         Returns:
-            str: The mask id
+            str: A string ID generated via a hashing algorithm, based upon the
+                a combined input string of the shape file path, dataset shape,
+                dataset projection and Affine transformation.
     """
     mask_id = proj_string + str(transform) + str(dataset_shape) + shape_file_path
 
