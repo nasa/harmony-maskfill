@@ -143,3 +143,10 @@ def get_dataset_config_fill_value(short_name: str, dataset_name: str):
                 return None
 
     return None
+
+
+def get_dataset_exclusions():
+    """ Pull MaskFill dataset exclusion values from configuration data
+    """
+    dataset_exclusions = config["maskfill_dataset_exclusions"]
+    return dataset_exclusions
