@@ -103,15 +103,18 @@ def get_exclusions(h5_dataset: h5py.Dataset) -> set:
     return EXCLUSION_SET
 
 
-def mask_fill(h5_dataset: h5py.Dataset, shape_path: str, cache_dir: str,
-              mask_grid_cache: str,  default_fill_value: float,
-              saved_mask_arrays: Dict[str, np.ndarray],  shortname: str):
+def mask_fill(h5_dataset: h5py.Dataset,
+              shape_path: str, cache_dir: str,
+              mask_grid_cache: str, default_fill_value: float,
+              saved_mask_arrays: Dict[str, np.ndarray],
+              shortname: str):
     """ Replaces the data in the HDF5 dataset with a mask filled version of the
         data. This function is applied to each dataset via the apply_2D
         mechanism.
 
         Args:
             h5_dataset (h5py._hl.dataset.Dataset): The given HDF5 dataset
+            shape_path: The path to a masking shape file (Polygon)
             cache_dir (str): The path to a cache directory
             mask_grid_cache (str): Value determining how the mask arrays used
                 in the mask fill are created and cached
@@ -127,9 +130,10 @@ def mask_fill(h5_dataset: h5py.Dataset, shape_path: str, cache_dir: str,
         # test if any names from dataset path hierarchy match
         for name in h5_dataset.name.split('/'):
             if name == excl:
-                logging.debug(f'{name} in {h5_dataset.name} '
-                   f'matches {excl} in exclusion list and will not be mask filled')
-#<  early mask_fill exit...
+                logging.debug(
+                    f'{name} in {h5_dataset.name} matches {excl} '
+                    f'in exclusion list and will not be mask filled')
+# <  early mask_fill exit...
                 return
 
     # Ensure dataset has at least two dimensions and can be mask filled
@@ -189,7 +193,7 @@ def mask_fill(h5_dataset: h5py.Dataset, shape_path: str, cache_dir: str,
 
 
 def get_mask_array(h5_dataset: h5py.Dataset, shape_path: str,
-                   cache_dir: str,    mask_grid_cache: str,
+                   cache_dir: str, mask_grid_cache: str,
                    saved_mask_arrays: Dict[str, np.ndarray],
                    shortname: str) -> np.ndarray:
     """ Gets the mask array corresponding the HDF5 file and shape file from a
@@ -199,10 +203,13 @@ def get_mask_array(h5_dataset: h5py.Dataset, shape_path: str,
 
         Args:
             h5_dataset (h5py._hl.dataset.Dataset): The given HDF5 dataset
-            shape_path (str): The path to the shapefile used to create thei
+            shape_path (str): The path to the shapefile used to create the
                 mask array
             cache_dir (str): The path to the directory where the mask array
                 file is cached
+            mask_grid_cache (str): directive for mask grid cache handling
+            saved_mask_arrays: Shared array for caching mask grids
+            shortname (str): the collection shortname for the h5 file.
 
         Returns:
             numpy.ndarray: The mask array
@@ -265,24 +272,19 @@ def create_mask_array(h5_dataset: h5py.Dataset, shape_path: str,
         shapes, h5_dataset.shape[-2:], transform)
 
 
-# Check datasets for coordinates values - if present add to coordinates set
-# Start with empty set
-COORDINATE_SET = set()
-
-
 def get_coordinates(input_file):
-    """ Gets the coordinate reference datasets within the input_file.  Use a global
-        set variable to avoid having to repeat the processing.
+    """ Gets the coordinate reference datasets within the input_file.
     :param input_file: H5Py data object for HDF5 input data file, follows CF conventions
     :return: set of coordinate reference paths found in data file.
     """
-    global COORDINATE_SET
-
+    coords = set()
     # loop through datasets in file by name
     for item_name in input_file:
         group_or_dataset = input_file[item_name]
         if isinstance(group_or_dataset, h5py.Group):
-            get_coordinates(group_or_dataset) # recursive get coordinates for group
+            # recursive get coordinates for group
+            sub_coords = get_coordinates(group_or_dataset)
+            coords.update(sub_coords)
         elif hasattr(group_or_dataset, 'attrs') \
                 and 'coordinates' in group_or_dataset.attrs:
             coordinates = group_or_dataset.attrs['coordinates']
@@ -291,7 +293,6 @@ def get_coordinates(input_file):
             coordinate_list = coordinates.split(' ')
 
             for coordinate in coordinate_list:
-                COORDINATE_SET.add(coordinate)
+                coords.add(coordinate)
 
-    return COORDINATE_SET
-
+    return coords
