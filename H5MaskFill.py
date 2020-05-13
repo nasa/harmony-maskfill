@@ -118,6 +118,7 @@ def mask_fill(h5_dataset: h5py.Dataset,
             cache_dir (str): The path to a cache directory
             mask_grid_cache (str): Value determining how the mask arrays used
                 in the mask fill are created and cached
+            default_fill_value (float): The default fill value for the mask
                 fill if no other fill values are provided
             saved_mask_arrays (dict): Previously calculated masks, saved via a
                 key derived from dataset coordinates (or dimensions), dataset
