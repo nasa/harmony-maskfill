@@ -7,7 +7,9 @@ from unittest.mock import patch
 import h5py
 import numpy as np
 
-from H5MaskFill import get_mask_array, mask_fill
+from H5MaskFill import \
+    get_mask_array, mask_fill, \
+    get_coordinates, get_exclusions
 
 
 class TestH5MaskFill(TestCase):
@@ -20,6 +22,10 @@ class TestH5MaskFill(TestCase):
         self.shortname = 'test_output.h5'
         mkdir(self.output_dir)
         self.test_h5_name = join(self.output_dir, self.shortname)
+        self.exclusions_set = {'cell_row', 'cell_column', 'EASE_column',
+                               'EASE_row', 'EASE_column_index',
+                               'EASE_row_index', '/GEO/latitude',
+                               '/GEO/longitude'}
 
     def tearDown(self):
         if isdir(self.output_dir):
@@ -50,7 +56,8 @@ class TestH5MaskFill(TestCase):
                                                     f'/{description}/longitude')
 
                 mask_fill(dataset, self.shape_file, self.cache_dir, 'maskgrid_only',
-                          fill_value, self.saved_mask_arrays, self.shortname)
+                          fill_value, self.saved_mask_arrays, self.shortname,
+                          self.exclusions_set)
 
                 mock_get_mask_array.assert_not_called()
 
@@ -106,3 +113,62 @@ class TestH5MaskFill(TestCase):
                                                            'SPL4SMAU')
 
         h5_file.close()
+
+    def test_get_coordinates(self):
+        ''' Assert for H5MaskFill.get_coordinates
+             - set of strings is returned
+             - strings are datasets contained in h5 file
+             - all coordinates references exist in result
+        '''
+        h5_file = h5py.File('tests/data/SMAP_L4_SMAU_input.h5', 'r')
+        coordinates = get_coordinates(h5_file)
+        self.assertIsInstance(coordinates, set)
+        for item in coordinates:
+            self.assertIsInstance(item, str)
+        for item in {'/cell_lat', '/cell_lon'}:
+            self.assertIn(item, coordinates)
+
+    def test_get_exclusions(self):
+        """ Assert for H5MaskFill.get_exclusions:
+             - set of strings is returned
+             - coordinates are included
+             - configuration exclusions are included
+        """
+        file_name = 'tests/data/SMAP_L4_SMAU_input.h5'
+        h5_file = h5py.File(file_name, 'r')
+        exclusions = get_exclusions(file_name)
+
+        self.assertIsInstance(exclusions, set)
+
+        for item in exclusions:
+            self.assertIsInstance(item, str)
+
+        coordinates = get_coordinates(h5_file)
+
+        for item in coordinates:
+            self.assertIn(item, exclusions)
+
+        # check for exclusions (copied here from config file)
+        for item in {'cell_row', 'cell_column', 'EASE_column',
+                     'EASE_row', 'EASE_column_index', 'EASE_row_index'}:
+            self.assertIn(item, exclusions)
+
+    @patch('H5MaskFill.get_exclusions')
+    @patch('H5MaskFill.get_mask_array')
+    def test_no_exclusions(self, mock_get_mask_array, mock_get_exclusions):
+        ''' Assert for each given exclusions, maskfill processing is skipped
+            (similar to test_mask_fill_no_processing)
+        '''
+        exclusions = {'cell_row', 'cell_column', 'EASE_column',
+                      'EASE_row', 'EASE_column_index', 'EASE_row_index'
+                      '/cell_lat', '/cell_lon'}
+
+        h5_file = h5py.File(self.test_h5_name + '2', 'w')
+
+        for item in exclusions:
+            dataset = h5_file.create_dataset(item, data=[0, 1, 2])
+            mask_fill(dataset, self.shape_file, self.cache_dir, 'maskgrid_only',
+                      0, self.saved_mask_arrays, self.shortname,
+                      self.exclusions_set)
+
+            mock_get_mask_array.assert_not_called()

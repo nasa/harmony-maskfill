@@ -268,22 +268,23 @@ def get_corner_points_from_lat_lon(h5_dataset: Dataset) \
         Returns:
             tuple: x min, x max, y min, y max
     """
-    if len(h5_dataset.shape) == 3:
-        # If there are 3 dimensions, select the first for corner point location.
-        # TODO: refactor MaskFill so each band in a 3-D dataset is reprojected
-        # and masked separately, instead of using coordinate data only from
-        # one band.
-        logging.debug('{h5_dataset.name} is 3-D, using first band for coordinates.')
-        band = 0
-    else:
-        band = None
-
     shortname = _get_short_name(h5_dataset)
     proj4_str = _get_grid_mapping_data(shortname, h5_dataset.name)
     p = Proj(get_proj4(proj4_str))
 
     lon, lat = get_lon_lat_datasets(h5_dataset)
     lon_fill_value, lat_fill_value = get_lon_lat_fill_values(h5_dataset)
+
+    if len(lon.shape) == 3:
+        # If there are 3 dimensions, select the first for corner point location.
+        # Using lon, assuming lat is the same.
+        # TODO: refactor MaskFill so each band in a 3-D dataset is reprojected
+        # and masked separately, instead of using coordinate data only from
+        # one band.
+        logging.debug('lat/lon for {h5_dataset.name} is 3-D, using first band for coordinates.')
+        band = 0
+    else:
+        band = None
 
     lower_left_tuple = tuple(0 for _ in lat.shape[-2:])
     upper_right_tuple = tuple(extent - 1 for extent in lat.shape[-2:])

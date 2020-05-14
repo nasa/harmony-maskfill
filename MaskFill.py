@@ -6,24 +6,32 @@
     Input parameters:
         --FILE_URLS: Path to a GeoTIFF or HDF5 file
 
-        --BOUNDINGSHAPE: Path to a shapefile or the native GeoJson string (shp, kml, geojson, etc.)
+        --BOUNDINGSHAPE: Path to a shapefile or the native GeoJson string
+            (shp, kml, geojson, etc.)
 
-        --OUTPUT_DIR: (optional) Path to the output directory where the mask filled file will be written.
+        --OUTPUT_DIR: (optional) Path to the output directory
+            where the mask filled file will be written.
             If not provided, the current working directory will be used.
 
-        --MASK_GRID_CACHE: (optional) Value determining how the mask arrays used in the mask fill are cached and used.
-            Valid values: ignore_and_delete  | ignore_and_save | use_cache  | use_cache_delete | MaskGrid_Only
+        --MASK_GRID_CACHE: (optional) Value determining how the mask arrays
+            used in the mask fill are cached and used.
+            Valid values: ignore_and_delete  | ignore_and_save | use_cache
+                          | use_cache_delete | MaskGrid_Only
 
-            ignore_and_delete - ignore any existing MaskGrid (create new) and delete the MaskGrid after processing
+            ignore_and_delete - ignore any existing MaskGrid (create new)
+                and delete the MaskGrid after processing
             input file (default if MaskGridCache not specified)
-            ignore_and_save - save the MaskGrid in output directory and continue (ignore any existing)
-            use_cache | use_and_save - use any existing and save/preserve MaskGrid in output directory
+            ignore_and_save - save the MaskGrid in output directory
+                and continue (ignore any existing)
+            use_cache | use_and_save - use any existing cache value
+                and save/preserve MaskGrid in output directory
             use_cache_delete - use any existing MaskGrid, but delete after processing
             MaskGrid_Only - ignore and save, but no MaskFill processing
 
             If not provided, the value 'ignore_and_delete' will be used.
 
-        --DEFAULT_FILL: (optional) The default fill value for the mask fill if no other fill values are provided.
+        --DEFAULT_FILL: (optional) The default fill value for the mask fill
+            if no other fill values are provided.
             If not provided, the value -9999 will be used.
 
         --DEBUG: (optional) If True, changes the log level to DEBUG from the default INFO.
@@ -49,12 +57,14 @@ def mask_fill():
 
         Returns:
             str: An ESI standard XML string for either normal (successful) completion,
-            including the download-URL for accessing the output file, or an exception response if necessary.
+            including the download-URL for accessing the output file,
+            or an exception response if necessary.
     """
     try:
         # Parse, format and validate input parameters
         args = get_input_parameters()
-        input_file, shape_file, output_dir, identifier, mask_grid_cache, fill_value, debug = format_parameters(args)
+        input_file, shape_file, output_dir, identifier, \
+            mask_grid_cache, fill_value, debug = format_parameters(args)
 
         output_dir = os.path.join(output_dir, identifier)
         if not os.path.exists(output_dir):
@@ -73,13 +83,13 @@ def mask_fill():
         # GeoTIFF case
         if input_extension == '.tif':
             logging.info(f'Performing mask fill with GeoTIFF {input_file} and shapefile {shape_file}')
-            output_file = GeotiffMaskFill.produce_masked_geotiff(input_file, shape_file, output_dir, output_dir,
-                                                                 mask_grid_cache, fill_value)
+            output_file = GeotiffMaskFill.produce_masked_geotiff(
+                input_file, shape_file, output_dir, output_dir, mask_grid_cache, fill_value)
         # HDF5 case
         elif input_extension == '.h5':
             logging.info(f'Performing mask fill with HDF5 file {input_file} and shapefile {shape_file}')
-            output_file = H5MaskFill.produce_masked_hdf(input_file, shape_file, output_dir, output_dir, mask_grid_cache,
-                                                        fill_value)
+            output_file = H5MaskFill.produce_masked_hdf(
+                input_file, shape_file, output_dir, output_dir, mask_grid_cache, fill_value)
         return get_xml_success_response(input_file, shape_file, output_file)
     except Exception as exception:
         return get_xml_error_response(output_dir, exception)
@@ -104,8 +114,8 @@ def get_log_file_path(output_dir):
 
 
 def get_input_parameters():
-    """ Gets the input parameters using an argparse argument parser. If no input is given for certain parameters, a default
-        value is stored.
+    """ Gets the input parameters using an argparse argument parser.
+        If no input is given for certain parameters, a default value is stored.
 
         Returns:
             argparse.Namespace: A Namespace object containing all of the input parameters values
@@ -232,7 +242,7 @@ def get_xml_error_response(output_dir: str, raised_exception: Exception) -> str:
                                          NoMatchingData)):
         raised_exception = InternalError(repr(raised_exception))
 
-    logging.error(raised_exception.message)
+    logging.exception(raised_exception.message)
 
     return f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
     <iesi:Exception
