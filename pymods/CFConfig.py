@@ -2,7 +2,7 @@
     Allows processing of hdf-5 files that do not fully follow the CF conventions
     Where the configuration file provides the missing information.
 '''
-from typing import Dict, Optional, Union
+from typing import Dict, List, Optional, Union
 import json
 import re
 
@@ -145,8 +145,8 @@ def get_dataset_config_fill_value(short_name: str, dataset_name: str):
     return None
 
 
-def get_dataset_exclusions():
+def get_dataset_exclusions() -> List[str]:
     """ Pull MaskFill dataset exclusion values from configuration data
     """
-    dataset_exclusions = config["maskfill_dataset_exclusions"]
+    dataset_exclusions = config['maskfill_dataset_exclusions']
     return dataset_exclusions

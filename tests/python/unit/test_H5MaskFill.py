@@ -22,6 +22,10 @@ class TestH5MaskFill(TestCase):
         self.shortname = 'test_output.h5'
         mkdir(self.output_dir)
         self.test_h5_name = join(self.output_dir, self.shortname)
+        self.exclusions_set = {'cell_row', 'cell_column', 'EASE_column',
+                               'EASE_row', 'EASE_column_index',
+                               'EASE_row_index', '/GEO/latitude',
+                               '/GEO/longitude'}
 
     def tearDown(self):
         if isdir(self.output_dir):
@@ -52,7 +56,8 @@ class TestH5MaskFill(TestCase):
                                                     f'/{description}/longitude')
 
                 mask_fill(dataset, self.shape_file, self.cache_dir, 'maskgrid_only',
-                          fill_value, self.saved_mask_arrays, self.shortname)
+                          fill_value, self.saved_mask_arrays, self.shortname,
+                          self.exclusions_set)
 
                 mock_get_mask_array.assert_not_called()
 
@@ -124,20 +129,25 @@ class TestH5MaskFill(TestCase):
             self.assertIn(item, coordinates)
 
     def test_get_exclusions(self):
-        ''' Assert for H5MaskFill.get_exclusions:
+        """ Assert for H5MaskFill.get_exclusions:
              - set of strings is returned
              - coordinates are included
              - configuration exclusions are included
-        '''
-        h5_file = h5py.File('tests/data/SMAP_L4_SMAU_input.h5', 'r')
-        dataset = h5_file['/Analysis_Data/sm_profile_analysis']
-        exclusions = get_exclusions(dataset)
+        """
+        file_name = 'tests/data/SMAP_L4_SMAU_input.h5'
+        h5_file = h5py.File(file_name, 'r')
+        exclusions = get_exclusions(file_name)
+
         self.assertIsInstance(exclusions, set)
+
         for item in exclusions:
             self.assertIsInstance(item, str)
+
         coordinates = get_coordinates(h5_file)
+
         for item in coordinates:
             self.assertIn(item, exclusions)
+
         # check for exclusions (copied here from config file)
         for item in {'cell_row', 'cell_column', 'EASE_column',
                      'EASE_row', 'EASE_column_index', 'EASE_row_index'}:
@@ -152,13 +162,13 @@ class TestH5MaskFill(TestCase):
         exclusions = {'cell_row', 'cell_column', 'EASE_column',
                       'EASE_row', 'EASE_column_index', 'EASE_row_index'
                       '/cell_lat', '/cell_lon'}
-        mock_get_exclusions.return_value = exclusions
 
         h5_file = h5py.File(self.test_h5_name + '2', 'w')
 
         for item in exclusions:
             dataset = h5_file.create_dataset(item, data=[0, 1, 2])
             mask_fill(dataset, self.shape_file, self.cache_dir, 'maskgrid_only',
-                      0, self.saved_mask_arrays, self.shortname)
+                      0, self.saved_mask_arrays, self.shortname,
+                      self.exclusions_set)
 
             mock_get_mask_array.assert_not_called()

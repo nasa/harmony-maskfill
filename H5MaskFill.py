@@ -18,7 +18,7 @@
 import logging
 import os
 import shutil
-from typing import Dict
+from typing import Dict, Set
 
 import numpy as np
 import h5py
@@ -52,18 +52,19 @@ def produce_masked_hdf(hdf_path: str, shape_path: str, output_dir: str,
 
     CFConfig.readConfigFile(get_config_file_path())
     shortname = CFConfig.getShortName(hdf_path)
+    exclusion_set = get_exclusions(hdf_path)
 
     if mask_grid_cache == 'maskgrid_only':
         process_h5_file(hdf_path, mask_fill, shape_path, cache_dir,
                         mask_grid_cache, default_fill_value, saved_mask_arrays,
-                        shortname)
+                        shortname, exclusion_set)
     else:
         new_file_path = MaskFillUtil.get_masked_file_path(hdf_path, output_dir)
         shutil.copy(hdf_path, new_file_path)
         logging.debug(f'Created output file: {new_file_path}')
         process_h5_file(new_file_path, mask_fill, shape_path, cache_dir,
                         mask_grid_cache, default_fill_value, saved_mask_arrays,
-                        shortname)
+                        shortname, exclusion_set)
 
     MaskFillCaching.cache_mask_arrays(saved_mask_arrays, cache_dir,
                                       mask_grid_cache)
@@ -82,32 +83,26 @@ def get_config_file_path() -> str:
     return config_file_path
 
 
-# Develop a set of dataset exclusions that do not get maskfilled
-# start with an empty set
-EXCLUSION_SET = None
-
-
-def get_exclusions(h5_dataset: h5py.Dataset) -> set:
+def get_exclusions(h5_file_path: str) -> Set[str]:
     """ Get the set of dataset exclusions from coordinates and config file.
-        Use previously defined exclusions if set
 
     Args:
         h5_dataset: h5py data object for dataset within hdf5 file
     Returns:
         set of dataset names that should not be processed by MaskFill.
     """
-    global EXCLUSION_SET
-    if not EXCLUSION_SET:
-        EXCLUSION_SET = get_coordinates(h5_dataset.file)
-        EXCLUSION_SET.update(CFConfig.get_dataset_exclusions())
-    return EXCLUSION_SET
+    with h5py.File(h5_file_path, mode='r') as input_file:
+        exclusion_set = get_coordinates(input_file)
+        exclusion_set.update(CFConfig.get_dataset_exclusions())
+
+    return exclusion_set
 
 
 def mask_fill(h5_dataset: h5py.Dataset,
               shape_path: str, cache_dir: str,
               mask_grid_cache: str, default_fill_value: float,
               saved_mask_arrays: Dict[str, np.ndarray],
-              shortname: str):
+              shortname: str, exclusions_set: Set[str]):
     """ Replaces the data in the HDF5 dataset with a mask filled version of the
         data. This function is applied to each dataset via the apply_2D
         mechanism.
@@ -127,15 +122,13 @@ def mask_fill(h5_dataset: h5py.Dataset,
                 primarily in detecting default configuration values.
     """
     # Test if h5_dataset matches within list of exclusions for maskfill
-    for excl in get_exclusions(h5_dataset):
-        # test if any names from dataset path hierarchy match
-        for name in h5_dataset.name.split('/'):
-            if name == excl:
-                logging.debug(
-                    f'{name} in {h5_dataset.name} matches {excl} '
-                    f'in exclusion list and will not be mask filled')
-# <  early mask_fill exit...
-                return
+    split_dataset_name = h5_dataset.name.split('/')
+    for exclusion in exclusions_set:
+        # Check if any part of the dataset hierarchy matches the exclusion.
+        if exclusion in split_dataset_name:
+            logging.debug(f'{exclusion} in {h5_dataset.name} is in exclusion '
+                          'list and will not be mask filled.')
+            return
 
     # Ensure dataset has at least two dimensions and can be mask filled
     if len(h5_dataset.shape) < 2 or not h5_dataset.attrs.__contains__('coordinates'):
@@ -273,7 +266,7 @@ def create_mask_array(h5_dataset: h5py.Dataset, shape_path: str,
         shapes, h5_dataset.shape[-2:], transform)
 
 
-def get_coordinates(input_file):
+def get_coordinates(input_file: h5py.File) -> Set[str]:
     """ Gets the coordinate reference datasets within the input_file.
     :param input_file: H5Py data object for HDF5 input data file, follows CF conventions
     :return: set of coordinate reference paths found in data file.
