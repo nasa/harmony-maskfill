@@ -75,9 +75,10 @@ def create_mask_array(geotiff_path, shape_path):
         Returns:
             numpy.ndarray: A numpy array representing the rasterized shapes from the shape file
     """
-    projected_shapes = MaskFillUtil.get_projected_shapes(get_geotiff_proj4(geotiff_path), shape_path)
     raster = rasterio.open(geotiff_path)
-    return MaskFillUtil.get_mask_array(projected_shapes, raster.read(1).shape, raster.transform)
+    proj4 = get_geotiff_proj4(geotiff_path)
+
+    return MaskFillUtil.get_mask_array(shape_path, proj4, raster.read(1).shape, raster.transform)
 
 
 def get_geotiff_proj4(geotiff_path):
@@ -87,7 +88,9 @@ def get_geotiff_proj4(geotiff_path):
         Returns:
             str: The proj4 string corresponding to the given file
     """
+
     data = gdal.Open(geotiff_path)
+
     proj_text = data.GetProjection()
     srs = osr.SpatialReference()
     srs.ImportFromWkt(proj_text)

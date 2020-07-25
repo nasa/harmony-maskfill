@@ -10,39 +10,87 @@ import numpy as np
 import rasterio
 from osgeo import osr
 from rasterio import features  # as in geographic features, shapes, polygons
+from shapely.geometry import Polygon
+from geopandas import GeoSeries
+from pyproj import Transformer, CRS
 
 from pymods import H5GridProjectionInfo
 
 
-def get_projected_shapes(proj4, shape_path):
-    """ Projects the shapes in the given shapefile to a new coordinate reference system.
+def get_mask_array(shape_path, proj4, out_shape, transform):
+    """ Rasterizes the intersection of the given shapes and the bounding box of
+        the data to create a mask array.
+
         Args:
-            proj4 (string): The proj4 string representing the new coordinate reference system
-            shape_path (string): The path to the shape file which is to be converted
-        Returns:
-            geopandas.geoseries.GeoSeries: A geopandas GeoSeries containing the projected shape information.
-    """
-    try:
-        shape_gdf = gpd.read_file(shape_path)  # Load shape file as geopandas data frame
-    except:
-        raise ValueError('Shape data cannot be read from the given shapefile.')
-
-    projected_gdf = shape_gdf.to_crs(proj4)  # Project data frame to new coordinate reference system
-    return projected_gdf['geometry']
-
-
-def get_mask_array(shapes, out_shape, transform):
-    """ Rasterizes the given shapes to create a mask array.
-        Args:
-            shapes (geopandas.geoseries.GeoSeries): The shapes to be rasterized
+            shape_path (string): The path to the shape file
+            proj4 (string): The proj4 string corresponding to the target CRS
             out_shape (tuple): The shape of the resultant mask array
-            transform (affine.Affine): A transform mapping from image coordinates to world coordinates
+            transform (affine.Affine): A transform mapping from image coordinates
+            to world coordinates
         Returns:
             numpy.ndarray: A numpy array representing the rasterized shapes
     """
+    epsg = CRS(proj4).to_epsg()
+    bounded_shape_gdf = get_bounded_shape(shape_path, epsg, proj4, out_shape, transform)
+    bounded_shape_gdf.to_file("south_pole_bounded2.geojson", driver='GeoJSON')
+
+    # Project data frame to new coordinate reference system
+    projected_gdf = bounded_shape_gdf.to_crs(proj4)
+    shapes = projected_gdf['geometry']
+
+    # Rasterize the bounded and projected shapes into the mask array
+    if shapes.is_empty.empty:
+        return np.ones(out_shape)
+
     mask = features.rasterize(shapes=shapes, default_value=0, fill=1, out_shape=out_shape,
                               dtype=np.uint8, transform=transform, all_touched=True)
     return mask
+
+
+def get_bounded_shape(shape_path, epsg, proj4, out_shape, transform):
+    """ Creates a geodataframe (in geographic coordinates) for the shapes in the shape file.
+    Bounds the shapes by the geographic extent of the data.
+
+            Args:
+                shape_path (string): The path to the shape file
+                epsg (CRS object): The epsg code of the data
+                proj4 (string): The proj4 string corresponding to the target CRS
+                out_shape (tuple): The shape of the resultant mask array
+                transform (affine.Affine): A transform mapping from image coordinates
+                to world coordinates
+            Returns:
+                geodataframe: The bounded shape geodataframe
+        """
+
+    if epsg is not None:
+        # Get geographic extent of data using the EPSG code
+        minx, miny, maxx, maxy = CRS(epsg).area_of_use.bounds
+
+    else:
+        # Transform all indices in the data array to geographic coordinates
+        y, x = out_shape
+        y_vals, x_vals = np.indices((y, x))
+        lst = [x_vals.flatten(), y_vals.flatten()]
+
+        # Decompose the affine transform
+        transform_matrix = np.array(transform).reshape(3, 3)
+        A, b = transform_matrix[:2, :2], transform_matrix[:2, 2:]
+        arr = np.matmul(A, lst) + b
+
+        to_geo_trans = Transformer.from_proj(proj4, 'EPSG:4326')
+        y_geo, x_geo = to_geo_trans.transform(arr[0, :], arr[1, :])
+
+        minx, maxx = np.min(x_geo), np.max(x_geo)
+        miny, maxy = np.min(y_geo), np.max(y_geo)
+
+    # Create bounding box in geographic coordinates
+    bbox = [(minx, miny), (maxx, miny), (maxx, maxy), (minx, maxy)]
+    bbox_gdf = gpd.GeoDataFrame(geometry=GeoSeries(Polygon(bbox), crs={'init': 'epsg:4326'}))
+
+    # Intersect shapes with bounding box
+    shape_gdf = gpd.read_file(shape_path)
+    bounded_shape_gdf = gpd.overlay(shape_gdf, bbox_gdf, how='intersection')
+    return bounded_shape_gdf
 
 
 def mask_fill_array(raster_arr, mask_array, fill_value):
@@ -54,6 +102,7 @@ def mask_fill_array(raster_arr, mask_array, fill_value):
         Returns:
             numpy.ndarray: The mask filled array
     """
+
     out_image = np.ma.array(raster_arr, mask=mask_array, fill_value=fill_value)
     return out_image.filled()
 

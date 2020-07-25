@@ -15,6 +15,7 @@
     Returns:
         str: The path to the output HDF5 file
 """
+from rasterio.plot import show
 import logging
 import os
 import shutil
@@ -153,6 +154,7 @@ def mask_fill(h5_dataset: h5py.Dataset,
         mask_filled_data = apply_2D(h5_dataset[:],
                                     MaskFillUtil.mask_fill_array,
                                     mask_array, fill_value)
+
         h5_dataset.write_direct(mask_filled_data)
 
         # If the dataset attributes contain observed statistics, update them.
@@ -259,11 +261,9 @@ def create_mask_array(h5_dataset: h5py.Dataset, shape_path: str,
             numpy.ndarray: The mask array
     """
     proj4 = H5GridProjectionInfo.get_hdf_proj4(h5_dataset, shortname)
-    shapes = MaskFillUtil.get_projected_shapes(proj4, shape_path)
     transform = H5GridProjectionInfo.get_transform(h5_dataset)
 
-    return MaskFillUtil.get_mask_array(
-        shapes, h5_dataset.shape[-2:], transform)
+    return MaskFillUtil.get_mask_array(shape_path, proj4, h5_dataset.shape[-2:], transform)
 
 
 def get_coordinates(input_file: h5py.File) -> Set[str]:
