@@ -20,9 +20,12 @@ class TestMaskFill(TestCase):
         self.input_h5_file = 'tests/data/SMAP_L4_SMAU_input.h5'
         self.output_dir = 'tests/output'
         self.shape_file = 'tests/data/USA.geo.json'
+        self.shape_file_south_pole = 'tests/data/south_pole.geo.json'
         self.output_geotiff_file = self.create_output_file_name(self.input_geotiff_file)
         self.output_h5_file = self.create_output_file_name(self.input_h5_file)
         self.output_geotiff_template = 'tests/data/SMAP_L4_SMAU_output.tif'
+        self.output_geotiff_template_south_pole = 'tests/data/SMAP_L4_SMAU_south_pole_output.tif'
+        self.output_h5_template_south_pole = 'tests/data/SMAP_L4_SMAU_south_pole_output.h5'
         self.output_h5_template = 'tests/data/SMAP_L4_SMAU_output.h5'
         self.input_corner_file = 'tests/data/SMAP_L3_corners_input.h5'
         self.output_corner_file = self.create_output_file_name(self.input_corner_file)
@@ -65,6 +68,7 @@ class TestMaskFill(TestCase):
         :type file_two_name: str
 
         """
+
         dataset_one = gdal.Open(file_one_name)
         dataset_two = gdal.Open(file_two_name)
 
@@ -192,7 +196,7 @@ class TestMaskFill(TestCase):
     def test_mask_fill_geotiff(self, mock_get_input_parameters):
         """A full test of the `mask_fill` utility using a GeoTIFF input file,
         patching the reading of input parameters. This checks for a success
-        message, and then compares the output file from `mask_filk` to a
+        message, and then compares the output file from `mask_fill` to a
         templated output file by checking the dataset and metadata.
 
         """
@@ -301,3 +305,37 @@ class TestMaskFill(TestCase):
 
         # Finally, check all pixel values are identical (slowest check)
         self.assertTrue(array_equal(h5_array, geo_array))
+
+    @patch('MaskFill.get_input_parameters')
+    def test_mask_fill_south_pole(self, mock_get_input_parameters):
+        """ Test mask fill with a shapefile containing the south pole for
+        both h5 and geotiff files.
+
+        """
+        # h5 file test
+        h5_parameters = self.default_parameters
+        h5_parameters['input_file'] = self.input_h5_file
+        h5_parameters['shape_file'] = self.shape_file_south_pole
+
+        mock_get_input_parameters.return_value = self.create_parameters_namespace(h5_parameters)
+        response = mask_fill()
+
+        self.assertEqual(response, get_xml_success_response(self.input_h5_file,
+                                                            self.shape_file_south_pole,
+                                                            self.output_h5_file))
+
+        self.compare_h5_files(self.output_h5_template_south_pole, self.output_h5_file)
+
+        # Geotiff file test
+        geotiff_parameters = self.default_parameters
+        geotiff_parameters['input_file'] = self.input_geotiff_file
+        geotiff_parameters['shape_file'] = self.shape_file_south_pole
+
+        mock_get_input_parameters.return_value = self.create_parameters_namespace(geotiff_parameters)
+        response = mask_fill()
+
+        self.assertEqual(response, get_xml_success_response(self.input_geotiff_file,
+                                                            self.shape_file_south_pole,
+                                                            self.output_geotiff_file))
+
+        self.compare_geotiff_files(self.output_geotiff_template_south_pole, self.output_geotiff_file)

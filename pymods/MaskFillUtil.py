@@ -32,7 +32,6 @@ def get_mask_array(shape_path, proj4, out_shape, transform):
     """
     epsg = CRS(proj4).to_epsg()
     bounded_shape_gdf = get_bounded_shape(shape_path, epsg, proj4, out_shape, transform)
-    bounded_shape_gdf.to_file("south_pole_bounded2.geojson", driver='GeoJSON')
 
     # Project data frame to new coordinate reference system
     projected_gdf = bounded_shape_gdf.to_crs(proj4)
@@ -53,7 +52,7 @@ def get_bounded_shape(shape_path, epsg, proj4, out_shape, transform):
 
             Args:
                 shape_path (string): The path to the shape file
-                epsg (CRS object): The epsg code of the data
+                epsg (int): The epsg code of the data
                 proj4 (string): The proj4 string corresponding to the target CRS
                 out_shape (tuple): The shape of the resultant mask array
                 transform (affine.Affine): A transform mapping from image coordinates
@@ -66,19 +65,19 @@ def get_bounded_shape(shape_path, epsg, proj4, out_shape, transform):
         # Get geographic extent of data using the EPSG code
         minx, miny, maxx, maxy = CRS(epsg).area_of_use.bounds
 
+    # Transform all indices in the data array to geographic coordinates
+    # and get min/max lat/lon values
     else:
-        # Transform all indices in the data array to geographic coordinates
-        y, x = out_shape
-        y_vals, x_vals = np.indices((y, x))
-        lst = [x_vals.flatten(), y_vals.flatten()]
+        y_vals, x_vals = np.indices(out_shape)
+        indices = [x_vals.flatten(), y_vals.flatten()]
 
         # Decompose the affine transform
         transform_matrix = np.array(transform).reshape(3, 3)
         A, b = transform_matrix[:2, :2], transform_matrix[:2, 2:]
-        arr = np.matmul(A, lst) + b
+        crs_coors = np.matmul(A, indices) + b  # coordinates in the original CRS
 
         to_geo_trans = Transformer.from_proj(proj4, 'EPSG:4326')
-        y_geo, x_geo = to_geo_trans.transform(arr[0, :], arr[1, :])
+        y_geo, x_geo = to_geo_trans.transform(crs_coors[0, :], crs_coors[1, :])
 
         minx, maxx = np.min(x_geo), np.max(x_geo)
         miny, maxy = np.min(y_geo), np.max(y_geo)

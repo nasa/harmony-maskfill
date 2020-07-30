@@ -15,7 +15,7 @@
     Returns:
         str: The path to the output HDF5 file
 """
-from rasterio.plot import show
+
 import logging
 import os
 import shutil
