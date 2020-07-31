@@ -79,6 +79,9 @@ def get_bounded_shape(shape_path, epsg, proj4, out_shape, transform):
         to_geo_trans = Transformer.from_proj(proj4, 'EPSG:4326')
         y_geo, x_geo = to_geo_trans.transform(crs_coors[0, :], crs_coors[1, :])
 
+        x_geo = x_geo[np.isfinite(x_geo)]
+        y_geo = y_geo[np.isfinite(y_geo)]
+
         minx, maxx = np.min(x_geo), np.max(x_geo)
         miny, maxy = np.min(y_geo), np.max(y_geo)
 

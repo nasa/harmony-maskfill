@@ -20,7 +20,7 @@ class TestMaskFill(TestCase):
         self.input_h5_file = 'tests/data/SMAP_L4_SMAU_input.h5'
         self.output_dir = 'tests/output'
         self.shape_file = 'tests/data/USA.geo.json'
-        self.shape_file_south_pole = 'tests/data/south_pole2.geo.json'
+        self.shape_file_south_pole = 'tests/data/south_pole.geo.json'
         self.output_geotiff_file = self.create_output_file_name(self.input_geotiff_file)
         self.output_h5_file = self.create_output_file_name(self.input_h5_file)
         self.output_geotiff_template = 'tests/data/SMAP_L4_SMAU_output.tif'
