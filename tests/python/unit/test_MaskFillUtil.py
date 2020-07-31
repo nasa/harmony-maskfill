@@ -2,8 +2,13 @@ from unittest import TestCase
 from unittest.mock import patch
 
 import h5py
+import geopandas as gpd
+from geopandas.testing import geom_equals
+from pyproj import CRS
+import affine
 
-from pymods.MaskFillUtil import get_h5_mask_array_id
+from pymods.MaskFillUtil import get_h5_mask_array_id, get_bounded_shape
+from GeotiffMaskFill import get_geotiff_proj4, get_geotiff_info
 
 
 class TestMaskFillUtil(TestCase):
@@ -51,3 +56,33 @@ class TestMaskFillUtil(TestCase):
             self.assertEqual(mask_id_one, expected_mask_id_one)
             self.assertEqual(mask_id_two, expected_mask_id_two)
             h5_file.close()
+
+    def test_get_bounded_shape(self):
+        """ Tests the method for getting bounded shape geodataframes using EPSG codes/proj4
+        strings to get the geographic extent of the data using pyproj, as well as calculating
+        the geographic extent of the data using the shape of the data and the transform.
+        """
+
+        geotiff_path = 'tests/data/SMAP_L3_polar_3d_input.tif'
+        shape_path = 'tests/data/south_pole.geo.json'
+        epsg = 6931
+
+        proj4 = get_geotiff_proj4(geotiff_path)
+        out_shape, transform = get_geotiff_info(geotiff_path)
+
+        # Test creating bounding shape from EPSG code
+        gdf1 = gpd.read_file('tests/data/south_pole_bounded.geojson')
+        gdf2 = get_bounded_shape(shape_path, epsg, None, None, None)
+
+        assert geom_equals(gdf1, gdf2)
+
+        # Test creating bounding shape from proj4 string
+        epsg = CRS(proj4).to_epsg()
+        gdf3 = get_bounded_shape(shape_path, epsg, None, None, None)
+        assert geom_equals(gdf1, gdf3)
+
+        # Test calculating bounding shape from proj4, out shape, and transform
+        gdf4 = gpd.read_file('tests/data/south_pole_bounded2.geojson')
+        gdf5 = get_bounded_shape(shape_path, None, proj4, out_shape, transform)
+
+        assert geom_equals(gdf4, gdf5)
