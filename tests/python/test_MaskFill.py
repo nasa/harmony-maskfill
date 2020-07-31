@@ -20,18 +20,20 @@ class TestMaskFill(TestCase):
         self.input_h5_file = 'tests/data/SMAP_L4_SMAU_input.h5'
         self.output_dir = 'tests/output'
         self.shape_file = 'tests/data/USA.geo.json'
-        self.shape_file_south_pole = 'tests/data/south_pole.geo.json'
+        self.shape_file_south_pole = 'tests/data/south_pole2.geo.json'
         self.output_geotiff_file = self.create_output_file_name(self.input_geotiff_file)
         self.output_h5_file = self.create_output_file_name(self.input_h5_file)
         self.output_geotiff_template = 'tests/data/SMAP_L4_SMAU_output.tif'
-        self.output_geotiff_template_south_pole = 'tests/data/SMAP_L4_SMAU_south_pole_output.tif'
-        self.output_h5_template_south_pole = 'tests/data/SMAP_L4_SMAU_south_pole_output.h5'
+        self.output_geotiff_template_south_pole = 'tests/data/SMAP_L3_polar_3d_south_pole_output.tif'
+        self.output_h5_template_south_pole = 'tests/data/SMAP_L3_polar_3d_south_pole_output.h5'
         self.output_h5_template = 'tests/data/SMAP_L4_SMAU_output.h5'
         self.input_corner_file = 'tests/data/SMAP_L3_corners_input.h5'
         self.output_corner_file = self.create_output_file_name(self.input_corner_file)
         self.output_corner_template = 'tests/data/SMAP_L3_corners_output.h5'
-        self.input_polar_file = 'tests/data/SMAP_L3_polar_3d_input.h5'
-        self.output_polar_file = self.create_output_file_name(self.input_polar_file)
+        self.input_polar_h5_file = 'tests/data/SMAP_L3_polar_3d_input.h5'
+        self.input_polar_geo_file = 'tests/data/SMAP_L3_polar_3d_input.tif'
+        self.output_polar_h5_file = self.create_output_file_name(self.input_polar_h5_file)
+        self.output_polar_geo_file = self.create_output_file_name(self.input_polar_geo_file)
         self.output_polar_template = 'tests/data/SMAP_L3_polar_3d_output.h5'
         self.input_comparison_geo = 'tests/data/SMAP_L4_comparison.tif'
         self.input_comparison_h5 = 'tests/data/SMAP_L4_comparison.h5'
@@ -245,16 +247,16 @@ class TestMaskFill(TestCase):
 
         """
         polar_parameters = self.default_parameters
-        polar_parameters['input_file'] = self.input_polar_file
+        polar_parameters['input_file'] = self.input_polar_h5_file
 
         mock_get_input_parameters.return_value = self.create_parameters_namespace(polar_parameters)
         response = mask_fill()
 
-        self.assertEqual(response, get_xml_success_response(self.input_polar_file,
+        self.assertEqual(response, get_xml_success_response(self.input_polar_h5_file,
                                                             self.shape_file,
-                                                            self.output_polar_file))
+                                                            self.output_polar_h5_file))
 
-        self.compare_h5_files(self.output_polar_template, self.output_polar_file)
+        self.compare_h5_files(self.output_polar_template, self.output_polar_h5_file)
 
     @patch('MaskFill.get_input_parameters')
     def test_mask_fill_compare_h5_geo(self, mock_get_input_parameters):
@@ -312,30 +314,31 @@ class TestMaskFill(TestCase):
         both h5 and geotiff files.
 
         """
+
         # h5 file test
         h5_parameters = self.default_parameters
-        h5_parameters['input_file'] = self.input_h5_file
+        h5_parameters['input_file'] = self.input_polar_h5_file
         h5_parameters['shape_file'] = self.shape_file_south_pole
 
         mock_get_input_parameters.return_value = self.create_parameters_namespace(h5_parameters)
         response = mask_fill()
 
-        self.assertEqual(response, get_xml_success_response(self.input_h5_file,
+        self.assertEqual(response, get_xml_success_response(self.input_polar_h5_file,
                                                             self.shape_file_south_pole,
-                                                            self.output_h5_file))
+                                                            self.output_polar_h5_file))
 
-        self.compare_h5_files(self.output_h5_template_south_pole, self.output_h5_file)
+        self.compare_h5_files(self.output_h5_template_south_pole, self.output_polar_h5_file)
 
         # Geotiff file test
         geotiff_parameters = self.default_parameters
-        geotiff_parameters['input_file'] = self.input_geotiff_file
+        geotiff_parameters['input_file'] = self.input_polar_geo_file
         geotiff_parameters['shape_file'] = self.shape_file_south_pole
 
         mock_get_input_parameters.return_value = self.create_parameters_namespace(geotiff_parameters)
         response = mask_fill()
 
-        self.assertEqual(response, get_xml_success_response(self.input_geotiff_file,
+        self.assertEqual(response, get_xml_success_response(self.input_polar_geo_file,
                                                             self.shape_file_south_pole,
-                                                            self.output_geotiff_file))
+                                                            self.output_polar_geo_file))
 
-        self.compare_geotiff_files(self.output_geotiff_template_south_pole, self.output_geotiff_file)
+        self.compare_geotiff_files(self.output_geotiff_template_south_pole, self.output_polar_geo_file)

@@ -64,13 +64,13 @@ class TestMaskFillUtil(TestCase):
         """
 
         geotiff_path = 'tests/data/SMAP_L4_SMAU_input.tif'
-        shape_path = 'tests/data/south_pole.geo.json'
+        shape_path = 'tests/data/south_pole1.geo.json'
 
         proj4 = get_geotiff_proj4(geotiff_path)
         out_shape, transform = get_geotiff_info(geotiff_path)
 
         # Test creating bounding shape from EPSG code
-        gdf1 = gpd.read_file('tests/data/south_pole_bounded.geojson')
+        gdf1 = gpd.read_file('tests/data/south_pole1_bounded.geojson')
         gdf2 = get_bounded_shape(shape_path, 6933, None, None, None)
 
         assert geom_equals(gdf1, gdf2)
@@ -81,7 +81,7 @@ class TestMaskFillUtil(TestCase):
         assert geom_equals(gdf1, gdf3)
 
         # Test calculating bounding shape from proj4, out shape, and transform
-        gdf4 = gpd.read_file('tests/data/south_pole_bounded2.geojson')
+        gdf4 = gpd.read_file('tests/data/south_pole1_bounded2.geojson')
         gdf5 = get_bounded_shape(shape_path, None, proj4, out_shape, transform)
 
         assert geom_equals(gdf4, gdf5)
