@@ -510,8 +510,8 @@ def get_valid_coordinates_extent(latitude: np.array, longitude: np.array,
 
     lower_left_data = valid_lat_and_lon[diff_from_lower_left.index(min(diff_from_lower_left))]
 
-    # For the upper right corner, choose the indices which maximize the area between
-    # the lower left corner and upper right corner
+    # Choose the indices which maximize the area between the
+    # lower left corner and upper right corner
     area_from_lower_left = [(x - lower_left_data[0]) * (y - lower_left_data[1])
                             for x, y in valid_lat_and_lon]
 
