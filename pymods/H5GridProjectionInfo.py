@@ -305,7 +305,6 @@ def get_corner_points_from_lat_lon(h5_dataset: Dataset) \
     elif lon_fill_value in lon_corner_values or lat_fill_value in lat_corner_values:
         # At least one of the top right or bottom left have a fill value in
         # either (or both) the latitude and longitude arrays.
-
         # Get indices of the lower left and upper right points with valid coordinates
         lower_left_indices, upper_right_indices = get_valid_coordinates_extent(
             lat, lon, lat_fill_value, lon_fill_value, lower_left_tuple,
@@ -510,7 +509,13 @@ def get_valid_coordinates_extent(latitude: np.array, longitude: np.array,
                             in valid_lat_and_lon]
 
     lower_left_data = valid_lat_and_lon[diff_from_lower_left.index(min(diff_from_lower_left))]
-    upper_right_data = valid_lat_and_lon[diff_from_lower_left.index(max(diff_from_lower_left))]
+
+    # Choose the indices which maximize the area between the
+    # lower left corner and upper right corner
+    area_from_lower_left = [(x - lower_left_data[0]) * (y - lower_left_data[1])
+                            for x, y in valid_lat_and_lon]
+
+    upper_right_data = valid_lat_and_lon[area_from_lower_left.index(max(area_from_lower_left))]
 
     if band is not None:
         # Prepend band on to output indices.
