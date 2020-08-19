@@ -15,4 +15,4 @@ source ${path}/activate maskfill
 
 # Call the Mask Fill Utility, passing on the input parameters
 path="$(dirname ${0})"
-exec ${path}/MaskFill.py $@
+exec ${path}/MaskFill.py "$@"
