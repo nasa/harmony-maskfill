@@ -1,0 +1,4 @@
+#!/bin/sh
+
+coverage run -m xmlrunner discover tests/python -o tests/reports
+coverage xml -i -o tests/reports/coverage.xml

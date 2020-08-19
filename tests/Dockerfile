@@ -23,15 +23,29 @@ COPY . /home/
 # Create Conda environment.
 RUN conda create --name maskfill --file data/mask_fill_conda_requirements.txt python=3.6
 
-# Make RUN commands use the Conda environment.
-SHELL ["conda", "run", "--name", "maskfill", "/bin/bash", "-c"]
-
 # Install additional Pip dependencies.
-RUN pip install -r data/mask_fill_pip_requirements.txt
+RUN conda run --name maskfill pip install -r data/mask_fill_pip_requirements.txt
 
-# Set the tests to run when the container is created.
-# The output is redirected from the terminal to ensure that Bamboo doesn't
-# detect output and wrongly consider there to be a failure.
-ENTRYPOINT ["conda", "run", "--name", "maskfill", "python", "-m", \
-			"xmlrunner", "discover", "tests/python", "-o", "tests/reports", \
-			">", "tests.log", "2>&1"]
+# Set conda environment to maskfill, as `conda run` will not stream logging.
+# Setting these environment variables is the equivalent of `conda activate`.
+ENV _CE_CONDA ''
+ENV _CE_M ''
+ENV CONDA_DEFAULT_ENV maskfill
+ENV CONDA_EXE /opt/conda/bin/conda
+ENV CONDA_PREFIX /opt/conda/envs/maskfill
+ENV CONDA_PREFIX_1 /opt/conda
+ENV CONDA_PROMPT_MODIFIER (maskfill)
+ENV CONDA_PYTHON_EXE /opt/conda/bin/python
+ENV CONDA_ROOT /opt/conda
+ENV CONDA_SHLVL 2
+ENV PATH "/opt/conda/envs/maskfill/bin:${PATH}"
+ENV SHLVL 1
+
+ENV CPL_ZIP_ENCODING UTF-8
+ENV GDAL_DATA /opt/conda/envs/maskfill/share/gdal
+ENV GSETTINGS_SCHEMA_DIR /opt/conda/envs/maskfill/share/glib-2.0/schemas
+ENV GSETTINGS_SCHEMA_DIR_CONDA_BACKUP ''
+ENV PROJ_LIB /opt/conda/envs/maskfill/share/proj
+
+# Configure a container to be executable via the `docker run` command.
+ENTRYPOINT ["/home/tests/run"]
