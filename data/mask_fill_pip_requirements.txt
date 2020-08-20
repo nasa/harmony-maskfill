@@ -1,4 +1,4 @@
 rasterio~=1.1.5
 pyproj~=2.3.1
 unittest-xml-reporting~=3.0.2
-coverage==5.0.4
+coverage~=5.2
