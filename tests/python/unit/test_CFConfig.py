@@ -18,7 +18,7 @@ class TestCFConfig(TestCase):
             list(config_data['Corrected_Fill_Value']['SPL3FT(A|P|P_E)'].items())[0]
         )
 
-        readConfigFile('data/MaskFillConfig.json')
+        readConfigFile()
 
     def test_get_dataset_config_fill_value(self):
         """Ensure that a dataset that fails to meet the required criteria is

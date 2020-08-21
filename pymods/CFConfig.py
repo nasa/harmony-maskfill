@@ -4,18 +4,27 @@
 '''
 from typing import Dict, List, Optional, Union
 import json
+import os
 import re
 
 import h5py
 
 
-def readConfigFile(configFile):
+def readConfigFile():
     """ Read the config json file
         Args:
             configFile(string): config file path
     """
     global config
-    with open(configFile, 'r') as file_handler:
+
+    maskfill_directory = os.path.abspath(os.sep.join([
+        os.path.dirname(os.path.abspath(__file__)),
+        os.pardir
+    ]))
+    config_file_path = os.sep.join([maskfill_directory, 'data',
+                                    'MaskFillConfig.json'])
+
+    with open(config_file_path) as file_handler:
         configString = file_handler.read()
 
     configStringWoComments = removeComments(configString)

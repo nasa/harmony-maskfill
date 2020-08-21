@@ -51,7 +51,7 @@ def produce_masked_hdf(hdf_path: str, shape_path: str, output_dir: str,
     mask_grid_cache = mask_grid_cache.lower()
     saved_mask_arrays = dict()
 
-    CFConfig.readConfigFile(get_config_file_path())
+    CFConfig.readConfigFile()
     shortname = CFConfig.getShortName(hdf_path)
     exclusion_set = get_exclusions(hdf_path)
 
@@ -72,16 +72,6 @@ def produce_masked_hdf(hdf_path: str, shape_path: str, output_dir: str,
 
     if mask_grid_cache != 'maskgrid_only':
         return MaskFillUtil.get_masked_file_path(hdf_path, output_dir)
-
-
-def get_config_file_path() -> str:
-    """ Retrieves the path to the MaskFIllConfig.json file. """
-    current_file_path = os.path.abspath(__file__)
-    scripts_directory = os.path.dirname(current_file_path)
-    data_directory = os.path.join(scripts_directory, "data")
-    config_file_path = os.path.join(data_directory, "MaskFillConfig.json")
-
-    return config_file_path
 
 
 def get_exclusions(h5_file_path: str) -> Set[str]:

@@ -52,6 +52,16 @@ of the functionality, taking an input file, creating an output file and comparin
 that output file to a template. Those within `tests/python/unit` are designed
 as more granular unit tests of the logic and behaviour of individual functions.
 
+### Test coverage report:
+
+To see how much of the code is covered by the unit and end-to-end tests, run
+the following two commands.
+
+```
+coverage run -m unittest discover tests/python
+coverage report --omit=tests/*
+```
+
 ### Unit tests in Docker:
 
 The unit tests can also be run within a Docker container:
