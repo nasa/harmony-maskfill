@@ -159,3 +159,22 @@ def get_dataset_exclusions() -> List[str]:
     """
     dataset_exclusions = config['maskfill_dataset_exclusions']
     return dataset_exclusions
+
+
+def get_collection_coordinate_variables(geotiff_path: str) -> List[str]:
+    """ Given the file name, find the longest matching key in the
+        `coordinate_exclusions_full_paths` group of the configuration file.
+        Return the resulting list, or an empty list if there are no matches.
+
+    """
+    exclusions = config['collection_coordinate_variables']
+    matching_collection_key = ''
+
+    for collection in exclusions:
+        if (
+                (collection in geotiff_path)
+                and (len(collection) > len(matching_collection_key))
+        ):
+            matching_collection_key = collection
+
+    return exclusions.get(matching_collection_key, [])

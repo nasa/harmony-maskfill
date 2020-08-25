@@ -2,3 +2,9 @@ __pycache__/
 .idea
 *.pyc
 *.pyo
+
+# Coverage reports
+htmlcov/
+
+# Test XML reports
+test-reports/

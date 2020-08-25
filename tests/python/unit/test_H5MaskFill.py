@@ -7,9 +7,8 @@ from unittest.mock import patch
 import h5py
 import numpy as np
 
-from H5MaskFill import \
-    get_mask_array, mask_fill, \
-    get_coordinates, get_exclusions
+from H5MaskFill import (get_mask_array, mask_fill, get_coordinates,
+                        get_exclusions)
 
 
 class TestH5MaskFill(TestCase):

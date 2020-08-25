@@ -1,7 +1,8 @@
 from unittest import TestCase
 import json
 
-from pymods.CFConfig import (get_dataset_config_fill_value,
+from pymods.CFConfig import (get_collection_coordinate_variables,
+                             get_dataset_config_fill_value,
                              get_grid_mapping_data, readConfigFile)
 
 
@@ -21,7 +22,7 @@ class TestCFConfig(TestCase):
         readConfigFile()
 
     def test_get_dataset_config_fill_value(self):
-        """Ensure that a dataset that fails to meet the required criteria is
+        """ Ensure that a dataset that fails to meet the required criteria is
         not processed in any way. Instead, the function should return prior to
         that point.
 
@@ -39,7 +40,7 @@ class TestCFConfig(TestCase):
                 self.assertEqual(fill_value, expected_fill_value)
 
     def test_get_grid_mapping_data(self):
-        """Ensure that datasets contained within the global configuration
+        """ Ensure that datasets contained within the global configuration
         Grid_Mapping_Group and Grid_Mapping_Data return the projection
         information. Datasets that are not in the configuration should return
         None.
@@ -57,3 +58,20 @@ class TestCFConfig(TestCase):
             with self.subTest(description):
                 self.assertEqual(get_grid_mapping_data(short_name, dataset),
                                  result)
+
+    def test_get_collection_coordinate_variables(self):
+        """ Ensure that the correct exclusions are retrieved for a filename
+            starting with a collection prefix.
+
+        """
+        coordinates = self.config_data['collection_coordinate_variables']
+
+        test_args = [['SMAP_L3_FT_P', coordinates['SMAP_L3_FT_P']],
+                     ['SMAP_L3_FT_P_E', coordinates['SMAP_L3_FT_P_E']],
+                     ['non_collection', []]]
+
+        for description, coordinate_results in test_args:
+            with self.subTest(description):
+                geotiff = f'directory_one/{description}_science_var.tif'
+                self.assertEqual(get_collection_coordinate_variables(geotiff),
+                                 coordinate_results)

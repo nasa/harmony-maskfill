@@ -7,8 +7,9 @@ from geopandas.testing import geom_equals
 from pyproj import CRS
 import affine
 
-from pymods.MaskFillUtil import get_h5_mask_array_id, get_bounded_shape
-from GeotiffMaskFill import get_geotiff_proj4, get_geotiff_info
+from pymods.MaskFillUtil import (get_h5_mask_array_id, get_bounded_shape,
+                                 get_geotiff_info)
+from GeotiffMaskFill import get_geotiff_proj4
 
 
 class TestMaskFillUtil(TestCase):
