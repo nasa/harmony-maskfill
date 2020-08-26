@@ -104,6 +104,9 @@
 			"/orbit_info/crossing_time",
 			"/orbit_info/sc_orient_time"
 		],
+		"ATL20": [
+			"/FileMainGroup/grid_l(at|on)"
+		],
 		"VNP10": [
 			"/SnowData/Geolocation_Fields/L(at|ong)itude"
 		],
