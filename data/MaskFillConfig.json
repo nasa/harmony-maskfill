@@ -44,8 +44,27 @@
         "EASE_column", "EASE_row",
         "EASE_column_index", "EASE_row_index"
     ],
+	"collection_shortname_to_prefix_mapping": {
+		"SPL2SMAP_S": "SMAP_L2_SM_SP",
+		"SPL3FTP": "SMAP_L3_FT_P",
+		"SPL3FTP_E": "SMAP_L3_FT_P_E",
+		"SPL3FTA": "SMAP_L3_FT_A",
+		"SPL3SMP": "SMAP_L3_SM_P",
+		"SPL3SMP_E": "SMAP_L3_SM_P_E",
+		"SPL4CMDL": "SMAP_L4_C_mdl",
+		"SPL4SMAU": "SMAP_L4_SM_aup",
+		"SPL4SMGP": "SMAP_L4_SM_gph",
+		"SPL4SMLM": "SMAP_L4_SM_lmc",
+		"ATL16": "ATL16",
+		"ATL17": "ATL17",
+		"ATL20": "ATL20",
+		"VNP10": "VNP10",
+		"VNP10A1": "VNP10A1",
+		"VNP10A1F": "VNP10A1F",
+		"VNP30": "VNP30"
+	},
 	"collection_coordinate_variables": {
-		"SMAP_L2_SM_SP_1AIWDV": [
+		"SMAP_L2_SM_SP": [
 			"/Soil_Moisture_Retrieval_Data_1km_l(at|ong)itude(:?_apm)?_1km",
 			"/Soil_Moisture_Retrieval_Data_1km_EASE_(column|row)_index(:?_apm)?_1km",
 			"/Soil_Moisture_Retrieval_Data_3km_l(at|ong)itude(:?_apm)?_3km",
@@ -56,8 +75,8 @@
 			"/Freeze_Thaw_Retrieval_Data_(Global|Polar)/EASE_(column|row)_index.Bands_(:?0)?[12]"
 		],
 		"SMAP_L3_FT_P_E": [
-			"/Freeze_Thaw_Retrieval_Data/l(at|ong)itude.Bands_(:?0)?[12]",
-			"/Freeze_Thaw_Retrieval_Data/EASE_(column|row)_index.Bands_(:?0)?[12]"
+			"/Freeze_Thaw_Retrieval_Data_(Global|Polar)/l(at|ong)itude.Bands_(:?0)?[12]",
+			"/Freeze_Thaw_Retrieval_Data_(Global|Polar)/EASE_(column|row)_index.Bands_(:?0)?[12]"
 		],
 		"SMAP_L3_FT_A": [
 			"/Freeze_Thaw_Retrieval_Data/l(at|ong)itude.Bands_(:?0)?[12]",
