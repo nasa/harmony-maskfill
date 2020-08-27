@@ -334,11 +334,41 @@ class TestMaskFill(TestCase):
         geotiff_parameters['input_file'] = self.input_polar_geo_file
         geotiff_parameters['shape_file'] = self.shape_file_south_pole
 
-        mock_get_input_parameters.return_value = self.create_parameters_namespace(geotiff_parameters)
+        mock_get_input_parameters.return_value = self.create_parameters_namespace(
+            geotiff_parameters
+        )
         response = mask_fill()
 
         self.assertEqual(response, get_xml_success_response(self.input_polar_geo_file,
                                                             self.shape_file_south_pole,
                                                             self.output_polar_geo_file))
 
-        self.compare_geotiff_files(self.output_geotiff_template_south_pole, self.output_polar_geo_file)
+        self.compare_geotiff_files(self.output_geotiff_template_south_pole,
+                                   self.output_polar_geo_file)
+
+    @patch('MaskFill.get_input_parameters')
+    def test_mask_fill_geotiff_coordinates(self, mock_get_input_parameters):
+        """ Check that a GeoTIFF file that matches a coordinate pattern is
+            copied without masking.
+
+        """
+        geotiff_base = ('SMAP_L3_FT_P_20180618_R16010_001_Freeze_Thaw_'
+                        'Retrieval_Data_Global_longitude_Bands_1_488b73ed')
+
+        input_name = f'tests/data/{geotiff_base}.tif'
+        output_name = f'{self.output_dir}/{self.identifier}/{geotiff_base}_mf.tif'
+
+        geotiff_parameters = self.default_parameters
+        geotiff_parameters['input_file'] = input_name
+
+        mock_get_input_parameters.return_value = self.create_parameters_namespace(
+            geotiff_parameters
+        )
+
+        response = mask_fill()
+
+        self.assertEqual(response, get_xml_success_response(input_name,
+                                                            self.shape_file,
+                                                            output_name))
+
+        self.compare_geotiff_files(input_name, output_name)

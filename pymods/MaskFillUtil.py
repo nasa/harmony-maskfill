@@ -1,18 +1,20 @@
 """ Utility functions to support MaskFill processing
 """
+from typing import Tuple
 import hashlib
 import os
 
+from affine import Affine
+from geopandas import GeoSeries
+from osgeo import osr
+from pyproj import Transformer, CRS
+from rasterio import features  # as in geographic features, shapes, polygons
+from shapely.geometry import Polygon
 import gdal
 import geopandas as gpd
 import h5py
 import numpy as np
 import rasterio
-from osgeo import osr
-from rasterio import features  # as in geographic features, shapes, polygons
-from shapely.geometry import Polygon
-from geopandas import GeoSeries
-from pyproj import Transformer, CRS
 
 from pymods import H5GridProjectionInfo
 
@@ -208,7 +210,7 @@ def get_geotiff_proj4(geotiff_path):
     return srs.ExportToProj4()
 
 
-def get_geotiff_info(geotiff_path):
+def get_geotiff_info(geotiff_path: str) -> Tuple[Tuple[int], Affine]:
     """ Retuns the shape and transform of the given GeoTIFF.
 
     Args:
@@ -218,9 +220,9 @@ def get_geotiff_info(geotiff_path):
         tuple: The shape (tuple) and transform (affine.Affine) corresponding to
             the GeoTIFF.
     """
-    raster = rasterio.open(geotiff_path)
-    shape = raster.read(1).shape
-    transform = raster.transform
+    with rasterio.open(geotiff_path) as raster:
+        shape = raster.read(1).shape
+        transform = raster.transform
 
     return shape, transform
 
