@@ -11,5 +11,5 @@ coverage run -m xmlrunner discover tests/python -o tests/reports
 echo "\n\n"
 
 echo "Test Coverage Estimates"
-
-coverage report --omit="*tests/*" 
+coverage report --omit="*tests/*"
+coverage xml --omit="*tests/*" -o tests/reports/coverage.xml
