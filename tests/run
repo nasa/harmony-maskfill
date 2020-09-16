@@ -12,4 +12,4 @@ echo "\n\n"
 
 echo "Test Coverage Estimates"
 coverage report --omit="*tests/*"
-coverage xml --omit="*tests/*" -o tests/reports/coverage.xml
+coverage xml --omit="*tests/*" -o tests/coverage/coverage.xml
