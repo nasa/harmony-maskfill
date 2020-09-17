@@ -69,7 +69,7 @@ The unit tests can also be run within a Docker container:
 ```bash
 mkdir test-reports
 docker build -f tests/Dockerfile -t maskfill
-docker run -v /full/path/to/test-reports:/home/tests/reports maskfill:latest
+docker run -v /full/path/to/test-reports:/home/tests/reports -v /full/path/to/maskfill-coverage:/home/tests/coverage maskfill:latest
 ```
 
 The terminal should display output from the test results, with the failures
