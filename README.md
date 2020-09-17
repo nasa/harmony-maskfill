@@ -74,4 +74,5 @@ docker run -v /full/path/to/test-reports:/home/tests/reports -v /full/path/to/ma
 
 The terminal should display output from the test results, with the failures
 from `unittest`. Additionally, the XML test reports should be saved to the new
-`test-reports` directory.
+`test-reports` directory. Test coverage report should also be displayed in the 
+terminal, and will also be saved to the 'coverage' directory in HTML format.
