@@ -69,9 +69,14 @@ The unit tests can also be run within a Docker container:
 ```bash
 mkdir test-reports
 docker build -f tests/Dockerfile -t maskfill
-docker run -v /full/path/to/test-reports:/home/tests/reports maskfill:latest
+docker run -v /full/path/to/test-reports:/home/tests/reports -v /full/path/to/maskfill-coverage:/home/tests/coverage maskfill:latest
 ```
 
 The terminal should display output from the test results, with the failures
 from `unittest`. Additionally, the XML test reports should be saved to the new
-`test-reports` directory.
+`test-reports` directory. Test coverage report should also be displayed in the 
+terminal, and will also be saved to the 'coverage' directory in HTML format.
+Coverage reports are being generate for each build in Bamboo, and saved as artifacts.
+Following URL is an example coverage report in Bamboo:
+
+https://ci.earthdata.nasa.gov/artifact/HITC-MAS18/JOB1/build-16/Coverage-Report/maskfill/test-coverage/index.html
