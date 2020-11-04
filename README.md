@@ -18,7 +18,65 @@ pip install -r ./data/mask_fill_pip_requirements.txt
 
 ## Development:
 
-...
+### General notes:
+
+* Commit messages should use the ticket number as a prefix,
+  e.g.: `DAS-123 - Awesome feature description.`
+* Commit history should be squashed locally, to avoid minor commits (e.g.:
+  `fix typo`, `update README`). This can be done via an interactive rebase,
+  where `N` is the number of commits added during the feature development:
+  ```
+  git rebase -i HEAD~N
+  ```
+
+### Regular releases:
+
+During regular development there should be a release branch open. This should
+have the naming format: `202_UPDATES`. All normal tickets should be worked on
+branches that are created from that release branch. The naming format for ticket
+work should usually start with the ticket number (e.g.: `DAS-123-awesome-feature`).
+
+When the feature work is complete, the local feature branch should be pushed to
+the Bitbucket remote server and a pull request should be opened to merge in to
+the release branch.`
+
+### Hot shelves:
+
+Hot shelves occur when bug fixes are required outside of the regular release
+cycle. When one has been identified, and new hot shelf branch should be created
+from the master branch. It should have a name with the format:
+
+```
+HOTSHELF-DAS-XYZ
+```
+
+The name of this branch will be used in naming the tarball saved in Maven, so
+it is important to maintain a consistent naming convention for the hot shelf
+branches.
+
+When hot shelf work is complete, a pull request should be opened against the
+master branch.
+
+After the merge into the master branch, the developer who worked on the hot
+shelf also needs to then rebase the open feature branch against the updated
+master branch. This will place the changes from the hot shelf ahead of those in
+the pending release. As well as preserving a git history that reflects the
+release history, this will also deal with any merge conflicts immediately,
+rather than them occuring when merging the release branch weeks (or months)
+later.
+
+```
+git checkout 202_UPDATES
+git rebase master
+# Work through any merge conflicts
+# Double check final version contains the hotshelf fix and still passes all tests
+git push origin --force
+```
+
+If there has been a lot of work since the release branch was opened, then this
+step may be tricky. If there are other developers working on MaskFill, they
+should be notified after the release branch has been rebased, so they can
+make their commit history consistent with the updated release branch.
 
 ## Running locally:
 
