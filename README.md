@@ -66,7 +66,7 @@ rather than them occuring when merging the release branch weeks (or months)
 later.
 
 ```
-git checkout 202_UPDATES
+git checkout 203_UPDATES
 git rebase master
 # Work through any merge conflicts
 # Double check final version contains the hotshelf fix and still passes all tests
