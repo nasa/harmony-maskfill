@@ -26,8 +26,7 @@ class InsufficientProjectionInformation(CustomError):
     def __init__(self, dataset_name):
         super().__init__('InsufficientProjectionInformation',
                          ('Cannot find projection information for dataset: '
-                          f'{dataset_name}.'),
-                         None)
+                          f'{dataset_name}.'), 5)
 
 
 class InternalError(CustomError):

@@ -5,12 +5,12 @@ from shutil import rmtree
 from unittest import TestCase
 from unittest.mock import patch
 
-from MaskFill import (check_shapefile_geojson, default_fill_value,
+from MaskFill import (check_shapefile_geojson, DEFAULT_FILL_VALUE,
                       format_parameters, get_log_file_path,
                       get_xml_error_response, validate_input_parameters)
-from pymods.exceptions import (InternalError, InvalidParameterValue,
-                               MissingCoordinateDataset, MissingParameterValue,
-                               NoMatchingData)
+from pymods.exceptions import (InsufficientProjectionInformation,
+                               InvalidParameterValue, MissingCoordinateDataset,
+                               MissingParameterValue, NoMatchingData)
 
 
 class TestMaskFill(TestCase):
@@ -104,7 +104,7 @@ class TestMaskFill(TestCase):
         self.assertEqual(validate_input_parameters(self.input_h5_file,
                                                    self.shape_file,
                                                    self.output_dir,
-                                                   default_fill_value,
+                                                   DEFAULT_FILL_VALUE,
                                                    None), None)
 
     def test_validate_input_parameters_valid_extensions(self):
@@ -120,7 +120,7 @@ class TestMaskFill(TestCase):
                 self.assertEqual(validate_input_parameters(input_file,
                                                            self.shape_file,
                                                            self.output_dir,
-                                                           default_fill_value,
+                                                           DEFAULT_FILL_VALUE,
                                                            None), None)
 
     def test_validate_input_parameters_invalid_extension(self):
@@ -134,7 +134,7 @@ class TestMaskFill(TestCase):
 
         with self.assertRaises(InvalidParameterValue) as context:
             validate_input_parameters(input_file, self.shape_file,
-                                      self.output_dir, default_fill_value,
+                                      self.output_dir, DEFAULT_FILL_VALUE,
                                       None)
             self.assertEqual(context.exception.message, expected_message)
 
@@ -146,7 +146,7 @@ class TestMaskFill(TestCase):
         input_file = None
         with self.assertRaises(MissingParameterValue) as context:
             validate_input_parameters(input_file, self.shape_file,
-                                      self.output_dir, default_fill_value,
+                                      self.output_dir, DEFAULT_FILL_VALUE,
                                       None)
             self.assertEqual(context.exception.message, expected_message)
 
@@ -159,7 +159,7 @@ class TestMaskFill(TestCase):
 
         with self.assertRaises(MissingParameterValue) as context:
             validate_input_parameters(input_file, self.shape_file,
-                                      self.output_dir, default_fill_value,
+                                      self.output_dir, DEFAULT_FILL_VALUE,
                                       None)
             self.assertEqual(context.exception.message, expected_message)
 
@@ -170,7 +170,7 @@ class TestMaskFill(TestCase):
 
         with self.assertRaises(MissingParameterValue) as context:
             validate_input_parameters(self.input_h5_file, 'not_a_real_file',
-                                      self.output_dir, default_fill_value,
+                                      self.output_dir, DEFAULT_FILL_VALUE,
                                       None)
             self.assertEqual(context.exception.message, expected_message)
 
@@ -180,7 +180,7 @@ class TestMaskFill(TestCase):
 
         with self.assertRaises(MissingParameterValue) as context:
             validate_input_parameters(self.input_h5_file, self.shape_file,
-                                      self.output_dir, default_fill_value,
+                                      self.output_dir, DEFAULT_FILL_VALUE,
                                       None)
             self.assertEqual(context.exception.message, expected_message)
 
@@ -211,11 +211,20 @@ class TestMaskFill(TestCase):
         directly placed in the output message.
 
         """
-        exception = InvalidParameterValue()
-        xml_error = get_xml_error_response(self.output_dir, exception)
+        test_exceptions = [InvalidParameterValue(), MissingParameterValue(),
+                           NoMatchingData(),
+                           MissingCoordinateDataset('file.hdf', 'dataset'),
+                           InsufficientProjectionInformation('dataset')]
 
-        for text in ['iesi:Exception', '<Code>InvalidParameterValue']:
-            self.assertTrue(text in xml_error)
+        for exception in test_exceptions:
+            with self.subTest(exception.exception_type):
+                xml_error = get_xml_error_response(self.output_dir, exception)
+
+                expected_substrings = ['iesi:Exception',
+                                       f'<Code>{exception.exception_type}</Code>',
+                                       exception.message]
+                for text in expected_substrings:
+                    self.assertIn(text, xml_error)
 
     def test_get_xml_error_response_non_custom(self):
         """Exceptions that are not designed to be used in XML output should be

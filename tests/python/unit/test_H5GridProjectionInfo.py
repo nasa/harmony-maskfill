@@ -5,6 +5,7 @@ from unittest import TestCase
 from unittest.mock import Mock, patch
 import json
 
+from pyproj.crs import CRS
 import h5py
 import numpy as np
 
@@ -341,9 +342,9 @@ class TestH5GridProjectionInfo(TestCase):
 
     @patch('pymods.H5GridProjectionInfo.get_proj4')
     @patch('pymods.H5GridProjectionInfo._get_short_name')
-    @patch('pymods.H5GridProjectionInfo._get_grid_mapping_data')
+    @patch('pymods.H5GridProjectionInfo.CFConfig.get_grid_epsg_code')
     def test_get_corner_points_from_lat_lon(self,
-                                            mock_get_grid_data,
+                                            mock_get_grid_epsg_code,
                                             mock_get_short_name,
                                             mock_get_proj4):
         """Ensure extrapolation occurs where expected, corners with valid points
@@ -355,6 +356,7 @@ class TestH5GridProjectionInfo(TestCase):
         is consistent with expectations.
 
         """
+        mock_get_grid_epsg_code.return_value = 'EPSG:32663'
         mock_get_short_name.return_value = 'SPL3FTP'
         mock_get_proj4.return_value = {'proj': 'eqc'}
 
@@ -434,8 +436,8 @@ class TestH5GridProjectionInfo(TestCase):
                 lon_copy = np.copy(lon_array)
                 lat_copy.fill(fill_value)
 
-                lat_name = f'/lat_filled'
-                lon_name = f'/lon_filled'
+                lat_name = '/lat_filled'
+                lon_name = '/lon_filled'
                 h5_file.create_dataset(lat_name, data=lat_copy, fillvalue=fill_value)
                 h5_file.create_dataset(lon_name, data=lon_copy, fillvalue=fill_value)
 
@@ -466,10 +468,11 @@ class TestH5GridProjectionInfo(TestCase):
 
     @patch('pymods.H5GridProjectionInfo.get_proj4')
     @patch('pymods.H5GridProjectionInfo._get_short_name')
-    @patch('pymods.H5GridProjectionInfo._get_grid_mapping_data')
-    def test_get_cell_size_from_lon_lat(self, mock_get_grid_data,
+    @patch('pymods.H5GridProjectionInfo.CFConfig.get_grid_epsg_code')
+    def test_get_cell_size_from_lon_lat(self, mock_get_grid_epsg_code,
                                         mock_get_short_name, mock_get_proj4):
         """Given an input dataset, check the returned cell_width and cell_height."""
+        mock_get_grid_epsg_code.return_value = 'EPSG:4327'
         mock_get_short_name.return_value = 'SPL3FTP'
         mock_get_proj4.return_value = {'proj': 'lonlat'}
 
@@ -479,8 +482,8 @@ class TestH5GridProjectionInfo(TestCase):
 
         h5_file = h5py.File(self.test_h5_name, 'w')
         data = h5_file.create_dataset('data', data=data_array)
-        lon = h5_file.create_dataset('longitude', data=lon_array)
-        lat = h5_file.create_dataset('latitude', data=lat_array)
+        h5_file.create_dataset('longitude', data=lon_array)
+        h5_file.create_dataset('latitude', data=lat_array)
 
         data.attrs['coordinates'] = b'/longitude /latitude'
 
@@ -527,8 +530,8 @@ class TestH5GridProjectionInfo(TestCase):
 
         The expected transformation:
 
-        [[a, b, c],      [[1, 0, 2],
-         [d, e, f],   =   [0, 3, 4],
+        [[a, b, c],      [[1, 0, 1.5],
+         [d, e, f],   =   [0, 3, 2.5],
          [g, h, i]]       [0, 0, 1]]
 
         """
@@ -546,10 +549,10 @@ class TestH5GridProjectionInfo(TestCase):
 
         self.assertEqual(affine_transformation.a, 1)
         self.assertEqual(affine_transformation.b, 0)
-        self.assertEqual(affine_transformation.c, 2)
+        self.assertEqual(affine_transformation.c, 1.5)
         self.assertEqual(affine_transformation.d, 0)
         self.assertEqual(affine_transformation.e, 3)
-        self.assertEqual(affine_transformation.f, 4)
+        self.assertEqual(affine_transformation.f, 2.5)
         self.assertEqual(affine_transformation.g, 0)
         self.assertEqual(affine_transformation.h, 0)
         self.assertEqual(affine_transformation.i, 1)
@@ -562,11 +565,11 @@ class TestH5GridProjectionInfo(TestCase):
     @patch('pymods.H5GridProjectionInfo.get_corner_points_from_dimensions')
     @patch('pymods.H5GridProjectionInfo.get_proj4')
     @patch('pymods.H5GridProjectionInfo._get_short_name')
-    @patch('pymods.H5GridProjectionInfo._get_grid_mapping_data')
-    def test_get_transform_dimensions(self, mock_get_grid_data,
-                                      mock_get_short_name, mock_get_proj4,
-                                      mock_get_corner_points_from_dimensions,
-                                      mock_get_cell_size_from_dimensions):
+    @patch('pymods.H5GridProjectionInfo.CFConfig.get_grid_epsg_code')
+    def test_get_transform_coordinates(self, mock_get_grid_espg_code,
+                                       mock_get_short_name, mock_get_proj4,
+                                       mock_get_corner_points_from_dimensions,
+                                       mock_get_cell_size_from_dimensions):
         """Ensure the correct Affine transformation matrix is formed for a
         dataset that uses the coordinate attribute. This should not call
         `get_corner_points_from_dimensions` or `get_cell_size_from_dimensions`.
@@ -578,6 +581,7 @@ class TestH5GridProjectionInfo(TestCase):
          [g, h, i]]       [0, 0, 1]]
 
         """
+        mock_get_grid_espg_code.return_value = 'ESPG:4327'
         mock_get_short_name.return_value = 'SPL3FTP'
         mock_get_proj4.return_value = {'proj': 'lonlat'}
 
@@ -587,13 +591,11 @@ class TestH5GridProjectionInfo(TestCase):
 
         h5_file = h5py.File(self.test_h5_name, 'w')
         data = h5_file.create_dataset('data', data=data_array)
-        lon = h5_file.create_dataset('longitude', data=lon_array)
-        lat = h5_file.create_dataset('latitude', data=lat_array)
+        h5_file.create_dataset('longitude', data=lon_array)
+        h5_file.create_dataset('latitude', data=lat_array)
 
         data.attrs['coordinates'] = b'/longitude /latitude'
         data_array = np.ones((3, 4))
-        x_array = np.array([2, 3, 4, 5])
-        y_array = np.array([4, 7, 10])
 
         affine_transformation = get_transform(data)
 
@@ -677,7 +679,7 @@ class TestH5GridProjectionInfo(TestCase):
         with open('data/MaskFillConfig.json') as file_handler:
             config = json.load(file_handler)
 
-        global_proj4 = config['Grid_Mapping_Data']['EASE2_Global']
+        global_proj4 = CRS('EPSG:6933').to_cf()
         dim_x_name = '/x'
         dim_y_name = '/y'
         short_name = 'SPL3FTP'
@@ -735,8 +737,9 @@ class TestH5GridProjectionInfo(TestCase):
             self.assertEqual(get_dimension_datasets(dataset), None)
 
         with self.subTest('Valid DIMENSION_LIST'):
-            dataset.attrs.create('DIMENSION_LIST', ((dim_y.ref, ),
-                                 (dim_x.ref, )), dtype=h5py.ref_dtype)
+            dataset.attrs.create('DIMENSION_LIST',
+                                 ((dim_y.ref, ), (dim_x.ref, )),
+                                 dtype=h5py.ref_dtype)
 
             dim_x_out, dim_y_out = get_dimension_datasets(dataset)
             self.assertEqual(dim_x_out, dim_x)

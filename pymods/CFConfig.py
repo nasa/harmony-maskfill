@@ -1,12 +1,13 @@
-''' Utilities for reading and interpreting the CF configuration file
+""" Utilities for reading and interpreting the CF configuration file
     Allows processing of hdf-5 files that do not fully follow the CF conventions
     Where the configuration file provides the missing information.
-'''
-from typing import Dict, List, Optional, Union
+"""
+from typing import List, Optional, Union
 import json
 import os
 import re
 
+from numpy import bytes_
 import h5py
 
 
@@ -79,7 +80,7 @@ def removeComments(text):
     return "".join(noncomments)
 
 
-def getShortName(input_file):
+def getShortName(input_file_object: Union[h5py.File, str]) -> str:
     """ Get product short name using config json file
         Args:
             input_file(string): input file path
@@ -87,10 +88,10 @@ def getShortName(input_file):
             shortname(string): product short name
     """
     shortnamePaths = config["ShortNamePath"]
-    if isinstance(input_file, str):
-        inf = h5py.File(input_file, 'r')
+    if isinstance(input_file_object, str):
+        input_file = h5py.File(input_file_object, 'r')
     else:
-        inf = input_file
+        input_file = input_file_object
 
     for path in shortnamePaths:
         if path.endswith("/"):
@@ -98,16 +99,19 @@ def getShortName(input_file):
 
         shortnamePath = path.rpartition("/")[0]
         label = path.rpartition("/")[2]
-        if shortnamePath in inf:
-            if label in inf[shortnamePath].attrs:
-                shortName = inf[shortnamePath].attrs[label]
+        if shortnamePath in input_file:
+            if label in input_file[shortnamePath].attrs:
+                shortName = input_file[shortnamePath].attrs[label]
                 break
+
+    if isinstance(shortName, (bytes, bytes_)):
+        shortName = shortName.decode()
 
     return shortName
 
 
-def get_grid_mapping_data(short_name: Union[bytes, str],
-                          dataset_name: str) -> Optional[Dict[str, str]]:
+def get_grid_epsg_code(short_name: Union[bytes, str],
+                       dataset_name: str) -> Optional[str]:
     """ Get grid mapping data, if present, for CF-Compliance
         Args:
             short_name: collection short name (e.g. SPL3FTP).
@@ -118,11 +122,11 @@ def get_grid_mapping_data(short_name: Union[bytes, str],
     if not isinstance(short_name, str):
         short_name = short_name.decode()
 
-    for collection_key, collection in config['Grid_Mapping_Group'].items():
-        if re.match(collection_key, short_name):
-            for dataset_key, grid_mapping_data in collection.items():
-                if re.match(dataset_key, dataset_name):
-                    return config['Grid_Mapping_Data'].get(grid_mapping_data)
+    for collection_pattern, collection in config['Grid_Mapping_Group'].items():
+        if re.match(collection_pattern, short_name):
+            for dataset_pattern, epsg_code in collection.items():
+                if re.match(dataset_pattern, dataset_name):
+                    return epsg_code
 
     return None
 
@@ -155,8 +159,7 @@ def get_dataset_config_fill_value(short_name: str, dataset_name: str):
 
 
 def get_dataset_exclusions() -> List[str]:
-    """ Pull MaskFill dataset exclusion values from configuration data
-    """
+    """ Pull MaskFill dataset exclusion values from configuration data """
     dataset_exclusions = config['maskfill_dataset_exclusions']
     return dataset_exclusions
 

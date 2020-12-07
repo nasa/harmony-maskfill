@@ -47,12 +47,12 @@ def get_hdf_proj4(h5_dataset: Dataset, shortname: str) -> str:
     grid_mapping_name = h5_dataset.attrs.get('grid_mapping', None)
 
     if grid_mapping_name is not None:
-        logging.debug(f'Dataset {h5_dataset.name} has grid_mapping attribute,'
+        logging.debug(f'Dataset {h5_dataset.name} has grid_mapping data,'
                       'using this to derive projection information.')
         return get_proj4(h5_dataset.file[grid_mapping_name])
 
     # Projection absent in granule; get information from MaskFill configuration.
-    grid_mapping = _get_grid_mapping_data(shortname, h5_dataset.name)
+    grid_mapping = CFConfig.get_grid_epsg_code(shortname, h5_dataset.name)
 
     if grid_mapping is None:
         raise InsufficientProjectionInformation(h5_dataset.name)
@@ -67,16 +67,6 @@ def _get_short_name(h5_dataset: Dataset) -> str:
     """ Get collection shortname for the hdf5 dataset (file)
         redefined here for convenience and clarification  """
     return CFConfig.getShortName(h5_dataset.file)
-
-
-def _get_grid_mapping_data(short_name: Union[bytes, str],
-                           dataset_name: str) -> Optional[Dict[str, str]]:
-    """ Get the grid_mapping data (attributes, values) assigned to the CF
-        grid_mapping variable
-
-        Redefined here for convenience and clarification
-    """
-    return CFConfig.get_grid_mapping_data(short_name, dataset_name)
 
 
 def get_lon_lat_datasets(h5_dataset: Dataset) -> Tuple[Dataset, Dataset]:
@@ -127,25 +117,31 @@ def get_dimension_datasets(h5_dataset: Dataset) -> Optional[Tuple[Dataset, Datas
         return None
 
 
-def get_proj4(grid_mapping: Dataset) -> str:
+def get_proj4(grid_mapping: Union[Dataset, str]) -> str:
     """ Returns the proj4 string corresponding to a grid mapping dataset.
         Args:
             grid_mapping (h5py._hl.dataset.Dataset):
-                A dataset containing CF parameters for a coordinate reference system
+                A dataset containing CF parameters for a coordinate reference
+                system. This can also be an entry from the MaskFill
+                configuration file.
         Returns:
             str: The proj4 string corresponding to the grid mapping
     """
-    if isinstance(grid_mapping, dict):
-        cf_parameters = grid_mapping
+    if isinstance(grid_mapping, str):
+        # Given an EPSG code as stored in the MaskFill configuration file.
+        crs = CRS(grid_mapping)
     else:
+        # Given a grid_mapping variable from the input HDF-5 Dataset.
         cf_parameters = dict(grid_mapping.attrs)
         decode_bytes(cf_parameters)
 
-    crs_dict = CRS.from_cf(cf_parameters).to_dict()
-    if 'standard_parallel' in cf_parameters:
-        crs_dict['lat_ts'] = cf_parameters['standard_parallel']
+        crs_dict = CRS.from_cf(cf_parameters).to_dict()
+        if 'standard_parallel' in cf_parameters:
+            crs_dict['lat_ts'] = cf_parameters['standard_parallel']
 
-    return CRS.from_dict(crs_dict).to_proj4()
+        crs = CRS.from_dict(crs_dict)
+
+    return crs.to_proj4()
 
 
 def decode_bytes(dictionary):
@@ -269,8 +265,8 @@ def get_corner_points_from_lat_lon(h5_dataset: Dataset) \
             tuple: x min, x max, y min, y max
     """
     shortname = _get_short_name(h5_dataset)
-    proj4_str = _get_grid_mapping_data(shortname, h5_dataset.name)
-    p = Proj(get_proj4(proj4_str))
+    epsg_code = CFConfig.get_grid_epsg_code(shortname, h5_dataset.name)
+    p = Proj(get_proj4(epsg_code))
 
     lon, lat = get_lon_lat_datasets(h5_dataset)
     lon_fill_value, lat_fill_value = get_lon_lat_fill_values(h5_dataset)
@@ -301,7 +297,7 @@ def get_corner_points_from_lat_lon(h5_dataset: Dataset) \
         or dataset_all_fill_value(lat, None, band)
     ):
         # The longitude or latitude arrays are entirely fill values
-        raise InsufficientDataError('{lon.name} or {lat.name} have no valid data.')
+        raise InsufficientDataError(f'{lon.name} or {lat.name} have no valid data.')
     elif lon_fill_value in lon_corner_values or lat_fill_value in lat_corner_values:
         # At least one of the top right or bottom left have a fill value in
         # either (or both) the latitude and longitude arrays.
