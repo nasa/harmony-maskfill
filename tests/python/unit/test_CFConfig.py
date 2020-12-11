@@ -1,9 +1,12 @@
 from unittest import TestCase
+from unittest.mock import Mock
 import json
+
+from h5py import Dataset
 
 from pymods.CFConfig import (get_collection_coordinate_variables,
                              get_dataset_config_fill_value,
-                             get_grid_mapping_data, readConfigFile)
+                             get_grid_epsg_code, readConfigFile)
 
 
 class TestCFConfig(TestCase):
@@ -39,24 +42,22 @@ class TestCFConfig(TestCase):
                 fill_value = get_dataset_config_fill_value(short_name, dataset_name)
                 self.assertEqual(fill_value, expected_fill_value)
 
-    def test_get_grid_mapping_data(self):
+    def test_get_grid_epsg_code(self):
         """ Ensure that datasets contained within the global configuration
-        Grid_Mapping_Group and Grid_Mapping_Data return the projection
-        information. Datasets that are not in the configuration should return
-        None.
+        Grid_Mapping_Group return the projection information. Datasets that are
+        not in the configuration should return `None`.
 
         """
         dataset = '/Freeze_Thaw_Retrieval_Global_Data/altitude.Bands_01'
         collection = self.short_name
-        grid_mapping = self.config_data['Grid_Mapping_Data']['EASE2_Global']
 
-        test_args = [['Valid collection and dataset', collection, dataset, grid_mapping],
+        test_args = [['Valid collection and dataset', collection, dataset, 'EPSG:6933'],
                      ['Missing collection', 'Invalid', 'science', None],
                      ['Missing dataset', 'SPL3FTP', 'Invalid', None]]
 
         for description, short_name, dataset, result in test_args:
             with self.subTest(description):
-                self.assertEqual(get_grid_mapping_data(short_name, dataset),
+                self.assertEqual(get_grid_epsg_code(short_name, dataset),
                                  result)
 
     def test_get_collection_coordinate_variables(self):

@@ -109,7 +109,7 @@ The unit tests also contain basic tests for code style, ensuring that all Python
 files conform to [PEP8](https://www.python.org/dev/peps/pep-0008/), excluding
 checks on line-length.
 
-Tests within `tests/python/test_MaskFill.py` are designed to test the full use
+Tests within `tests/python/test\_MaskFill.py` are designed to test the full use
 of the functionality, taking an input file, creating an output file and comparing
 that output file to a template. Those within `tests/python/unit` are designed
 as more granular unit tests of the logic and behaviour of individual functions.
@@ -142,3 +142,26 @@ Coverage reports are being generate for each build in Bamboo, and saved as artif
 Following URL is an example coverage report in Bamboo:
 
 https://ci.earthdata.nasa.gov/artifact/HITC-MAS18/JOB1/build-16/Coverage-Report/maskfill/test-coverage/index.html
+
+## Gotchas:
+
+### New collection grid mappings:
+
+MaskFill will try to determine the projection information for a variable by
+using the following metadata (in the order specified):
+
+* `DIMENSION\_LIST` attribute. If present, and with units of 'degrees', the
+  data are assumed to be geographic.
+* `grid\_mapping` attribute. If present, this will point to a `grid\_mapping`
+  variable in the granule. The metadata of that variable is used to define the
+  projection of the variable being filled.
+* Configuration file. If neither `DIMENSION\_LIST` nor `grid\_mapping` are
+  included in the metadata attributes, the configuration file is checked for
+  default values.
+* If all of the above options do not return information from which a projection
+  can be derived, MaskFill will raise an exception, and the service will fail.
+
+When adding several SMAP collections, new entries were needed for the default
+grid mapping when input data to MaskFill have not been reprojected. When adding
+the MaskFill service to a new collection, care should be taken to ensure
+whether the granule format can provide the necessary grid mapping information.
