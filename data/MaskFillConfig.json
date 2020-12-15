@@ -45,7 +45,8 @@
     "maskfill_dataset_exclusions": [
         "cell_row", "cell_column",
         "EASE_column", "EASE_row",
-        "EASE_column_index", "EASE_row_index"
+        "EASE_column_index", "EASE_row_index",
+        "grid_lat", "grid_lon"
     ],
     "collection_shortname_to_prefix_mapping": {
         "SPL2SMAP_S": "SMAP_L2_SM_SP",

@@ -11,7 +11,7 @@ import numpy as np
 
 from pymods.exceptions import (InsufficientDataError,
                                InsufficientProjectionInformation,
-                               MissingCoordinateDataset)
+                               InvalidMetadata, MissingCoordinateDataset)
 from pymods.H5GridProjectionInfo import (_get_short_name,
                                          dataset_all_fill_value,
                                          dataset_all_outside_valid_range,
@@ -21,14 +21,17 @@ from pymods.H5GridProjectionInfo import (_get_short_name,
                                          get_cell_size_from_lat_lon,
                                          get_corner_points_from_dimensions,
                                          get_corner_points_from_lat_lon,
+                                         get_dataset_attributes,
                                          get_dimension_datasets,
                                          get_fill_value,
+                                         get_grid_mapping_name,
                                          get_hdf_proj4,
                                          get_lon_lat_datasets,
                                          get_pixel_size_from_data_extent,
-                                         get_transform,
+                                         get_proj4, get_transform,
                                          get_transform_information,
-                                         get_valid_coordinates_extent)
+                                         get_valid_coordinates_extent,
+                                         resolve_relative_dataset_path)
 
 
 class TestH5GridProjectionInfo(TestCase):
@@ -581,7 +584,7 @@ class TestH5GridProjectionInfo(TestCase):
          [g, h, i]]       [0, 0, 1]]
 
         """
-        mock_get_grid_espg_code.return_value = 'ESPG:4327'
+        mock_get_grid_espg_code.return_value = 'EPSG:4327'
         mock_get_short_name.return_value = 'SPL3FTP'
         mock_get_proj4.return_value = {'proj': 'lonlat'}
 
@@ -744,3 +747,125 @@ class TestH5GridProjectionInfo(TestCase):
             dim_x_out, dim_y_out = get_dimension_datasets(dataset)
             self.assertEqual(dim_x_out, dim_x)
             self.assertEqual(dim_y_out, dim_y)
+
+    def test_get_dataset_attributes(self):
+        """ Ensure a dictionary is returned, with all string values decoded
+            from bytes, which is the default return type from
+            `h5py.Dataset.attrs`.
+
+        """
+        attribute_dictionary = {'float': 1.234, 'string': '123'}
+
+        h5_file = h5py.File(self.test_h5_name, 'w')
+        dataset = h5_file.create_dataset('data', data=np.ones((2, 2)))
+
+        for attribute_name, attribute_value in attribute_dictionary.items():
+            dataset.attrs.create(attribute_name, attribute_value)
+
+        output_dictionary = get_dataset_attributes(dataset)
+        self.assertDictEqual(output_dictionary, attribute_dictionary)
+
+    def test_get_grid_mapping_name(self):
+        """ Ensure the grid mapping name is returned, accounting for relative
+            paths, extended naming format and whether the listed grid mapping
+            is in the HDF-5 file.
+
+        """
+        h5_file = h5py.File(self.test_h5_name, 'w')
+        h5_file.create_dataset('crs', data=np.ones((1,)))
+        science_dataset = h5_file.create_dataset('/group/data',
+                                                 data=np.ones((2, 2)))
+
+        with self.subTest('No grid_mapping attribute'):
+            self.assertEqual(get_grid_mapping_name(science_dataset), None)
+
+        test_args = [['Full path grid_mapping', '/crs', '/crs'],
+                     ['Extended grid_mapping', '/crs: grid_x grid_y', '/crs'],
+                     ['Relative grid_mapping', '../crs', '/crs'],
+                     ['Relative, extended grid_mapping',
+                      '../crs: ../grid_x ../grid_y', '/crs']]
+
+        for description, grid_mapping_attribute, expected_name in test_args:
+            with self.subTest(description):
+                science_dataset.attrs.create('grid_mapping',
+                                             grid_mapping_attribute)
+                grid_mapping_name = get_grid_mapping_name(science_dataset)
+                self.assertEqual(grid_mapping_name, expected_name)
+
+        with self.subTest('Reference not in file, raises exception'):
+            with self.assertRaises(InvalidMetadata):
+                science_dataset.attrs.create('grid_mapping', 'crs_2')
+                get_grid_mapping_name(science_dataset)
+
+    def test_resolve_relative_dataset_path(self):
+        """ Ensure a relative path can be qualified to a full path using the
+            location of the dataset making the reference. If the reference
+            implies the referee is more nested than it is, a custom exception
+            should be raised.
+
+        """
+        h5_file = h5py.File(self.test_h5_name, 'w')
+        dataset = h5_file.create_dataset('/group/nested_group/science',
+                                         data=np.ones((2, 3)))
+        h5_file.create_dataset('/another_group/variable', data=np.ones((1,)))
+        h5_file.create_dataset('/group/grid_mapping', data=np.ones((1,)))
+        h5_file.create_dataset('/grid_mapping', data=np.ones((1,)))
+
+        test_args = [['Already absolute path', '/another_group/variable',
+                      '/another_group/variable'],
+                     ['Nested relative path', '../grid_mapping',
+                      '/group/grid_mapping'],
+                     ['Double nested relative path', '../../grid_mapping',
+                      '/grid_mapping']]
+
+        for description, reference, expected_path in test_args:
+            with self.subTest(description):
+                resolved_path = resolve_relative_dataset_path(dataset,
+                                                              reference)
+
+                self.assertEqual(resolved_path, expected_path)
+
+        test_args = [['Incorrect nesting', '../../../grid_mapping'],
+                     ['Missing reference', 'non_existant_variable']]
+
+        for description, relative_path in test_args:
+            with self.subTest('Incorrect reference nesting'):
+                with self.assertRaises(InvalidMetadata):
+                    resolve_relative_dataset_path(dataset, relative_path)
+
+    def test_get_proj4(self):
+        """ Ensure that this function can handle:
+
+            * An EPSG code (note, DAS-956 will revert to a dictionary again)
+            * A dataset with valid grid mapping metadata
+            * A dataset where the grid mapping metadata failed, but has an SRID
+
+        """
+        proj4_string = ('+proj=cea +lat_ts=30 +lon_0=0 +x_0=0 +y_0=0 '
+                        '+datum=WGS84 +units=m +no_defs +type=crs')
+
+        h5_file = h5py.File(self.test_h5_name, 'w')
+        dataset = h5_file.create_dataset('crs', data=np.ones((1,)))
+
+        cf_attributes = {
+            'grid_mapping_name': 'lambert_cylindrical_equal_area',
+            'standard_parallel': 30.0,
+            'longitude_of_central_meridian': 0.0,
+            'false_easting': 0.0,
+            'false_northing': 0.0
+        }
+
+        bad_wkt_attribute = {'crs_wkt': 'PROJCRS["THIS IS GARBLED"]',
+                             'srid': 'urn:ogc:def:crs:EPSG::6933'}
+
+        test_args = [['EPSG code', 'EPSG:6933', None],
+                     ['Good CF attributes', dataset, cf_attributes],
+                     ['SRID backup', dataset, bad_wkt_attribute]]
+
+        for description, input_object, dataset_attributes in test_args:
+            with self.subTest(description):
+                if dataset_attributes is not None:
+                    dataset.attrs.clear()
+                    dataset.attrs.update(dataset_attributes)
+
+                self.assertEqual(get_proj4(input_object), proj4_string)

@@ -7,19 +7,20 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import affine
 import numpy as np
-from h5py import Dataset
+from h5py import Dataset, Reference
 from pyproj import CRS, Proj
+from pyproj.exceptions import CRSError
 
 from pymods import CFConfig
 from pymods.exceptions import (InsufficientDataError,
                                InsufficientProjectionInformation,
-                               MissingCoordinateDataset)
+                               InvalidMetadata, MissingCoordinateDataset)
 
 
 def get_hdf_proj4(h5_dataset: Dataset, shortname: str) -> str:
     # TODO: have this function call get_shortname internally
     """ Returns the proj4 string corresponding to the coordinate reference
-    system of the HDF5 dataset. Currently logic:
+    system of the HDF5 dataset. Current logic:
 
     * Check for DIMENSIONS_LIST attribute on dataset. If present, check the
       units of the first dimension dataset for "degrees". If present, return
@@ -29,7 +30,7 @@ def get_hdf_proj4(h5_dataset: Dataset, shortname: str) -> str:
       projection information.
 
         Args:
-             h5_dataset (h5py._hl.dataset.Dataset): The HDF5 dataset
+             h5_dataset (h5py.Dataset): The HDF5 dataset
              shortname: The collection shortname for the file
         Returns:
             str: The proj4 string corresponding to the given dataset
@@ -44,7 +45,7 @@ def get_hdf_proj4(h5_dataset: Dataset, shortname: str) -> str:
                           'units "degrees". Using Geographic coordinates.')
             return '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs'
 
-    grid_mapping_name = h5_dataset.attrs.get('grid_mapping', None)
+    grid_mapping_name = get_grid_mapping_name(h5_dataset)
 
     if grid_mapping_name is not None:
         logging.debug(f'Dataset {h5_dataset.name} has grid_mapping data,'
@@ -69,6 +70,32 @@ def _get_short_name(h5_dataset: Dataset) -> str:
     return CFConfig.getShortName(h5_dataset.file)
 
 
+def get_grid_mapping_name(h5_dataset: Dataset) -> Optional[str]:
+    """ Check the associated metadata for a science variable, and extract the
+        `grid_mapping` attribute. Account for any use of the extended grid
+        mapping name (see CF-Conventions, 1.8, section 5.6) and resolve any
+        relative variable paths.
+
+    """
+    grid_mapping_attribute = h5_dataset.attrs.get('grid_mapping', None)
+
+    if isinstance(grid_mapping_attribute, Reference):
+        grid_mapping_name = h5_dataset.file[grid_mapping_attribute].name
+    elif grid_mapping_attribute is not None:
+        if isinstance(grid_mapping_attribute, (bytes, np.bytes_)):
+            grid_mapping_attribute = grid_mapping_attribute.decode()
+
+        # Splitting based on a colon, will eliminate any issues from the
+        # grid mapping being of the extended format.
+        grid_mapping_name = resolve_relative_dataset_path(
+            h5_dataset, grid_mapping_attribute.split(':')[0]
+        )
+    else:
+        grid_mapping_name = None
+
+    return grid_mapping_name
+
+
 def get_lon_lat_datasets(h5_dataset: Dataset) -> Tuple[Dataset, Dataset]:
     """ Finds the lat/lon datsets corresponding to the given HDF5 dataset.
         Args: h5_dataset (h5py._hl.dataset.Dataset): The HDF5 dataset
@@ -81,12 +108,14 @@ def get_lon_lat_datasets(h5_dataset: Dataset) -> Tuple[Dataset, Dataset]:
 
     for coordinate in coordinate_list:
         try:
+            qualified_coordinate = resolve_relative_dataset_path(h5_dataset,
+                                                                 coordinate)
             if 'lat' in coordinate:
-                latitude = h5_file[coordinate]
+                latitude = h5_file[qualified_coordinate]
 
             if 'lon' in coordinate:
-                longitude = h5_file[coordinate]
-        except KeyError:
+                longitude = h5_file[qualified_coordinate]
+        except InvalidMetadata:
             raise MissingCoordinateDataset(h5_file.filename, coordinate)
 
     return longitude, latitude
@@ -120,7 +149,7 @@ def get_dimension_datasets(h5_dataset: Dataset) -> Optional[Tuple[Dataset, Datas
 def get_proj4(grid_mapping: Union[Dataset, str]) -> str:
     """ Returns the proj4 string corresponding to a grid mapping dataset.
         Args:
-            grid_mapping (h5py._hl.dataset.Dataset):
+            grid_mapping (h5py.Dataset):
                 A dataset containing CF parameters for a coordinate reference
                 system. This can also be an entry from the MaskFill
                 configuration file.
@@ -132,26 +161,36 @@ def get_proj4(grid_mapping: Union[Dataset, str]) -> str:
         crs = CRS(grid_mapping)
     else:
         # Given a grid_mapping variable from the input HDF-5 Dataset.
-        cf_parameters = dict(grid_mapping.attrs)
-        decode_bytes(cf_parameters)
+        cf_parameters = get_dataset_attributes(grid_mapping)
 
-        crs_dict = CRS.from_cf(cf_parameters).to_dict()
-        if 'standard_parallel' in cf_parameters:
-            crs_dict['lat_ts'] = cf_parameters['standard_parallel']
+        try:
+            # pyproj==2.3.1 doesn't handle standard_parallel properly.
+            # pyproj~=3.0 does. Upgrading should simplify the following lines:
+            # crs = CRS.from_cf(cf_parameters)
+            crs_dict = CRS.from_cf(cf_parameters).to_dict()
+            if 'standard_parallel' in cf_parameters:
+                crs_dict['lat_ts'] = cf_parameters['standard_parallel']
 
-        crs = CRS.from_dict(crs_dict)
+            crs = CRS.from_dict(crs_dict)
+        except CRSError:
+            if 'srid' in cf_parameters:
+                crs = CRS(cf_parameters['srid'])
+            else:
+                raise InsufficientProjectionInformation(grid_mapping.name)
 
     return crs.to_proj4()
 
 
-def decode_bytes(dictionary):
-    """ Decodes all byte values in the dictionary.
-        Args:
-            dictionary (dict): A dictionary whose values may be byte objects
+def get_dataset_attributes(h5_dataset: Dataset) -> Dict:
+    """ Retrieve all attributres for an HDF-5 dataset. Any values that are
+        `bytes` are decoded during the list comprehension.
+
     """
-    for key, value in dictionary.items():
-        if isinstance(value, bytes):
-            dictionary[key] = value.decode()
+    return {attribute_key: (attribute_value.decode()
+                            if isinstance(attribute_value, bytes)
+                            else attribute_value)
+            for attribute_key, attribute_value
+            in h5_dataset.attrs.items()}
 
 
 def get_transform(h5_dataset: Dataset) -> affine.Affine:
@@ -266,7 +305,7 @@ def get_corner_points_from_lat_lon(h5_dataset: Dataset) \
     """
     shortname = _get_short_name(h5_dataset)
     epsg_code = CFConfig.get_grid_epsg_code(shortname, h5_dataset.name)
-    p = Proj(get_proj4(epsg_code))
+    p = Proj(epsg_code)
 
     lon, lat = get_lon_lat_datasets(h5_dataset)
     lon_fill_value, lat_fill_value = get_lon_lat_fill_values(h5_dataset)
@@ -662,3 +701,56 @@ def dataset_all_outside_valid_range(dataset: Dataset) -> bool:
         return np.all([dataset_array > valid_max])
     else:
         return False
+
+
+def resolve_relative_dataset_path(h5_dataset: Dataset,
+                                  relative_path: str) -> str:
+    """ Given a relative path within a granule, resolve an absolute path given
+        the location of the variable making the reference. For example, a
+        variable might refer to a grid_mapping variable, or a coordinate
+        variable in the CF-Convention metadata attributes.
+
+        Finally, the resolved path is checked, to ensure it exists in the
+        granule. If not, an exception will be raised.
+
+    """
+    referee_location = h5_dataset.parent.name
+    referee_pieces = referee_location.split('/')[1:]
+    relative_first_piece = relative_path.split(':')[0]
+
+    if relative_path.startswith('/'):
+        # If the path starts with a slash, assume it is absolute
+        resolved_path = relative_path
+    elif not relative_path.startswith('../'):
+        # If a path doesn't indicate nesing, first check if there is a variable
+        # matching the name in the same group as the referee, otherwise assume
+        # the variable reference is from the root group.
+        reference_in_group = '/'.join([referee_location, relative_path])
+
+        if reference_in_group in h5_dataset.file:
+            resolved_path = reference_in_group
+        else:
+            resolved_path = f'/{relative_path}'
+    else:
+        # The path begins with '../', so resolve the path
+        try:
+            working_path = relative_path
+            while working_path.startswith('../'):
+                working_path = working_path[3:]
+                del referee_pieces[-1]
+
+            resolved_path = '/'.join([''] + referee_pieces + [working_path])
+        except IndexError:
+            # This exception will be raised if the relative path claims to be
+            # more nested than the referee actually is.
+            # e.g.: "/group1/variable" has a reference: "../../other_variable".
+            raise InvalidMetadata(h5_dataset.name,
+                                  'grid_mapping or coordinate',
+                                  relative_path,
+                                  'Relative path has incorrect nesting')
+
+    if resolved_path not in h5_dataset.file:
+        raise InvalidMetadata(h5_dataset.name, 'grid_mapping or coordinate',
+                              relative_path, 'Variable reference not in file ')
+
+    return resolved_path
