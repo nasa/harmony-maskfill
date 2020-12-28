@@ -7,8 +7,10 @@ The utility accepts HDF-5 files which follow CF conventions and GeoTIFFs.
 
 ## Installation:
 
-MaskFill was developed using the Anaconda distribution of Python (https://www.anaconda.com/download) and conda virutal environment.
-This simplifies dependency management. Run these commands to create a mask fill conda virtual environment and install all the needed packages:
+MaskFill was developed using the Anaconda distribution of Python
+(https://www.anaconda.com/download) and conda virutal environment.
+This simplifies dependency management. Run these commands to create a MaskFill
+conda virtual environment and install all the needed packages:
 
 ```bash
 conda create --name maskfill --file ./data/mask_fill_conda_requirements.txt
@@ -109,7 +111,7 @@ The unit tests also contain basic tests for code style, ensuring that all Python
 files conform to [PEP8](https://www.python.org/dev/peps/pep-0008/), excluding
 checks on line-length.
 
-Tests within `tests/python/test\_MaskFill.py` are designed to test the full use
+Tests within `tests/python/test_MaskFill.py` are designed to test the full use
 of the functionality, taking an input file, creating an output file and comparing
 that output file to a template. Those within `tests/python/unit` are designed
 as more granular unit tests of the logic and behaviour of individual functions.
@@ -150,12 +152,12 @@ https://ci.earthdata.nasa.gov/artifact/HITC-MAS18/JOB1/build-16/Coverage-Report/
 MaskFill will try to determine the projection information for a variable by
 using the following metadata (in the order specified):
 
-* `DIMENSION\_LIST` attribute. If present, and with units of 'degrees', the
+* `DIMENSION_LIST` attribute. If present, and with units of 'degrees', the
   data are assumed to be geographic.
-* `grid\_mapping` attribute. If present, this will point to a `grid\_mapping`
+* `grid_mapping` attribute. If present, this will point to a `grid_mapping`
   variable in the granule. The metadata of that variable is used to define the
   projection of the variable being filled.
-* Configuration file. If neither `DIMENSION\_LIST` nor `grid\_mapping` are
+* Configuration file. If neither `DIMENSION_LIST` nor `grid_mapping` are
   included in the metadata attributes, the configuration file is checked for
   default values.
 * If all of the above options do not return information from which a projection

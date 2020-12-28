@@ -1,53 +1,30 @@
 {
-    "Corrected_Fill_Value": {
-        "SPL3FT(A|P|P_E)": {
-            "/Freeze_Thaw_Retrieval_Data_Polar/latitude": -9999.0,
-            "/Freeze_Thaw_Retrieval_Data_Polar/latitude.Bands_01": -9999.0,
-            "/Freeze_Thaw_Retrieval_Data_Polar/latitude.Bands_02": -9999.0,
-            "/Freeze_Thaw_Retrieval_Data_Polar/longitude": -9999.0,
-            "/Freeze_Thaw_Retrieval_Data_Polar/longitude.Bands_01": -9999.0,
-            "/Freeze_Thaw_Retrieval_Data_Polar/longitude.Bands_02": -9999.0
-        },
-        "SPL3SM(A|AP)": {
-            "/Soil_Moisture_Retrieval_Data/latitude": -9999.0,
-            "/Soil_Moisture_Retrieval_Data/longitude": -9999.0
-        },
-        "SPL3SM(P|P_E)": {
-            "/Soil_Moisture_Retrieval_Data_AM/latitude": -9999.0,
-            "/Soil_Moisture_Retrieval_Data_AM/longitude": -9999.0
-        }
-    },
-    "ShortNamePath": ["/Metadata/DatasetIdentification/shortName/",
-                      "/METADATA/SeriesIdentification/shortName/"],
-    "Grid_Mapping_Group": {
-        "SPL4.*": {
-            ".*": "EPSG:6933"
-        },
-        "SPL3FT(P|P_E)": {
-            "(?i).*polar.*" : "EPSG:6931",
-            "(?i).*global.*": "EPSG:6933"
-        },
-        "SPL3FTA": {
-            ".*" : "EPSG:6931"
-        },
-        "SPL3SM(P|P_E|A|AP)": {
-            ".*": "EPSG:6933"
-        },
-        "ATL(16|17)": {
-            "global.*": "EPSG:6933",
-            "npolar.*": "EPSG:6931",
-            "spolar.*": "EPSG:6932"
-        },
-        "ATL20": {
-            ".*": "EPSG:3411"
-        }
-    },
-    "maskfill_dataset_exclusions": [
-        "cell_row", "cell_column",
-        "EASE_column", "EASE_row",
-        "EASE_column_index", "EASE_row_index",
-        "grid_lat", "grid_lon"
-    ],
+    "collection_shortname_paths": [
+		{
+			"attribute": "shortName",
+			"group": "/Metadata/DatasetIdentification"
+		},
+		{
+			"attribute": "shortName",
+			"group": "/METADATA/DatasetIdentification"
+		},
+		{
+			"attribute": "shortName",
+            "group": "/Metadata/SeriesIdentification"
+		},
+		{
+			"attribute": "shortName",
+            "group": "/METADATA/SeriesIdentification"
+		},
+		{
+			"attribute": "shortName",
+			"group": "/"
+		},
+		{
+			"attribute": "short_name",
+			"group": "/"
+		}
+	],
     "collection_shortname_to_prefix_mapping": {
         "SPL2SMAP_S": "SMAP_L2_SM_SP",
         "SPL3FTP": "SMAP_L3_FT_P",
@@ -67,6 +44,91 @@
         "VNP10A1F": "VNP10A1F",
         "VNP30": "VNP30"
     },
+    "corrected_fill_values": {
+        "SPL3FT(A|P|P_E)": {
+            "/Freeze_Thaw_Retrieval_Data_Polar/latitude": -9999.0,
+            "/Freeze_Thaw_Retrieval_Data_Polar/latitude.Bands_01": -9999.0,
+            "/Freeze_Thaw_Retrieval_Data_Polar/latitude.Bands_02": -9999.0,
+            "/Freeze_Thaw_Retrieval_Data_Polar/longitude": -9999.0,
+            "/Freeze_Thaw_Retrieval_Data_Polar/longitude.Bands_01": -9999.0,
+            "/Freeze_Thaw_Retrieval_Data_Polar/longitude.Bands_02": -9999.0
+        },
+        "SPL3SM(A|AP)": {
+            "/Soil_Moisture_Retrieval_Data/latitude": -9999.0,
+            "/Soil_Moisture_Retrieval_Data/longitude": -9999.0
+        },
+        "SPL3SM(P|P_E)": {
+            "/Soil_Moisture_Retrieval_Data_AM/latitude": -9999.0,
+            "/Soil_Moisture_Retrieval_Data_AM/longitude": -9999.0
+        }
+    },
+    "grid_mapping_supplements": {
+        "SPL4.*": {
+            ".*": "EASE2_global"
+        },
+        "SPL3FT(P|P_E)": {
+            "(?i).*polar.*" : "EASE2_npolar",
+            "(?i).*global.*": "EASE2_global"
+        },
+        "SPL3FTA": {
+            ".*" : "EASE2_npolar"
+        },
+        "SPL3SM(P|P_E|A|AP)": {
+            ".*": "EASE2_global"
+        },
+        "ATL(16|17)": {
+            "global.*": "EASE2_global",
+            "npolar.*": "EASE2_npolar",
+            "spolar.*": "EASE2_spolar"
+        },
+        "ATL20": {
+            ".*": "NSIDC_sea_ice_npolar_stereo"
+        }
+    },
+	"grid_mapping_definitions": {
+		"EASE2_global": {
+			"false_easting": 0,
+			"false_northing": 0,
+			"grid_mapping_name": "lambert_cylindrical_equal_area",
+			"longitude_of_central_meridian": 0,
+			"standard_parallel": 30,
+			"unit": "m"
+		},
+		"EASE2_npolar": {
+			"false_easting": 0,
+			"false_northing": 0,
+			"grid_mapping_name": "lambert_azimuthal_equal_area",
+			"latitude_of_projection_origin": 90,
+			"longitude_of_projection_origin": 0,
+			"unit": "m"
+		},
+		"EASE2_spolar": {
+			"false_easting": 0,
+			"false_northing": 0,
+			"grid_mapping_name": "lambert_azimuthal_equal_area",
+			"latitude_of_projection_origin": -90,
+			"longitude_of_projection_origin": 0,
+			"unit": "m"
+		},
+		"NSIDC_sea_ice_npolar_stereo": {
+			"false_easting": 0,
+			"false_northing": 0,
+			"grid_mapping_name": "stereographic",
+			"latitude_of_projection_origin": 90,
+			"longitude_of_projection_origin": -45,
+			"projected_crs_name": "NSIDC Sea Ice Polar Stereographic North",
+			"semi_major_axis": 6378273,
+			"semi_minor_axis": 6356889.449,
+			"standard_parallel": 70,
+			"unit": "m"
+		}
+	},
+    "maskfill_dataset_exclusions": [
+        "cell_row", "cell_column",
+        "EASE_column", "EASE_row",
+        "EASE_column_index", "EASE_row_index",
+        "grid_lat", "grid_lon"
+    ],
     "collection_coordinate_variables": {
         "SMAP_L2_SM_SP": [
             "/Soil_Moisture_Retrieval_Data_1km_l(at|ong)itude(:?_apm)?_1km",
@@ -74,42 +136,42 @@
             "/Soil_Moisture_Retrieval_Data_3km_l(at|ong)itude(:?_apm)?_3km",
             "/Soil_Moisture_Retrieval_Data_3km_EASE_(column|row)_index(:?_apm)?_3km"
         ],
-        "SMAP_L3_FT_P": [
+        "SPL3FTP": [
             "/Freeze_Thaw_Retrieval_Data_(Global|Polar)/l(at|ong)itude.Bands_(:?0)?[12]",
             "/Freeze_Thaw_Retrieval_Data_(Global|Polar)/EASE_(column|row)_index.Bands_(:?0)?[12]"
         ],
-        "SMAP_L3_FT_P_E": [
+        "SPL3FTP_E": [
             "/Freeze_Thaw_Retrieval_Data_(Global|Polar)/l(at|ong)itude.Bands_(:?0)?[12]",
             "/Freeze_Thaw_Retrieval_Data_(Global|Polar)/EASE_(column|row)_index.Bands_(:?0)?[12]"
         ],
-        "SMAP_L3_FT_A": [
+        "SPL3FTA": [
             "/Freeze_Thaw_Retrieval_Data/l(at|ong)itude.Bands_(:?0)?[12]",
             "/Freeze_Thaw_Retrieval_Data/EASE_(column|row)_index.Bands_(:?0)?[12]"
         ],
-        "SMAP_L3_SM_P": [
+        "SPL3SMP": [
             "/Soil_Moisture_Retrieval_Data_AM/l(at|ong)itude(:?_centroid)?",
             "/Soil_Moisture_Retrieval_Data_AM/EASE_(column|row)_index",
             "/Soil_Moisture_Retrieval_Data_PM/l(at|ong)itude(:?_centroid)?_pm",
             "/Soil_Moisture_Retrieval_Data_PM/EASE_(column|row)_index_pm"
         ],
-        "SMAP_L3_SM_P_E": [
+        "SPL3SMP_E": [
             "/Soil_Moisture_Retrieval_Data_AM/l(at|ong)itude(:?_centroid)?",
             "/Soil_Moisture_Retrieval_Data_AM/EASE_(column|row)_index",
             "/Soil_Moisture_Retrieval_Data_PM/l(at|ong)itude(:?_centroid)?_pm",
             "/Soil_Moisture_Retrieval_Data_PM/EASE_(column|row)_index_pm"
         ],
-        "SMAP_L4_C_mdl": [
+        "SPL4CMDL": [
             "/GEO/l(at|ong)itude"
         ],
-        "SMAP_L4_SM_aup": [
+        "SPL4SMAU": [
             "/FileMainGroup/cell_(column|row)",
             "/FileMainGroup/cell_l(at|on)"
         ],
-        "SMAP_L4_SM_gph": [
+        "SPL4SMGP": [
             "/FileMainGroup/cell_(column|row)",
             "/FileMainGroup/cell_l(at|on)"
         ],
-        "SMAP_L4_SM_lmc": [
+        "SPL4SMLM": [
             "/FileMainGroup/cell_(column|row)",
             "/FileMainGroup/cell_l(at|on)"
         ],

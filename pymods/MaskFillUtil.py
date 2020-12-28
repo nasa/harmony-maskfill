@@ -17,6 +17,7 @@ import numpy as np
 import rasterio
 
 from pymods import H5GridProjectionInfo
+from pymods.cf_config import CFConfigH5
 
 
 def get_mask_array(shape_path, proj4, out_shape, transform):
@@ -126,7 +127,7 @@ def get_masked_file_path(original_file_path, output_dir):
 
 
 def get_h5_mask_array_id(h5_dataset: h5py.Dataset, shape_path: str,
-                         shortname: str) -> str:
+                         cf_config: CFConfigH5) -> str:
     """ Creates an ID corresponding to the given shape file, projection
         information, pixel-to-projected coordinates Affine transformation
         inputs, and shape of a dataset, which determine the mask array for
@@ -143,7 +144,7 @@ def get_h5_mask_array_id(h5_dataset: h5py.Dataset, shape_path: str,
                 a combined input string of the shape file path, dataset shape,
                 dataset projection and Affine transformation.
     """
-    proj_string = H5GridProjectionInfo.get_hdf_proj4(h5_dataset, shortname)
+    proj_string = H5GridProjectionInfo.get_hdf_proj4(h5_dataset, cf_config)
     transform = H5GridProjectionInfo.get_transform_information(h5_dataset)
     dataset_shape = h5_dataset[:].shape
 
@@ -238,10 +239,10 @@ def process_h5_file(file_path, process, *args):
     def process_children(obj, process, *args):
         for name, child in obj.items():
             # Process the children of a group
-            if isinstance(child, h5py._hl.group.Group):
+            if isinstance(child, h5py.Group):
                 process_children(child, process, *args)
             # Process datasets
-            elif isinstance(child, h5py._hl.dataset.Dataset):
+            elif isinstance(child, h5py.Dataset):
                 process(child, *args)
 
     with h5py.File(file_path, mode='r+') as file:

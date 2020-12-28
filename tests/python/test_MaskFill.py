@@ -16,27 +16,27 @@ class TestMaskFill(TestCase):
 
     def setUp(self):
         self.identifier = 'test'
-        self.input_geotiff_file = 'tests/data/SMAP_L4_SMAU_input.tif'
-        self.input_h5_file = 'tests/data/SMAP_L4_SMAU_input.h5'
+        self.input_geotiff_file = 'tests/data/SMAP_L4_SM_aup_input.tif'
+        self.input_h5_file = 'tests/data/SMAP_L4_SM_aup_input.h5'
         self.output_dir = 'tests/output'
         self.shape_file = 'tests/data/USA.geo.json'
         self.shape_file_south_pole = 'tests/data/south_pole.geo.json'
         self.output_geotiff_file = self.create_output_file_name(self.input_geotiff_file)
         self.output_h5_file = self.create_output_file_name(self.input_h5_file)
-        self.output_geotiff_template = 'tests/data/SMAP_L4_SMAU_output.tif'
-        self.output_geotiff_template_south_pole = 'tests/data/SMAP_L3_polar_3d_south_pole_output.tif'
-        self.output_h5_template_south_pole = 'tests/data/SMAP_L3_polar_3d_south_pole_output.h5'
-        self.output_h5_template = 'tests/data/SMAP_L4_SMAU_output.h5'
-        self.input_corner_file = 'tests/data/SMAP_L3_corners_input.h5'
+        self.output_geotiff_template = 'tests/data/SMAP_L4_SM_aup_output.tif'
+        self.output_geotiff_template_south_pole = 'tests/data/SMAP_L3_FT_P_polar_3d_south_pole_output.tif'
+        self.output_h5_template_south_pole = 'tests/data/SMAP_L3_FT_P_polar_3d_south_pole_output.h5'
+        self.output_h5_template = 'tests/data/SMAP_L4_SM_aup_output.h5'
+        self.input_corner_file = 'tests/data/SMAP_L3_FT_P_corners_input.h5'
         self.output_corner_file = self.create_output_file_name(self.input_corner_file)
-        self.output_corner_template = 'tests/data/SMAP_L3_corners_output.h5'
-        self.input_polar_h5_file = 'tests/data/SMAP_L3_polar_3d_input.h5'
-        self.input_polar_geo_file = 'tests/data/SMAP_L3_polar_3d_input.tif'
+        self.output_corner_template = 'tests/data/SMAP_L3_FT_P_corners_output.h5'
+        self.input_polar_h5_file = 'tests/data/SMAP_L3_FT_P_polar_3d_input.h5'
+        self.input_polar_geo_file = 'tests/data/SMAP_L3_FT_P_polar_3d_input.tif'
         self.output_polar_h5_file = self.create_output_file_name(self.input_polar_h5_file)
         self.output_polar_geo_file = self.create_output_file_name(self.input_polar_geo_file)
-        self.output_polar_template = 'tests/data/SMAP_L3_polar_3d_output.h5'
-        self.input_comparison_geo = 'tests/data/SMAP_L4_comparison.tif'
-        self.input_comparison_h5 = 'tests/data/SMAP_L4_comparison.h5'
+        self.output_polar_template = 'tests/data/SMAP_L3_FT_P_polar_3d_output.h5'
+        self.input_comparison_geo = 'tests/data/SMAP_L4_SM_aup_comparison.tif'
+        self.input_comparison_h5 = 'tests/data/SMAP_L4_SM_aup_comparison.h5'
         self.output_comparison_geo = self.create_output_file_name(self.input_comparison_geo)
         self.output_comparison_h5 = self.create_output_file_name(self.input_comparison_h5)
 

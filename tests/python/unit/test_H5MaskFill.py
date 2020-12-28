@@ -9,9 +9,14 @@ import numpy as np
 
 from H5MaskFill import (get_mask_array, mask_fill, get_coordinates,
                         get_exclusions)
+from pymods.cf_config import CFConfigH5
 
 
 class TestH5MaskFill(TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.cf_config = CFConfigH5('tests/data/SMAP_L4_SM_aup_input.h5')
 
     def setUp(self):
         self.cache_dir = 'cache'
@@ -30,22 +35,22 @@ class TestH5MaskFill(TestCase):
         if isdir(self.output_dir):
             rmtree(self.output_dir)
 
-    @patch('pymods.CFConfig.getShortName')
     @patch('H5MaskFill.get_mask_array')
-    def test_mask_fill_no_processing(self, mock_get_mask_array, mock_getShortName):
+    def test_mask_fill_no_processing(self, mock_get_mask_array):
         """ Ensure that a dataset that fails to meet the required criteria is
             not processed in any way. Instead, the function should return prior
             to that point.
 
         """
-        mock_getShortName.return_value = 'SPL3FTP'
         h5_file = h5py.File(self.test_h5_name, 'w')
+        valid_min = -1
+        valid_max = 2
 
-        test_args = [['1-d data', np.ones((3)), True, 0, -1, 2],
-                     ['No coordinates', np.ones((3, 2)), False, 0, -1, 2],
-                     ['All fill values', np.ones((3, 2)), True, 1, -1, 2]]
+        test_args = [['1-d data', np.ones((3)), True, 0],
+                     ['No coordinates', np.ones((3, 2)), False, 0],
+                     ['All fill values', np.ones((3, 2)), True, 1]]
 
-        for description, data, coordinates_present, fill_value, valid_min, valid_max in test_args:
+        for description, data, coordinates_present, fill_value in test_args:
             with self.subTest(description):
                 dataset = h5_file.create_dataset(description, data=data, fillvalue=fill_value)
                 dataset.attrs['valid_min'] = valid_min
@@ -55,7 +60,7 @@ class TestH5MaskFill(TestCase):
                                                     f'/{description}/longitude')
 
                 mask_fill(dataset, self.shape_file, self.cache_dir, 'maskgrid_only',
-                          fill_value, self.saved_mask_arrays, self.shortname,
+                          fill_value, self.saved_mask_arrays, self.cf_config,
                           self.exclusions_set)
 
                 mock_get_mask_array.assert_not_called()
@@ -72,7 +77,7 @@ class TestH5MaskFill(TestCase):
               so a new one is calculated.
 
         """
-        h5_file = h5py.File('tests/data/SMAP_L4_SMAU_input.h5', 'r')
+        h5_file = h5py.File('tests/data/SMAP_L4_SM_aup_input.h5', 'r')
         dataset = h5_file['/Analysis_Data/sm_profile_analysis']
 
         # Pre-calculated ID, to use for dictionary key and file name:
@@ -88,7 +93,7 @@ class TestH5MaskFill(TestCase):
             saved_masks = {mask_id: saved_mask}
             mask_array = get_mask_array(dataset, self.shape_file,
                                         self.output_dir, 'use_cache',
-                                        saved_masks, 'SPL4SMAU')
+                                        saved_masks, self.cf_config)
             np.testing.assert_array_equal(mask_array, saved_mask)
             mock_create_mask_array.assert_not_called()
 
@@ -97,7 +102,7 @@ class TestH5MaskFill(TestCase):
             np.save(output_file_path, cached_mask)
             mask_array = get_mask_array(dataset, self.shape_file,
                                         self.output_dir, 'use_cache', {},
-                                        'SPL4SMAU')
+                                        self.cf_config)
             np.testing.assert_array_equal(mask_array, cached_mask)
             mock_create_mask_array.assert_not_called()
             rmtree(self.output_dir)
@@ -105,21 +110,21 @@ class TestH5MaskFill(TestCase):
         with self.subTest('No prior mask (cached or saved)'):
             mask_array = get_mask_array(dataset, self.shape_file,
                                         self.output_dir, 'use_cache', {},
-                                        'SPL4SMAU')
+                                        self.cf_config)
             np.testing.assert_array_equal(mask_array, new_mask)
             mock_create_mask_array.assert_called_once_with(dataset,
                                                            self.shape_file,
-                                                           'SPL4SMAU')
+                                                           self.cf_config)
 
         h5_file.close()
 
     def test_get_coordinates(self):
-        ''' Assert for H5MaskFill.get_coordinates
+        """ Assert for H5MaskFill.get_coordinates
              - set of strings is returned
              - strings are datasets contained in h5 file
              - all coordinates references exist in result
-        '''
-        h5_file = h5py.File('tests/data/SMAP_L4_SMAU_input.h5', 'r')
+        """
+        h5_file = h5py.File('tests/data/SMAP_L4_SM_aup_input.h5', 'r')
         coordinates = get_coordinates(h5_file)
         self.assertIsInstance(coordinates, set)
         for item in coordinates:
@@ -133,9 +138,9 @@ class TestH5MaskFill(TestCase):
              - coordinates are included
              - configuration exclusions are included
         """
-        file_name = 'tests/data/SMAP_L4_SMAU_input.h5'
+        file_name = 'tests/data/SMAP_L4_SM_aup_input.h5'
         h5_file = h5py.File(file_name, 'r')
-        exclusions = get_exclusions(file_name)
+        exclusions = get_exclusions(file_name, self.cf_config)
 
         self.assertIsInstance(exclusions, set)
 
@@ -155,9 +160,9 @@ class TestH5MaskFill(TestCase):
     @patch('H5MaskFill.get_exclusions')
     @patch('H5MaskFill.get_mask_array')
     def test_no_exclusions(self, mock_get_mask_array, mock_get_exclusions):
-        ''' Assert for each given exclusions, maskfill processing is skipped
+        """ Assert for each given exclusions, maskfill processing is skipped
             (similar to test_mask_fill_no_processing)
-        '''
+        """
         exclusions = {'cell_row', 'cell_column', 'EASE_column',
                       'EASE_row', 'EASE_column_index', 'EASE_row_index'
                       '/cell_lat', '/cell_lon'}
@@ -167,7 +172,7 @@ class TestH5MaskFill(TestCase):
         for item in exclusions:
             dataset = h5_file.create_dataset(item, data=[0, 1, 2])
             mask_fill(dataset, self.shape_file, self.cache_dir, 'maskgrid_only',
-                      0, self.saved_mask_arrays, self.shortname,
+                      0, self.saved_mask_arrays, self.cf_config,
                       self.exclusions_set)
 
             mock_get_mask_array.assert_not_called()
