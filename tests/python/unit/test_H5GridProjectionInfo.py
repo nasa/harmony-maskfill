@@ -9,32 +9,36 @@ from pyproj.crs import CRS
 import h5py
 import numpy as np
 
+from pymods.cf_config import CFConfigH5
 from pymods.exceptions import (InsufficientDataError,
                                InsufficientProjectionInformation,
                                InvalidMetadata, MissingCoordinateDataset)
-from pymods.H5GridProjectionInfo import (_get_short_name,
-                                         dataset_all_fill_value,
+from pymods.H5GridProjectionInfo import (dataset_all_fill_value,
                                          dataset_all_outside_valid_range,
                                          euclidean_distance,
                                          extrapolate_coordinate,
                                          get_cell_size_from_dimensions,
-                                         get_cell_size_from_lat_lon,
+                                         get_cell_size_from_lat_lon_extents,
                                          get_corner_points_from_dimensions,
                                          get_corner_points_from_lat_lon,
-                                         get_dataset_attributes,
+                                         get_crs, get_dataset_attributes,
                                          get_dimension_datasets,
                                          get_fill_value,
                                          get_grid_mapping_name,
                                          get_hdf_proj4,
                                          get_lon_lat_datasets,
                                          get_pixel_size_from_data_extent,
-                                         get_proj4, get_transform,
+                                         get_transform,
                                          get_transform_information,
                                          get_valid_coordinates_extent,
                                          resolve_relative_dataset_path)
 
 
 class TestH5GridProjectionInfo(TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.cf_config = CFConfigH5('tests/data/SMAP_L3_FT_P_corners_input.h5')
 
     def setUp(self):
         self.output_dir = 'tests/output'
@@ -46,14 +50,11 @@ class TestH5GridProjectionInfo(TestCase):
         if isdir(self.output_dir):
             rmtree(self.output_dir)
 
-    @patch('pymods.CFConfig.getShortName')
-    def test_dataset_all_fill_value(self, mock_get_short_name):
+    def test_dataset_all_fill_value(self):
         """Ensure that a dataset is correctly identified as only containing
         fill values.
 
         """
-        mock_get_short_name.return_value = 'SPL3FTP'
-
         h5_file = h5py.File(self.test_h5_name, 'w')
         fill_value = 1.0
         dimensions = (3, 2)
@@ -66,23 +67,25 @@ class TestH5GridProjectionInfo(TestCase):
                      ['No elements are fill value', 'not_filled', data_zeros, False],
                      ['Only some elements are filled', 'some_filled', data, False]]
 
-        for description, dataset_name, data, result in test_args:
+        for description, dataset_name, input_data, expected_result in test_args:
             with self.subTest(description):
-                dataset = h5_file.create_dataset(dataset_name, data=data, fillvalue=fill_value)
-                self.assertEqual(dataset_all_fill_value(dataset, fill_value), result)
+                dataset = h5_file.create_dataset(dataset_name, data=input_data,
+                                                 fillvalue=fill_value)
+                result = dataset_all_fill_value(dataset, self.cf_config, fill_value)
+                self.assertEqual(result, expected_result)
 
         data_3d = np.stack([data_ones, data_zeros, data])
-
         dataset_3d = h5_file.create_dataset('data_3d', data=data_3d, fillvalue=fill_value)
 
         test_args_3d = [['3-D all band elements are fill value', 0, True],
                         ['3-D no band elements are fill value', 1, False],
                         ['3-D some band elements are fill value', 2, False]]
 
-        for description, band, result in test_args_3d:
+        for description, band, expected_result in test_args_3d:
             with self.subTest(description):
-                self.assertEqual(dataset_all_fill_value(dataset_3d, fill_value, band),
-                                 result)
+                result = dataset_all_fill_value(dataset_3d, self.cf_config,
+                                                fill_value, band)
+                self.assertEqual(result, expected_result)
 
         h5_file.close()
 
@@ -131,19 +134,13 @@ class TestH5GridProjectionInfo(TestCase):
 
         h5_file.close()
 
-    @patch('pymods.CFConfig.getShortName')
-    def test_get_fill_value(self, mock_get_short_name):
+    def test_get_fill_value(self):
         """The correct fill value should be returned. If it is entirely lacking,
         the default value supplied to the function should be returned instead.
 
         """
-        with open('data/MaskFillConfig.json') as file_handler:
-            config = json.load(file_handler)
-
-        bad_dataset_name = list(config['Corrected_Fill_Value']['SPL3FT(A|P|P_E)'].keys())[0]
-        bad_dataset_value = config['Corrected_Fill_Value']['SPL3FT(A|P|P_E)'][bad_dataset_name]
-
-        mock_get_short_name.return_value = 'SPL3FTP'
+        bad_dataset_name = list(self.cf_config.fill_values.keys())[0]
+        bad_dataset_value = self.cf_config.fill_values[bad_dataset_name]
 
         data_array = np.ones((3, 2))
         default_fill_value = 1.0
@@ -157,7 +154,7 @@ class TestH5GridProjectionInfo(TestCase):
                                              data=data_array,
                                              fillvalue=fill_value_class)
             dataset.attrs['_FillValue'] = fill_value_attr
-            self.assertEqual(get_fill_value(dataset, default_fill_value),
+            self.assertEqual(get_fill_value(dataset, self.cf_config, default_fill_value),
                              bad_dataset_value)
 
         with self.subTest('_FillValue attribute should take precedence.'):
@@ -165,21 +162,21 @@ class TestH5GridProjectionInfo(TestCase):
                                              data=data_array,
                                              fillvalue=fill_value_class)
             dataset.attrs['_FillValue'] = fill_value_attr
-            self.assertEqual(get_fill_value(dataset, default_fill_value),
+            self.assertEqual(get_fill_value(dataset, self.cf_config, default_fill_value),
                              fill_value_attr)
 
         with self.subTest('Without _FillValue, fall back on the fillvalue class attribute'):
             dataset = h5_file.create_dataset('class_attribute',
                                              data=data_array,
                                              fillvalue=fill_value_class)
-            self.assertEqual(get_fill_value(dataset, default_fill_value),
+            self.assertEqual(get_fill_value(dataset, self.cf_config, default_fill_value),
                              fill_value_class)
 
         with self.subTest('Return default when nothing is set.'):
             string_data = np.chararray((3, 3))
             string_data[:] = 'abc'
             dataset = h5_file.create_dataset('default', data=string_data)
-            self.assertEqual(get_fill_value(dataset, default_fill_value),
+            self.assertEqual(get_fill_value(dataset, self.cf_config, default_fill_value),
                              default_fill_value)
 
         h5_file.close()
@@ -343,13 +340,8 @@ class TestH5GridProjectionInfo(TestCase):
                 self.assertEqual(lower_left_valid, result_ll)
                 self.assertEqual(upper_right_valid, result_ur)
 
-    @patch('pymods.H5GridProjectionInfo.get_proj4')
-    @patch('pymods.H5GridProjectionInfo._get_short_name')
-    @patch('pymods.H5GridProjectionInfo.CFConfig.get_grid_epsg_code')
-    def test_get_corner_points_from_lat_lon(self,
-                                            mock_get_grid_epsg_code,
-                                            mock_get_short_name,
-                                            mock_get_proj4):
+    @patch('pymods.H5GridProjectionInfo.get_crs')
+    def test_get_corner_points_from_lat_lon(self, mock_get_crs):
         """Ensure extrapolation occurs where expected, corners with valid points
         are used outright, and a InsufficientDataError is returned for entirely
         filled coordinate arrays.
@@ -359,9 +351,7 @@ class TestH5GridProjectionInfo(TestCase):
         is consistent with expectations.
 
         """
-        mock_get_grid_epsg_code.return_value = 'EPSG:32663'
-        mock_get_short_name.return_value = 'SPL3FTP'
-        mock_get_proj4.return_value = {'proj': 'eqc'}
+        mock_get_crs.return_value = {'proj': 'eqc'}
 
         fill_value = -1
         data_array = np.ones((3, 3))
@@ -426,12 +416,12 @@ class TestH5GridProjectionInfo(TestCase):
 
                 dataset.attrs['coordinates'] = f'{lat_name} {lon_name}'.encode('utf-8')
 
-                x_ll, x_ur, y_ll, y_ur = get_corner_points_from_lat_lon(dataset)
+                corners = get_corner_points_from_lat_lon(dataset, self.cf_config)
 
-                self.assertAlmostEqual(x_ll, x_lower_left)
-                self.assertAlmostEqual(x_ur, x_upper_right)
-                self.assertAlmostEqual(y_ll, y_lower_left)
-                self.assertAlmostEqual(y_ur, y_upper_right)
+                self.assertAlmostEqual(corners[0], x_lower_left)
+                self.assertAlmostEqual(corners[1], x_upper_right)
+                self.assertAlmostEqual(corners[2], y_lower_left)
+                self.assertAlmostEqual(corners[3], y_upper_right)
 
         with self.subTest('Entirely filled latitude should raise an InsufficientDataError'):
             with self.assertRaises(InsufficientDataError) as context_manager:
@@ -446,7 +436,7 @@ class TestH5GridProjectionInfo(TestCase):
 
                 data.attrs['coordinates'] = f'{lat_name} {lon_name}'.encode('utf-8')
 
-                x_ll, x_ur, y_ll, y_ur = get_corner_points_from_lat_lon(data)
+                corners = get_corner_points_from_lat_lon(data, self.cf_config)
 
         h5_file.close()
 
@@ -469,15 +459,10 @@ class TestH5GridProjectionInfo(TestCase):
 
         h5_file.close()
 
-    @patch('pymods.H5GridProjectionInfo.get_proj4')
-    @patch('pymods.H5GridProjectionInfo._get_short_name')
-    @patch('pymods.H5GridProjectionInfo.CFConfig.get_grid_epsg_code')
-    def test_get_cell_size_from_lon_lat(self, mock_get_grid_epsg_code,
-                                        mock_get_short_name, mock_get_proj4):
+    @patch('pymods.H5GridProjectionInfo.get_crs')
+    def test_get_cell_size_from_lat_lon_extents(self, mock_get_crs):
         """Given an input dataset, check the returned cell_width and cell_height."""
-        mock_get_grid_epsg_code.return_value = 'EPSG:4327'
-        mock_get_short_name.return_value = 'SPL3FTP'
-        mock_get_proj4.return_value = {'proj': 'lonlat'}
+        mock_get_crs.return_value = {'proj': 'lonlat'}
 
         data_array = np.ones((3, 4))
         lon_array = np.array([[1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4]])
@@ -490,7 +475,8 @@ class TestH5GridProjectionInfo(TestCase):
 
         data.attrs['coordinates'] = b'/longitude /latitude'
 
-        cell_width, cell_height = get_cell_size_from_lat_lon(data)
+        cell_width, cell_height = get_cell_size_from_lat_lon_extents(data, 1,
+                                                                     4, 2, 6)
 
         self.assertAlmostEqual(cell_width, 1)
         self.assertAlmostEqual(cell_height, 2)
@@ -523,13 +509,13 @@ class TestH5GridProjectionInfo(TestCase):
 
         h5_file.close()
 
-    @patch('pymods.H5GridProjectionInfo.get_cell_size_from_lat_lon')
+    @patch('pymods.H5GridProjectionInfo.get_cell_size_from_lat_lon_extents')
     @patch('pymods.H5GridProjectionInfo.get_corner_points_from_lat_lon')
     def test_get_transform_dimensions(self, mock_get_corner_points_from_lat_lon,
                                       mock_get_cell_size_from_lat_lon):
         """Ensure the correct Affine transformation matrix is formed for a
         dataset that has a DIMENSION_LIST attribute. This should not call
-        `get_corner_points_from_lat_lon` or `get_cell_size_from_lat_lon`.
+        `get_corner_points_from_lat_lon` or `get_cell_size_from_lat_lon_extents`.
 
         The expected transformation:
 
@@ -548,7 +534,7 @@ class TestH5GridProjectionInfo(TestCase):
         y = h5_file.create_dataset('y', data=y_array)
         data.attrs.create('DIMENSION_LIST', ((y.ref, ), (x.ref, )), dtype=h5py.ref_dtype)
 
-        affine_transformation = get_transform(data)
+        affine_transformation = get_transform(data, self.cf_config)
 
         self.assertEqual(affine_transformation.a, 1)
         self.assertEqual(affine_transformation.b, 0)
@@ -566,11 +552,8 @@ class TestH5GridProjectionInfo(TestCase):
 
     @patch('pymods.H5GridProjectionInfo.get_cell_size_from_dimensions')
     @patch('pymods.H5GridProjectionInfo.get_corner_points_from_dimensions')
-    @patch('pymods.H5GridProjectionInfo.get_proj4')
-    @patch('pymods.H5GridProjectionInfo._get_short_name')
-    @patch('pymods.H5GridProjectionInfo.CFConfig.get_grid_epsg_code')
-    def test_get_transform_coordinates(self, mock_get_grid_espg_code,
-                                       mock_get_short_name, mock_get_proj4,
+    @patch('pymods.H5GridProjectionInfo.get_crs')
+    def test_get_transform_coordinates(self, mock_get_crs,
                                        mock_get_corner_points_from_dimensions,
                                        mock_get_cell_size_from_dimensions):
         """Ensure the correct Affine transformation matrix is formed for a
@@ -584,9 +567,7 @@ class TestH5GridProjectionInfo(TestCase):
          [g, h, i]]       [0, 0, 1]]
 
         """
-        mock_get_grid_espg_code.return_value = 'EPSG:4327'
-        mock_get_short_name.return_value = 'SPL3FTP'
-        mock_get_proj4.return_value = {'proj': 'lonlat'}
+        mock_get_crs.return_value = {'proj': 'lonlat'}
 
         data_array = np.ones((3, 3))
         lon_array = np.array([[2, 3, 4], [2, 3, 4], [2, 3, 4]])
@@ -600,7 +581,7 @@ class TestH5GridProjectionInfo(TestCase):
         data.attrs['coordinates'] = b'/longitude /latitude'
         data_array = np.ones((3, 4))
 
-        affine_transformation = get_transform(data)
+        affine_transformation = get_transform(data, self.cf_config)
 
         self.assertEqual(affine_transformation.a, 1)
         self.assertEqual(affine_transformation.b, 0)
@@ -623,14 +604,14 @@ class TestH5GridProjectionInfo(TestCase):
 
         """
         with self.subTest('DIMENSION_LIST present'):
-            h5_file = h5py.File('tests/data/SMAP_L4_SMAU_input.h5', 'r')
+            h5_file = h5py.File('tests/data/SMAP_L4_SM_aup_input.h5', 'r')
             dataset = h5_file['/Analysis_Data/sm_profile_analysis']
             transform = get_transform_information(dataset)
             self.assertEqual(transform, 'DIMENSION_LIST: /y, /x')
             h5_file.close()
 
         with self.subTest('DIMENSION_LIST absent'):
-            h5_file = h5py.File('tests/data/SMAP_L3_corners_input.h5', 'r')
+            h5_file = h5py.File('tests/data/SMAP_L3_FT_P_corners_input.h5', 'r')
             group = '/Freeze_Thaw_Retrieval_Data_Global'
             dataset = h5_file[f'{group}/altitude_dem.Bands_01']
             expected_result = (f'coords: {group}/latitude.Bands_01 '
@@ -679,13 +660,9 @@ class TestH5GridProjectionInfo(TestCase):
         configuration file or raise an exception.
 
         """
-        with open('data/MaskFillConfig.json') as file_handler:
-            config = json.load(file_handler)
-
         global_proj4 = CRS('EPSG:6933').to_cf()
         dim_x_name = '/x'
         dim_y_name = '/y'
-        short_name = 'SPL3FTP'
         dataset_name = '/Freeze_Thaw_Retrieval_polar/latitude'
 
         h5_file = h5py.File(self.test_h5_name, 'w')
@@ -696,17 +673,13 @@ class TestH5GridProjectionInfo(TestCase):
         grid_mapping = h5_file.create_dataset('grid_mapping', (10, ))
         grid_mapping.attrs.update(global_proj4)
 
-        with self.subTest('No information, raises an exception.'):
-            with self.assertRaises(InsufficientProjectionInformation):
-                proj4 = get_hdf_proj4(dataset, 'RANDOMSHORTNAME')
-
         with self.subTest('No information, uses configured defaults.'):
-            proj4 = get_hdf_proj4(config_dataset, short_name)
+            proj4 = get_hdf_proj4(config_dataset, self.cf_config)
             self.assertTrue(proj4.startswith('+proj=laea'))
 
         with self.subTest('grid_mapping attribute present.'):
             config_dataset.attrs['grid_mapping'] = grid_mapping.ref
-            proj4 = get_hdf_proj4(config_dataset, short_name)
+            proj4 = get_hdf_proj4(config_dataset, self.cf_config)
             self.assertTrue(proj4.startswith('+proj=cea'))
 
         with self.subTest('DIMENSION_LIST present, units degrees.'):
@@ -714,12 +687,12 @@ class TestH5GridProjectionInfo(TestCase):
             config_dataset.attrs.create('DIMENSION_LIST',
                                         ((dim_x.ref, ), (dim_y.ref, )),
                                         dtype=h5py.ref_dtype)
-            proj4 = get_hdf_proj4(config_dataset, short_name)
+            proj4 = get_hdf_proj4(config_dataset, self.cf_config)
             self.assertTrue(proj4.startswith('+proj=longlat'))
 
         with self.subTest('DIMENSION_LIST, non degrees falls back to grid_mapping.'):
             dim_x.attrs['units'] = bytes('metres', 'utf-8')
-            proj4 = get_hdf_proj4(config_dataset, short_name)
+            proj4 = get_hdf_proj4(config_dataset, self.cf_config)
             self.assertTrue(proj4.startswith('+proj=cea'))
 
     def test_get_dimension_datasets(self):
@@ -833,10 +806,10 @@ class TestH5GridProjectionInfo(TestCase):
                 with self.assertRaises(InvalidMetadata):
                     resolve_relative_dataset_path(dataset, relative_path)
 
-    def test_get_proj4(self):
+    def test_get_crs(self):
         """ Ensure that this function can handle:
 
-            * An EPSG code (note, DAS-956 will revert to a dictionary again)
+            * A dictionary of grid mapping attributes
             * A dataset with valid grid mapping metadata
             * A dataset where the grid mapping metadata failed, but has an SRID
 
@@ -858,7 +831,7 @@ class TestH5GridProjectionInfo(TestCase):
         bad_wkt_attribute = {'crs_wkt': 'PROJCRS["THIS IS GARBLED"]',
                              'srid': 'urn:ogc:def:crs:EPSG::6933'}
 
-        test_args = [['EPSG code', 'EPSG:6933', None],
+        test_args = [['EPSG code', cf_attributes, None],
                      ['Good CF attributes', dataset, cf_attributes],
                      ['SRID backup', dataset, bad_wkt_attribute]]
 
@@ -868,4 +841,4 @@ class TestH5GridProjectionInfo(TestCase):
                     dataset.attrs.clear()
                     dataset.attrs.update(dataset_attributes)
 
-                self.assertEqual(get_proj4(input_object), proj4_string)
+                self.assertEqual(get_crs(input_object).to_proj4(), proj4_string)
