@@ -82,8 +82,8 @@ def mask_fill() -> str:
 
         configure_logger(output_dir)
 
-        validate_input_parameters(input_file, shape_file, output_dir,
-                                  fill_value, debug)
+        shape_file = validate_input_parameters(input_file, shape_file,
+                                               output_dir, fill_value, debug)
 
         # Perform mask fill according to input file type
         input_extension = os.path.splitext(input_file)[1].lower()
@@ -198,10 +198,15 @@ def check_shapefile_geojson(shape_file: str, output_dir: str) -> str:
 
 def validate_input_parameters(input_file: str, shape_file: str,
                               output_dir: str, fill_value: Union[float, int],
-                              debug: str) -> None:
+                              debug: str) -> str:
     """ Ensures that all required input parameters exist, and that all given
         parameters are valid. If not, raises an `InvalidParameterValue`
-        custom exception. Otherwise, returns `None`.
+        custom exception. Otherwise, returns the path for the shape file.
+
+        The shape file path is returned, as the input argument may have been
+        raw GeoJSON. During the validation this is checked and, if raw GeoJSON
+        was supplied, a temporary shape file is created. It is the path to this
+        file that should be returned.
 
     """
     # Ensure that an input file and a shape file are given
@@ -236,7 +241,9 @@ def validate_input_parameters(input_file: str, shape_file: str,
 
     # If no issues are found, return None
     logging.debug('All input parameters are valid')
-    # return None
+
+    # Return the shape_file path, in case it was originally raw GeoJSON
+    return shape_file
 
 
 def format_parameters(params: Namespace) -> Tuple[str]:
