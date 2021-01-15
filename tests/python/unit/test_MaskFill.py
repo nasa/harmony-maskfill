@@ -106,7 +106,7 @@ class TestMaskFill(TestCase):
                                                    self.shape_file,
                                                    self.output_dir,
                                                    DEFAULT_FILL_VALUE,
-                                                   None), None)
+                                                   None), self.shape_file)
 
     def test_validate_input_parameters_valid_extensions(self):
         """Ensure the expected input file extensions are valid."""
@@ -122,7 +122,32 @@ class TestMaskFill(TestCase):
                                                            self.shape_file,
                                                            self.output_dir,
                                                            DEFAULT_FILL_VALUE,
-                                                           None), None)
+                                                           None), self.shape_file)
+
+    @patch('uuid.uuid4')
+    def test_validate_input_parameters_geojson_native_string(self, mock_uuid4):
+        """ A shape file is produced, and that path is returned. """
+        makedirs(self.output_dir)
+        test_uuid4 = '18045b77-5733-430f-a5f6-1547baea88d4'
+        mock_uuid4.return_value = test_uuid4
+        geojson_string = '{"type": "FeatureCollection", "features": []}'
+        expected_output_shape_file = (f'{self.output_dir}/'
+                                      f'shape_{test_uuid4}.geojson')
+
+        self.assertEqual(validate_input_parameters(self.input_h5_file,
+                                                   geojson_string,
+                                                   self.output_dir,
+                                                   DEFAULT_FILL_VALUE,
+                                                   None),
+                         expected_output_shape_file)
+
+        self.assertEqual(mock_uuid4.call_count, 1)
+        self.assertTrue(isfile(expected_output_shape_file))
+
+        with open(expected_output_shape_file, 'r') as file_handler:
+            saved_geojson_string = file_handler.read()
+
+        self.assertEqual(saved_geojson_string, geojson_string)
 
     def test_validate_input_parameters_invalid_extension(self):
         """Ensure invalid input file extensions are detected."""
@@ -194,7 +219,7 @@ class TestMaskFill(TestCase):
                                                        self.shape_file,
                                                        self.output_dir,
                                                        fill_value,
-                                                       None), None)
+                                                       None), self.shape_file)
 
     def test_validate_input_parameters_invalid_fill_value_type(self):
         """Validation should fail for a string fill value."""
