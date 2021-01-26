@@ -12,8 +12,10 @@ import rasterio.mask
 from osgeo import gdal_array
 from osgeo import osr
 
-from pymods import CFConfig
-from pymods import MaskFillUtil, MaskFillCaching
+from pymods import MaskFillUtil
+from pymods.cf_config import CFConfigGeotiff
+from pymods.MaskFillCaching import (cache_geotiff_mask_array,
+                                    get_geotiff_cached_mask_array)
 
 
 def produce_masked_geotiff(geotiff_path: str, shape_path: str, output_dir: str,
@@ -36,12 +38,10 @@ def produce_masked_geotiff(geotiff_path: str, shape_path: str, output_dir: str,
             str: The path to the output GeoTIFF file
 
     """
-    logging.debug('blag')
     mask_grid_cache = mask_grid_cache.lower()
-    CFConfig.readConfigFile()
-    exclusion_paths = CFConfig.get_collection_coordinate_variables(geotiff_path)
+    cf_config = CFConfigGeotiff(geotiff_path)
     exclusions = [convert_variable_path(exclusion_path)
-                  for exclusion_path in exclusion_paths]
+                  for exclusion_path in cf_config.get_file_exclusions()]
 
     mask_array = get_mask_array(geotiff_path, shape_path, cache_dir,
                                 mask_grid_cache)
@@ -98,15 +98,13 @@ def get_mask_array(geotiff_path: str, shape_path: str, cache_dir: str,
             numpy.ndarray: The mask array
 
     """
-    mask_array = MaskFillCaching.get_cached_mask_array(geotiff_path,
-                                                       shape_path,
-                                                       cache_dir,
-                                                       mask_grid_cache)
+    mask_array = get_geotiff_cached_mask_array(geotiff_path, shape_path,
+                                               cache_dir, mask_grid_cache)
 
     if mask_array is None:
         mask_array = create_mask_array(geotiff_path, shape_path)
-        MaskFillCaching.cache_mask_array(mask_array, geotiff_path, shape_path,
-                                         cache_dir, mask_grid_cache)
+        cache_geotiff_mask_array(mask_array, geotiff_path, shape_path,
+                                 cache_dir, mask_grid_cache)
 
     return mask_array
 

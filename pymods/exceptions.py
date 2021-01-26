@@ -1,6 +1,6 @@
 class CustomError(Exception):
     """Base class for exceptions in this module."""
-    def __init__(self, exception_type, message, exit_status):
+    def __init__(self, exception_type, message, exit_status=None):
         self.exception_type = exception_type
         self.exit_status = exit_status
         self.message = message
@@ -14,7 +14,7 @@ class InsufficientDataError(CustomError):
 
     """
     def __init__(self, message):
-        super().__init__('InsufficientDataError', message, None)
+        super().__init__('InsufficientDataError', message)
 
 
 class InsufficientProjectionInformation(CustomError):
@@ -26,8 +26,7 @@ class InsufficientProjectionInformation(CustomError):
     def __init__(self, dataset_name):
         super().__init__('InsufficientProjectionInformation',
                          ('Cannot find projection information for dataset: '
-                          f'{dataset_name}.'),
-                         None)
+                          f'{dataset_name}.'), 5)
 
 
 class InternalError(CustomError):
@@ -37,7 +36,7 @@ class InternalError(CustomError):
 
     """
     def __init__(self, message='An internal error occurred.'):
-        super().__init__('InternalError', message, None)
+        super().__init__('InternalError', message)
 
 
 class InvalidParameterValue(CustomError):
@@ -47,6 +46,26 @@ class InvalidParameterValue(CustomError):
     """
     def __init__(self, message='Incorrect parameter specified for given dataset(s).'):
         super().__init__('InvalidParameterValue', message, 1)
+
+
+class InvalidMetadata(CustomError):
+    """ Exception raised when metadata contained in a dataset's attributes is
+        invalid. For example, if a reference to a grid mapping or coordinate
+        variable has a relative path that suggests that the origin of the
+        reference is more deeply nested than it actually is. For example:
+
+        Referee: '/group1/science_variable'
+        Reference: '../../grid_mapping'
+
+    """
+    def __init__(self, dataset, attribute_name, attribute_value, message=None):
+        combined_message = (f'Invalid metadata in {dataset}: {attribute_name}='
+                            f'"{attribute_value}"')
+
+        if message is not None:
+            combined_message = ': '.join([combined_message, message])
+
+        super().__init__('InvalidMetadata', combined_message, 6)
 
 
 class MissingCoordinateDataset(CustomError):
@@ -76,3 +95,14 @@ class NoMatchingData(CustomError):
     """
     def __init__(self, message='No data found that matched the subset constraints.'):
         super().__init__('NoMatchingData', message, 3)
+
+
+class UnknownCollectionShortname(CustomError):
+    """ Exception raised when MaskFill is unable to determine the collection
+        shortname from either the granule metadata or file prefix.
+
+    """
+    def __init__(self, file_name):
+        super().__init__('UnknownCollectionShortname',
+                         f'Cannot find collection shortname for {file_name}',
+                         7)

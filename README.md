@@ -7,8 +7,10 @@ The utility accepts HDF-5 files which follow CF conventions and GeoTIFFs.
 
 ## Installation:
 
-MaskFill was developed using the Anaconda distribution of Python (https://www.anaconda.com/download) and conda virutal environment.
-This simplifies dependency management. Run these commands to create a mask fill conda virtual environment and install all the needed packages:
+MaskFill was developed using the Anaconda distribution of Python
+(https://www.anaconda.com/download) and conda virutal environment.
+This simplifies dependency management. Run these commands to create a MaskFill
+conda virtual environment and install all the needed packages:
 
 ```bash
 conda create --name maskfill --file ./data/mask_fill_conda_requirements.txt
@@ -130,7 +132,7 @@ The unit tests can also be run within a Docker container:
 
 ```bash
 mkdir test-reports
-docker build -f tests/Dockerfile -t maskfill
+docker build -f tests/Dockerfile -t maskfill .
 docker run -v /full/path/to/test-reports:/home/tests/reports -v /full/path/to/maskfill-coverage:/home/tests/coverage maskfill:latest
 ```
 
@@ -142,3 +144,26 @@ Coverage reports are being generate for each build in Bamboo, and saved as artif
 Following URL is an example coverage report in Bamboo:
 
 https://ci.earthdata.nasa.gov/artifact/HITC-MAS18/JOB1/build-16/Coverage-Report/maskfill/test-coverage/index.html
+
+## Gotchas:
+
+### New collection grid mappings:
+
+MaskFill will try to determine the projection information for a variable by
+using the following metadata (in the order specified):
+
+* `DIMENSION_LIST` attribute. If present, and with units of 'degrees', the
+  data are assumed to be geographic.
+* `grid_mapping` attribute. If present, this will point to a `grid_mapping`
+  variable in the granule. The metadata of that variable is used to define the
+  projection of the variable being filled.
+* Configuration file. If neither `DIMENSION_LIST` nor `grid_mapping` are
+  included in the metadata attributes, the configuration file is checked for
+  default values.
+* If all of the above options do not return information from which a projection
+  can be derived, MaskFill will raise an exception, and the service will fail.
+
+When adding several SMAP collections, new entries were needed for the default
+grid mapping when input data to MaskFill have not been reprojected. When adding
+the MaskFill service to a new collection, care should be taken to ensure
+whether the granule format can provide the necessary grid mapping information.

@@ -8,7 +8,7 @@ from numpy import array, array_equal, ndarray, where
 from osgeo import gdal
 import h5py
 
-from MaskFill import (default_fill_value, default_mask_grid_cache, mask_fill,
+from MaskFill import (DEFAULT_FILL_VALUE, DEFAULT_MASK_GRID_CACHE, mask_fill,
                       get_xml_success_response)
 
 
@@ -16,35 +16,35 @@ class TestMaskFill(TestCase):
 
     def setUp(self):
         self.identifier = 'test'
-        self.input_geotiff_file = 'tests/data/SMAP_L4_SMAU_input.tif'
-        self.input_h5_file = 'tests/data/SMAP_L4_SMAU_input.h5'
+        self.input_geotiff_file = 'tests/data/SMAP_L4_SM_aup_input.tif'
+        self.input_h5_file = 'tests/data/SMAP_L4_SM_aup_input.h5'
         self.output_dir = 'tests/output'
         self.shape_file = 'tests/data/USA.geo.json'
         self.shape_file_south_pole = 'tests/data/south_pole.geo.json'
         self.output_geotiff_file = self.create_output_file_name(self.input_geotiff_file)
         self.output_h5_file = self.create_output_file_name(self.input_h5_file)
-        self.output_geotiff_template = 'tests/data/SMAP_L4_SMAU_output.tif'
-        self.output_geotiff_template_south_pole = 'tests/data/SMAP_L3_polar_3d_south_pole_output.tif'
-        self.output_h5_template_south_pole = 'tests/data/SMAP_L3_polar_3d_south_pole_output.h5'
-        self.output_h5_template = 'tests/data/SMAP_L4_SMAU_output.h5'
-        self.input_corner_file = 'tests/data/SMAP_L3_corners_input.h5'
+        self.output_geotiff_template = 'tests/data/SMAP_L4_SM_aup_output.tif'
+        self.output_geotiff_template_south_pole = 'tests/data/SMAP_L3_FT_P_polar_3d_south_pole_output.tif'
+        self.output_h5_template_south_pole = 'tests/data/SMAP_L3_FT_P_polar_3d_south_pole_output.h5'
+        self.output_h5_template = 'tests/data/SMAP_L4_SM_aup_output.h5'
+        self.input_corner_file = 'tests/data/SMAP_L3_FT_P_corners_input.h5'
         self.output_corner_file = self.create_output_file_name(self.input_corner_file)
-        self.output_corner_template = 'tests/data/SMAP_L3_corners_output.h5'
-        self.input_polar_h5_file = 'tests/data/SMAP_L3_polar_3d_input.h5'
-        self.input_polar_geo_file = 'tests/data/SMAP_L3_polar_3d_input.tif'
+        self.output_corner_template = 'tests/data/SMAP_L3_FT_P_corners_output.h5'
+        self.input_polar_h5_file = 'tests/data/SMAP_L3_FT_P_polar_3d_input.h5'
+        self.input_polar_geo_file = 'tests/data/SMAP_L3_FT_P_polar_3d_input.tif'
         self.output_polar_h5_file = self.create_output_file_name(self.input_polar_h5_file)
         self.output_polar_geo_file = self.create_output_file_name(self.input_polar_geo_file)
-        self.output_polar_template = 'tests/data/SMAP_L3_polar_3d_output.h5'
-        self.input_comparison_geo = 'tests/data/SMAP_L4_comparison.tif'
-        self.input_comparison_h5 = 'tests/data/SMAP_L4_comparison.h5'
+        self.output_polar_template = 'tests/data/SMAP_L3_FT_P_polar_3d_output.h5'
+        self.input_comparison_geo = 'tests/data/SMAP_L4_SM_aup_comparison.tif'
+        self.input_comparison_h5 = 'tests/data/SMAP_L4_SM_aup_comparison.h5'
         self.output_comparison_geo = self.create_output_file_name(self.input_comparison_geo)
         self.output_comparison_h5 = self.create_output_file_name(self.input_comparison_h5)
 
         self.default_parameters = {'debug': 'true',
-                                   'fill_value': default_fill_value,
+                                   'fill_value': DEFAULT_FILL_VALUE,
                                    'identifier': self.identifier,
                                    'input_file': self.input_h5_file,
-                                   'mask_grid_cache': default_mask_grid_cache,
+                                   'mask_grid_cache': DEFAULT_MASK_GRID_CACHE,
                                    'output_dir': self.output_dir,
                                    'shape_file': self.shape_file}
 
@@ -117,11 +117,25 @@ class TestMaskFill(TestCase):
 
         for attribute_name, attribute_value in file_one_attributes.items():
             if isinstance(attribute_value, ndarray):
-                self.assertTrue(array_equal(attribute_value,
-                                            file_two_attributes[attribute_name]))
+                if attribute_name.endswith('_LIST'):
+                    # This catches 'DIMENSION_LIST' and 'REFERENCE_LIST' metadata
+                    for ref_index, ref_one in enumerate(attribute_value):
+                        dataset_ref_one = file_one[ref_one[0]]
+                        ref_two = file_two_attributes[attribute_name][ref_index][0]
+                        dataset_ref_two = file_two[ref_two]
+                        self.assertEqual(dataset_ref_one.name,
+                                         dataset_ref_two.name)
+                else:
+                    self.assertTrue(
+                        array_equal(attribute_value,
+                                    file_two_attributes[attribute_name]),
+                        attribute_name
+                    )
+
             else:
                 self.assertEqual(attribute_value,
-                                 file_two_attributes[attribute_name])
+                                 file_two_attributes[attribute_name],
+                                 attribute_name)
 
     def compare_h5_file_datasets(self, object_one, object_two):
         """For both files, traverse through all Groups and Datasets. Ensure
@@ -165,12 +179,12 @@ class TestMaskFill(TestCase):
             key_prefix = f'/{h5py_object.name}'
 
         for attr_key, attr_value in h5py_object.attrs.items():
-            attribute_dictionary[f'{key_prefix}/attr_key'] = attr_value
+            attribute_dictionary[f'{key_prefix}/{attr_key}'] = attr_value
 
         for iterable_object in h5py_object.values():
             if isinstance(iterable_object, h5py.Dataset):
                 for attr_key, attr_value in iterable_object.attrs.items():
-                    attribute_dictionary[f'{iterable_object.name}/attr_key'] = attr_value
+                    attribute_dictionary[f'{iterable_object.name}/{attr_key}'] = attr_value
 
             else:
                 self.extract_all_h5_attributes(iterable_object, attribute_dictionary)
