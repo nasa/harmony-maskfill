@@ -2,9 +2,9 @@
     from HDF-5 input files, including usage of CF-Conventions configuration
     file.
 """
-import logging
-import re
+from logging import Logger
 from typing import Dict, List, Optional, Tuple, Union
+import re
 
 import affine
 import numpy as np
@@ -18,7 +18,8 @@ from pymods.exceptions import (InsufficientDataError,
                                InvalidMetadata, MissingCoordinateDataset)
 
 
-def get_hdf_proj4(h5_dataset: Dataset, cf_config: CFConfigH5) -> str:
+def get_hdf_proj4(h5_dataset: Dataset, cf_config: CFConfigH5,
+                  logger: Logger) -> str:
     """ Returns the proj4 string corresponding to the coordinate reference
     system of the HDF5 dataset. Current logic:
 
@@ -41,15 +42,15 @@ def get_hdf_proj4(h5_dataset: Dataset, cf_config: CFConfigH5) -> str:
         units = dimensions[0].attrs.get('units', b'').decode()
 
         if 'degrees' in units:
-            logging.debug(f'Dataset {h5_dataset.name} has dimensions with '
-                          'units "degrees". Using Geographic coordinates.')
+            logger.debug(f'Dataset {h5_dataset.name} has dimensions with '
+                         'units "degrees". Using Geographic coordinates.')
             return '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs'
 
     grid_mapping_name = get_grid_mapping_name(h5_dataset)
 
     if grid_mapping_name is not None:
-        logging.debug(f'Dataset {h5_dataset.name} has grid_mapping data,'
-                      'using this to derive projection information.')
+        logger.debug(f'Dataset {h5_dataset.name} has grid_mapping data, '
+                     'using this to derive projection information.')
         return get_crs(h5_dataset.file[grid_mapping_name]).to_proj4()
 
     # Projection absent in granule; get information from MaskFill configuration.
@@ -58,9 +59,9 @@ def get_hdf_proj4(h5_dataset: Dataset, cf_config: CFConfigH5) -> str:
     if grid_mapping is None:
         raise InsufficientProjectionInformation(h5_dataset.name)
     else:
-        logging.debug(f'Dataset {h5_dataset.name} has no projection '
-                      'information; using default projection information for the '
-                      f'{cf_config.shortname} collection.')
+        logger.debug(f'Dataset {h5_dataset.name} has no projection '
+                     'information; using default projection information for '
+                     f'the {cf_config.shortname} collection.')
         return get_crs(grid_mapping).to_proj4()
 
 
@@ -186,7 +187,8 @@ def get_dataset_attributes(h5_dataset: Dataset) -> Dict:
             in h5_dataset.attrs.items()}
 
 
-def get_transform(h5_dataset: Dataset, cf_config: CFConfigH5) -> affine.Affine:
+def get_transform(h5_dataset: Dataset, cf_config: CFConfigH5,
+                  logger: Logger) -> affine.Affine:
     """ Determines the transform from the index coordinates of the HDF5 dataset
         to projected coordinates (meters) in the coordinate reference frame of the HDF5 dataset.
         See https://pypi.org/project/affine/ for more information.
@@ -211,7 +213,7 @@ def get_transform(h5_dataset: Dataset, cf_config: CFConfigH5) -> affine.Affine:
         # Dimensions not defined, assume Geographic dimensions defined by
         # lat/lon coordinate references
         x_0, x_N, y_0, y_M = get_corner_points_from_lat_lon(h5_dataset,
-                                                            cf_config)
+                                                            cf_config, logger)
         cell_width, cell_height = get_cell_size_from_lat_lon_extents(h5_dataset,
                                                                      x_0, x_N,
                                                                      y_0, y_M)
@@ -292,8 +294,8 @@ def get_corner_points_from_dimensions(h5_dataset: Dataset) \
     return x_0, x_N, y_0, y_M
 
 
-def get_corner_points_from_lat_lon(h5_dataset: Dataset,
-                                   cf_config: CFConfigH5) -> Tuple[float]:
+def get_corner_points_from_lat_lon(h5_dataset: Dataset, cf_config: CFConfigH5,
+                                   logger: Logger) -> Tuple[float]:
     """ Finds the min and max locations in both coordinate axes of the dataset.
         Args:
              h5_dataset (h5py.Dataset): The HDF5 dataset
@@ -304,8 +306,8 @@ def get_corner_points_from_lat_lon(h5_dataset: Dataset,
     p = Proj(get_crs(grid_mapping_attributes))
 
     lon, lat = get_lon_lat_datasets(h5_dataset)
-    lon_fill_value = get_fill_value(lon, cf_config, None)
-    lat_fill_value = get_fill_value(lat, cf_config, None)
+    lon_fill_value = get_fill_value(lon, cf_config, logger, None)
+    lat_fill_value = get_fill_value(lat, cf_config, logger, None)
 
     if len(lon.shape) == 3:
         # If there are 3 dimensions, select the first for corner point location.
@@ -313,8 +315,8 @@ def get_corner_points_from_lat_lon(h5_dataset: Dataset,
         # TODO: refactor MaskFill so each band in a 3-D dataset is reprojected
         # and masked separately, instead of using coordinate data only from
         # one band.
-        logging.debug(f'lat/lon for {h5_dataset.name} is 3-D, using first '
-                      'band for coordinates.')
+        logger.debug(f'lat/lon for {h5_dataset.name} is 3-D, using first '
+                     'band for coordinates.')
         band = 0
     else:
         band = None
@@ -330,8 +332,8 @@ def get_corner_points_from_lat_lon(h5_dataset: Dataset,
         lat_corner_values = [lat[lower_left_tuple], lat[upper_right_tuple]]
 
     if (
-        dataset_all_fill_value(lon, cf_config, None, band)
-        or dataset_all_fill_value(lat, cf_config, None, band)
+        dataset_all_fill_value(lon, cf_config, logger, None, band)
+        or dataset_all_fill_value(lat, cf_config, logger, None, band)
     ):
         # The longitude or latitude arrays are entirely fill values
         raise InsufficientDataError(f'{lon.name} or {lat.name} have no valid data.')
@@ -359,11 +361,13 @@ def get_corner_points_from_lat_lon(h5_dataset: Dataset,
         else:
             x1 = extrapolate_coordinate(lon, lon_fill_value, h5_dataset.name,
                                         x_ll_data, lower_left_indices, -1,
-                                        lower_left_tuple, pixel_scale_x, band)
+                                        lower_left_tuple, pixel_scale_x, logger,
+                                        band)
 
             y1 = extrapolate_coordinate(lat, lat_fill_value, h5_dataset.name,
                                         y_ll_data, lower_left_indices, -2,
-                                        lower_left_tuple, pixel_scale_y, band)
+                                        lower_left_tuple, pixel_scale_y, logger,
+                                        band)
 
         if upper_right_tuple == tuple(upper_right_indices[-2:]):
             # The upper right corner of the array has valid lon and lat data
@@ -371,11 +375,13 @@ def get_corner_points_from_lat_lon(h5_dataset: Dataset,
         else:
             x2 = extrapolate_coordinate(lon, lon_fill_value, h5_dataset.name,
                                         x_ur_data, upper_right_indices, -1,
-                                        upper_right_tuple, pixel_scale_x, band)
+                                        upper_right_tuple, pixel_scale_x, logger,
+                                        band)
 
             y2 = extrapolate_coordinate(lat, lat_fill_value, h5_dataset.name,
                                         y_ur_data, upper_right_indices, -2,
-                                        upper_right_tuple, pixel_scale_y, band)
+                                        upper_right_tuple, pixel_scale_y, logger,
+                                        band)
     else:
         # The bottom left and top right both have valid latitudes and longitudes
         x1, y1 = p(lon_corner_values[0], lat_corner_values[0])
@@ -413,7 +419,7 @@ def get_lon_lat_arrays(h5_dataset: Dataset) \
         -> Tuple[List[float], List[float]]:  # degrees - lat, lon
     """ Gets the lat/lon arrays of the HDF5 dataset.
         Args:
-             h5_dataset (h5py._hl.dataset.Dataset): The HDF5 dataset
+             h5_dataset (h5py.Dataset): The HDF5 dataset
         Returns:
             tuple: The x coordinate array (longitude) and the y coordinate
                array (latitude), if the data are 3-dimensional, return the
@@ -426,7 +432,7 @@ def get_lon_lat_arrays(h5_dataset: Dataset) \
         return x[0][0], y[0][:, 0]
 
 
-def get_fill_value(h5_dataset: Dataset, cf_config: CFConfigH5,
+def get_fill_value(h5_dataset: Dataset, cf_config: CFConfigH5, logger: Logger,
                    default_fill_value: Optional[float]) -> Optional[float]:
     """ Returns the fill value for the given HDF5 dataset.
         If the HDF5 dataset has no fill value, returns the given default fill value.
@@ -439,7 +445,7 @@ def get_fill_value(h5_dataset: Dataset, cf_config: CFConfigH5,
         fillvalue class attribute.
 
         Args:
-            h5_dataset (h5py._hl.dataset.Dataset): The given HDF5 dataset
+            h5_dataset (h5py.Dataset): The given HDF5 dataset
             default_fill_value (float): The default value which is returned if
                 no fill value is found in the dataset
         Returns:
@@ -448,8 +454,8 @@ def get_fill_value(h5_dataset: Dataset, cf_config: CFConfigH5,
     config_fill_value = cf_config.get_dataset_fill_value(h5_dataset.name)
 
     if config_fill_value is not None:
-        logging.debug(f'The dataset {h5_dataset.name} has a known incorrect fill '
-                      f'value. Using {config_fill_value} instead.')
+        logger.debug(f'The dataset {h5_dataset.name} has a known incorrect fill '
+                     f'value. Using {config_fill_value} instead.')
         return config_fill_value
 
     fill_value_attribute = h5_dataset.attrs.get('_FillValue')
@@ -459,8 +465,8 @@ def get_fill_value(h5_dataset: Dataset, cf_config: CFConfigH5,
     elif h5_dataset.fillvalue != b'':
         return h5_dataset.fillvalue
     else:
-        logging.info(f'The dataset {h5_dataset.name} does not have a fill value, '
-                     f'so the default fill value {default_fill_value} will be used')
+        logger.info(f'The dataset {h5_dataset.name} does not have a fill value, '
+                    f'so the default fill value {default_fill_value} will be used')
         return default_fill_value
 
 
@@ -596,6 +602,7 @@ def extrapolate_coordinate(coordinate_dataset: Dataset, coordinate_fill_value: f
                            dataset_name: str, reference_value: float,
                            reference_indices: Tuple[int], coordinate_dim: int,
                            target_indices: Tuple[int], pixel_scale: float,
+                           logger: Logger,
                            band: Optional[int] = None) -> np.float64:
     """ Extrapolate data in one dimension from a point with a known value to
         another point in an array.
@@ -625,8 +632,8 @@ def extrapolate_coordinate(coordinate_dataset: Dataset, coordinate_fill_value: f
         band_dataset = coordinate_dataset
 
     if band_dataset[target_indices] == coordinate_fill_value:
-        logging.info(f'{dataset_name}: Detected fill value in '
-                     f'{coordinate_dataset.name} at {target_indices}.')
+        logger.info(f'{dataset_name}: Detected fill value in '
+                    f'{coordinate_dataset.name} at {target_indices}.')
         return reference_value + ((target_indices[coordinate_dim]
                                    - reference_indices[coordinate_dim]) * pixel_scale)
     else:
@@ -634,7 +641,7 @@ def extrapolate_coordinate(coordinate_dataset: Dataset, coordinate_fill_value: f
 
 
 def dataset_all_fill_value(dataset: Dataset, cf_config: CFConfigH5,
-                           default_fill_value: float,
+                           logger: Logger, default_fill_value: float,
                            band: Optional[int] = None) -> bool:
     """ Check if an HDF5 dataset only contains a fill value.
 
@@ -647,7 +654,7 @@ def dataset_all_fill_value(dataset: Dataset, cf_config: CFConfigH5,
         Returns:
             is_filled: boolean
     """
-    fill_value = get_fill_value(dataset, cf_config, default_fill_value)
+    fill_value = get_fill_value(dataset, cf_config, logger, default_fill_value)
 
     if band is not None:
         return np.all(dataset[band][:] == fill_value)

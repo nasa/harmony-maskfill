@@ -1,8 +1,8 @@
 """ Utility functions to support MaskFill cache processing
     To cache the masking array used to apply fill values (outside mask)
 """
+from logging import Logger
 from typing import Dict
-import logging
 import os
 
 import numpy as np
@@ -94,7 +94,7 @@ def cache_geotiff_mask_array(mask_array: np.ndarray, data: str,
 
 
 def cache_h5_mask_arrays(mask_arrays: Dict, cache_dir: str,
-                         mask_grid_cache: str) -> None:
+                         mask_grid_cache: str, logger: Logger) -> None:
     """ Caches all of the given mask arrays as a .npy file in the cache
         directory, if the mask grid cache value allows.
 
@@ -112,4 +112,4 @@ def cache_h5_mask_arrays(mask_arrays: Dict, cache_dir: str,
             mask_array_path = get_mask_array_path_from_id(mask_id, cache_dir)
             np.save(mask_array_path, mask_array)
 
-        logging.debug('Cached all mask arrays')
+        logger.debug('Cached all mask arrays')

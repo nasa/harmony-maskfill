@@ -9,4 +9,5 @@ htmlcov/
 
 # Test XML reports
 test-reports/
+tests/coverage
 tests/reports

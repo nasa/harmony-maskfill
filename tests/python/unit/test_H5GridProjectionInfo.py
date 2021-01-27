@@ -1,3 +1,4 @@
+from logging import getLogger
 from os import mkdir
 from os.path import isdir, join
 from shutil import rmtree
@@ -38,6 +39,7 @@ class TestH5GridProjectionInfo(TestCase):
 
     @classmethod
     def setUpClass(cls):
+        cls.logger = getLogger('test')
         cls.cf_config = CFConfigH5('tests/data/SMAP_L3_FT_P_corners_input.h5')
 
     def setUp(self):
@@ -71,7 +73,8 @@ class TestH5GridProjectionInfo(TestCase):
             with self.subTest(description):
                 dataset = h5_file.create_dataset(dataset_name, data=input_data,
                                                  fillvalue=fill_value)
-                result = dataset_all_fill_value(dataset, self.cf_config, fill_value)
+                result = dataset_all_fill_value(dataset, self.cf_config,
+                                                self.logger, fill_value)
                 self.assertEqual(result, expected_result)
 
         data_3d = np.stack([data_ones, data_zeros, data])
@@ -84,7 +87,7 @@ class TestH5GridProjectionInfo(TestCase):
         for description, band, expected_result in test_args_3d:
             with self.subTest(description):
                 result = dataset_all_fill_value(dataset_3d, self.cf_config,
-                                                fill_value, band)
+                                                self.logger, fill_value, band)
                 self.assertEqual(result, expected_result)
 
         h5_file.close()
@@ -154,7 +157,8 @@ class TestH5GridProjectionInfo(TestCase):
                                              data=data_array,
                                              fillvalue=fill_value_class)
             dataset.attrs['_FillValue'] = fill_value_attr
-            self.assertEqual(get_fill_value(dataset, self.cf_config, default_fill_value),
+            self.assertEqual(get_fill_value(dataset, self.cf_config,
+                                            self.logger, default_fill_value),
                              bad_dataset_value)
 
         with self.subTest('_FillValue attribute should take precedence.'):
@@ -162,21 +166,24 @@ class TestH5GridProjectionInfo(TestCase):
                                              data=data_array,
                                              fillvalue=fill_value_class)
             dataset.attrs['_FillValue'] = fill_value_attr
-            self.assertEqual(get_fill_value(dataset, self.cf_config, default_fill_value),
+            self.assertEqual(get_fill_value(dataset, self.cf_config,
+                                            self.logger, default_fill_value),
                              fill_value_attr)
 
         with self.subTest('Without _FillValue, fall back on the fillvalue class attribute'):
             dataset = h5_file.create_dataset('class_attribute',
                                              data=data_array,
                                              fillvalue=fill_value_class)
-            self.assertEqual(get_fill_value(dataset, self.cf_config, default_fill_value),
+            self.assertEqual(get_fill_value(dataset, self.cf_config,
+                                            self.logger, default_fill_value),
                              fill_value_class)
 
         with self.subTest('Return default when nothing is set.'):
             string_data = np.chararray((3, 3))
             string_data[:] = 'abc'
             dataset = h5_file.create_dataset('default', data=string_data)
-            self.assertEqual(get_fill_value(dataset, self.cf_config, default_fill_value),
+            self.assertEqual(get_fill_value(dataset, self.cf_config,
+                                            self.logger, default_fill_value),
                              default_fill_value)
 
         h5_file.close()
@@ -233,7 +240,8 @@ class TestH5GridProjectionInfo(TestCase):
                     extrapolate_coordinate(test_dataset, fill_value, 'x',
                                            data_array[reference_indices],
                                            reference_indices, 1,
-                                           target_indices, pixel_scale_x),
+                                           target_indices, pixel_scale_x,
+                                           self.logger),
                     0.0
                 )
 
@@ -246,7 +254,7 @@ class TestH5GridProjectionInfo(TestCase):
                     extrapolate_coordinate(dataset_3d, fill_value, 'x',
                                            data_3d[band][reference_indices],
                                            (band, 2, 2), 2, (band, 0, 0),
-                                           pixel_scale_x),
+                                           pixel_scale_x, self.logger),
                     0.0
                 )
 
@@ -292,7 +300,7 @@ class TestH5GridProjectionInfo(TestCase):
 
         for description, x_0, y_0, x_N, y_M, ll_inds, ur_inds in test_args:
             with self.subTest(description):
-                with self.assertRaises(InsufficientDataError) as context_manager:
+                with self.assertRaises(InsufficientDataError):
                     get_pixel_size_from_data_extent(x_0, y_0, x_N, y_M,
                                                     ll_inds, ur_inds)
 
@@ -416,7 +424,9 @@ class TestH5GridProjectionInfo(TestCase):
 
                 dataset.attrs['coordinates'] = f'{lat_name} {lon_name}'.encode('utf-8')
 
-                corners = get_corner_points_from_lat_lon(dataset, self.cf_config)
+                corners = get_corner_points_from_lat_lon(dataset,
+                                                         self.cf_config,
+                                                         self.logger)
 
                 self.assertAlmostEqual(corners[0], x_lower_left)
                 self.assertAlmostEqual(corners[1], x_upper_right)
@@ -436,7 +446,9 @@ class TestH5GridProjectionInfo(TestCase):
 
                 data.attrs['coordinates'] = f'{lat_name} {lon_name}'.encode('utf-8')
 
-                corners = get_corner_points_from_lat_lon(data, self.cf_config)
+                corners = get_corner_points_from_lat_lon(data,
+                                                         self.cf_config,
+                                                         self.logger)
 
         h5_file.close()
 
@@ -534,7 +546,7 @@ class TestH5GridProjectionInfo(TestCase):
         y = h5_file.create_dataset('y', data=y_array)
         data.attrs.create('DIMENSION_LIST', ((y.ref, ), (x.ref, )), dtype=h5py.ref_dtype)
 
-        affine_transformation = get_transform(data, self.cf_config)
+        affine_transformation = get_transform(data, self.cf_config, self.logger)
 
         self.assertEqual(affine_transformation.a, 1)
         self.assertEqual(affine_transformation.b, 0)
@@ -581,7 +593,7 @@ class TestH5GridProjectionInfo(TestCase):
         data.attrs['coordinates'] = b'/longitude /latitude'
         data_array = np.ones((3, 4))
 
-        affine_transformation = get_transform(data, self.cf_config)
+        affine_transformation = get_transform(data, self.cf_config, self.logger)
 
         self.assertEqual(affine_transformation.a, 1)
         self.assertEqual(affine_transformation.b, 0)
@@ -666,7 +678,7 @@ class TestH5GridProjectionInfo(TestCase):
         dataset_name = '/Freeze_Thaw_Retrieval_polar/latitude'
 
         h5_file = h5py.File(self.test_h5_name, 'w')
-        dataset = h5_file.create_dataset('data', data=np.ones((2, 2)))
+        h5_file.create_dataset('data', data=np.ones((2, 2)))
         config_dataset = h5_file.create_dataset(dataset_name, data=np.ones((2, 2)))
         dim_x = h5_file.create_dataset(dim_x_name, data=np.ones((2, )))
         dim_y = h5_file.create_dataset(dim_y_name, data=np.ones((3, )))
@@ -674,12 +686,12 @@ class TestH5GridProjectionInfo(TestCase):
         grid_mapping.attrs.update(global_proj4)
 
         with self.subTest('No information, uses configured defaults.'):
-            proj4 = get_hdf_proj4(config_dataset, self.cf_config)
+            proj4 = get_hdf_proj4(config_dataset, self.cf_config, self.logger)
             self.assertTrue(proj4.startswith('+proj=laea'))
 
         with self.subTest('grid_mapping attribute present.'):
             config_dataset.attrs['grid_mapping'] = grid_mapping.ref
-            proj4 = get_hdf_proj4(config_dataset, self.cf_config)
+            proj4 = get_hdf_proj4(config_dataset, self.cf_config, self.logger)
             self.assertTrue(proj4.startswith('+proj=cea'))
 
         with self.subTest('DIMENSION_LIST present, units degrees.'):
@@ -687,12 +699,12 @@ class TestH5GridProjectionInfo(TestCase):
             config_dataset.attrs.create('DIMENSION_LIST',
                                         ((dim_x.ref, ), (dim_y.ref, )),
                                         dtype=h5py.ref_dtype)
-            proj4 = get_hdf_proj4(config_dataset, self.cf_config)
+            proj4 = get_hdf_proj4(config_dataset, self.cf_config, self.logger)
             self.assertTrue(proj4.startswith('+proj=longlat'))
 
         with self.subTest('DIMENSION_LIST, non degrees falls back to grid_mapping.'):
             dim_x.attrs['units'] = bytes('metres', 'utf-8')
-            proj4 = get_hdf_proj4(config_dataset, self.cf_config)
+            proj4 = get_hdf_proj4(config_dataset, self.cf_config, self.logger)
             self.assertTrue(proj4.startswith('+proj=cea'))
 
     def test_get_dimension_datasets(self):

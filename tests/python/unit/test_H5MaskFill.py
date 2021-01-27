@@ -1,3 +1,4 @@
+from logging import getLogger
 from os import mkdir
 from os.path import isdir, join
 from shutil import rmtree
@@ -17,6 +18,7 @@ class TestH5MaskFill(TestCase):
     @classmethod
     def setUpClass(cls):
         cls.cf_config = CFConfigH5('tests/data/SMAP_L4_SM_aup_input.h5')
+        cls.logger = getLogger('test')
 
     def setUp(self):
         self.cache_dir = 'cache'
@@ -61,7 +63,7 @@ class TestH5MaskFill(TestCase):
 
                 mask_fill(dataset, self.shape_file, self.cache_dir, 'maskgrid_only',
                           fill_value, self.saved_mask_arrays, self.cf_config,
-                          self.exclusions_set)
+                          self.exclusions_set, self.logger)
 
                 mock_get_mask_array.assert_not_called()
 
@@ -93,7 +95,7 @@ class TestH5MaskFill(TestCase):
             saved_masks = {mask_id: saved_mask}
             mask_array = get_mask_array(dataset, self.shape_file,
                                         self.output_dir, 'use_cache',
-                                        saved_masks, self.cf_config)
+                                        saved_masks, self.cf_config, self.logger)
             np.testing.assert_array_equal(mask_array, saved_mask)
             mock_create_mask_array.assert_not_called()
 
@@ -102,7 +104,7 @@ class TestH5MaskFill(TestCase):
             np.save(output_file_path, cached_mask)
             mask_array = get_mask_array(dataset, self.shape_file,
                                         self.output_dir, 'use_cache', {},
-                                        self.cf_config)
+                                        self.cf_config, self.logger)
             np.testing.assert_array_equal(mask_array, cached_mask)
             mock_create_mask_array.assert_not_called()
             rmtree(self.output_dir)
@@ -110,11 +112,12 @@ class TestH5MaskFill(TestCase):
         with self.subTest('No prior mask (cached or saved)'):
             mask_array = get_mask_array(dataset, self.shape_file,
                                         self.output_dir, 'use_cache', {},
-                                        self.cf_config)
+                                        self.cf_config, self.logger)
             np.testing.assert_array_equal(mask_array, new_mask)
             mock_create_mask_array.assert_called_once_with(dataset,
                                                            self.shape_file,
-                                                           self.cf_config)
+                                                           self.cf_config,
+                                                           self.logger)
 
         h5_file.close()
 
@@ -173,6 +176,6 @@ class TestH5MaskFill(TestCase):
             dataset = h5_file.create_dataset(item, data=[0, 1, 2])
             mask_fill(dataset, self.shape_file, self.cache_dir, 'maskgrid_only',
                       0, self.saved_mask_arrays, self.cf_config,
-                      self.exclusions_set)
+                      self.exclusions_set, self.logger)
 
             mock_get_mask_array.assert_not_called()
