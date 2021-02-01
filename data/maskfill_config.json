@@ -30,6 +30,8 @@
         "SPL3FTP": "SMAP_L3_FT_P",
         "SPL3FTP_E": "SMAP_L3_FT_P_E",
         "SPL3FTA": "SMAP_L3_FT_A",
+        "SPL3SMA": "SMAP_L3_SM_A",
+        "SPL3SMAP": "SMAP_L3_SM_AP",
         "SPL3SMP": "SMAP_L3_SM_P",
         "SPL3SMP_E": "SMAP_L3_SM_P_E",
         "SPL4CMDL": "SMAP_L4_C_mdl",
