@@ -10,9 +10,7 @@ import os
 import re
 
 from h5py import File
-
 from numpy import bytes_
-import h5py
 
 from pymods.exceptions import UnknownCollectionShortname
 

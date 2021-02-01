@@ -1,3 +1,4 @@
+from logging import getLogger
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
@@ -15,6 +16,7 @@ class TestMaskFillCaching(TestCase):
 
     @classmethod
     def setUpClass(cls):
+        cls.logger = getLogger('test')
         cls.mock_id = 'ba214cbe252'
         cls.tif_data_path = '/path/to/data.tif'
         cls.shape_path = '/path/to/shape.geo.json'
@@ -66,7 +68,8 @@ class TestMaskFillCaching(TestCase):
                     'mask_id_3': np.array([[9, 0], [1, 2]])}
 
         with self.subTest('Should save'):
-            cache_h5_mask_arrays(h5_masks, self.cache_dir, 'use_and_save')
+            cache_h5_mask_arrays(h5_masks, self.cache_dir, 'use_and_save',
+                                 self.logger)
 
             self.assertEqual(mock_np_save.call_count, 3)
             mock_np_save.assert_any_call(f'{self.cache_dir}/mask_id_1.npy',
@@ -79,7 +82,8 @@ class TestMaskFillCaching(TestCase):
         mock_np_save.reset_mock()
 
         with self.subTest('Does not save; "delete" in grid caching option'):
-            cache_h5_mask_arrays(h5_masks, self.cache_dir, 'ignore_and_delete')
+            cache_h5_mask_arrays(h5_masks, self.cache_dir, 'ignore_and_delete',
+                                 self.logger)
             mock_np_save.assert_not_called()
 
     @patch('pymods.MaskFillUtil.get_geotiff_mask_array_id')

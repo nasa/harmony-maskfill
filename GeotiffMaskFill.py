@@ -1,8 +1,8 @@
 """ Provides Maskfill support for GeoTIFF files """
+from logging import Logger
 from os.path import basename
 from shutil import copyfile
 from typing import List
-import logging
 import re
 
 import gdal
@@ -20,7 +20,7 @@ from pymods.MaskFillCaching import (cache_geotiff_mask_array,
 
 def produce_masked_geotiff(geotiff_path: str, shape_path: str, output_dir: str,
                            cache_dir: str, mask_grid_cache: str,
-                           default_fill_value: float) -> str:
+                           default_fill_value: float, logger: Logger) -> str:
     """ Performs a mask fill on the given GeoTIFF using the shapes in the giveni
         shape file. If the variable is a coordinate, or EASE-2 grid index, then
         the input file is copied directly to the output, unmasked.
@@ -54,7 +54,7 @@ def produce_masked_geotiff(geotiff_path: str, shape_path: str, output_dir: str,
     if variable_should_be_masked(geotiff_path, exclusions):
         raster_arr = gdal_array.LoadFile(geotiff_path)
 
-        fill_value = get_fill_value(geotiff_path, default_fill_value)
+        fill_value = get_fill_value(geotiff_path, default_fill_value, logger)
         out_image = MaskFillUtil.mask_fill_array(raster_arr, mask_array,
                                                  fill_value)
         out_image = np.array([out_image])
@@ -68,12 +68,12 @@ def produce_masked_geotiff(geotiff_path: str, shape_path: str, output_dir: str,
         with rasterio.open(output_path, 'w', **out_meta) as dest:
             dest.write(out_image)
 
-        logging.debug('Successfully created masked GeoTIFF and updated '
-                      'metadata')
+        logger.debug('Successfully created masked GeoTIFF and updated '
+                     'metadata')
     else:
         # Copy input file to output path
-        logging.debug(f'{geotiff_path} matches coordinate exclusion rule; '
-                      f'copying input to {output_path}')
+        logger.debug(f'{geotiff_path} matches coordinate exclusion rule; '
+                     f'copying input to {output_path}')
         copyfile(geotiff_path, output_path)
 
     return output_path
@@ -147,7 +147,8 @@ def get_geotiff_proj4(geotiff_path: str) -> str:
     return srs.ExportToProj4()
 
 
-def get_fill_value(geotiff_path: str, default_fill_value: float) -> float:
+def get_fill_value(geotiff_path: str, default_fill_value: float,
+                   logger: Logger) -> float:
     """ Returns the fill value for the given GeoTIFF.
         If the GeoTIFF has no fill value, returns the given default fill value.
 
@@ -164,8 +165,8 @@ def get_fill_value(geotiff_path: str, default_fill_value: float) -> float:
     fill_value = raster.GetRasterBand(1).GetNoDataValue()
 
     if fill_value is None:
-        logging.info(f'The GeoTIFF does not have a fill value, '
-                     f'so the default fill value {default_fill_value} will be used')
+        logger.info('The GeoTIFF does not have a fill value, so the default '
+                    f'fill value {default_fill_value} will be used')
         return default_fill_value
 
     return fill_value

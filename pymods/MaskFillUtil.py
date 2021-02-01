@@ -1,5 +1,5 @@
-""" Utility functions to support MaskFill processing
-"""
+""" Utility functions to support MaskFill processing """
+from logging import Logger
 from typing import Tuple
 import hashlib
 import os
@@ -127,7 +127,7 @@ def get_masked_file_path(original_file_path, output_dir):
 
 
 def get_h5_mask_array_id(h5_dataset: h5py.Dataset, shape_path: str,
-                         cf_config: CFConfigH5) -> str:
+                         cf_config: CFConfigH5, logger: Logger) -> str:
     """ Creates an ID corresponding to the given shape file, projection
         information, pixel-to-projected coordinates Affine transformation
         inputs, and shape of a dataset, which determine the mask array for
@@ -144,7 +144,7 @@ def get_h5_mask_array_id(h5_dataset: h5py.Dataset, shape_path: str,
                 a combined input string of the shape file path, dataset shape,
                 dataset projection and Affine transformation.
     """
-    proj_string = H5GridProjectionInfo.get_hdf_proj4(h5_dataset, cf_config)
+    proj_string = H5GridProjectionInfo.get_hdf_proj4(h5_dataset, cf_config, logger)
     transform = H5GridProjectionInfo.get_transform_information(h5_dataset)
     dataset_shape = h5_dataset[:].shape
 

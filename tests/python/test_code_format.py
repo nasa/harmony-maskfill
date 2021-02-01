@@ -7,10 +7,8 @@ import pycodestyle
 class TestCodeFormat(TestCase):
 
     @classmethod
-    def setUpClass(test_class):
-        test_class.python_files = [file_name
-                                   for file_name
-                                   in Path('.').rglob('*.py')]
+    def setUpClass(cls):
+        cls.python_files = Path('.').rglob('*.py')
 
     def test_pep8_conformance(self):
         """Test that Python files conform to PEP8.

@@ -11,7 +11,7 @@ WORKDIR "/home"
 
 # Create Conda environment.
 COPY data/mask_fill_conda_requirements.txt data/mask_fill_conda_requirements.txt
-RUN conda create -y --name maskfill --file data/mask_fill_conda_requirements.txt python=3.6 -q
+RUN conda create -y --name maskfill --file data/mask_fill_conda_requirements.txt python=3.6 -q && conda clean -a
 
 # Install additional Pip dependencies.
 COPY data/mask_fill_pip_requirements.txt data/mask_fill_pip_requirements.txt
