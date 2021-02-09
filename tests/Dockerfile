@@ -21,10 +21,10 @@ WORKDIR "/home"
 COPY . /home/
 
 # Create Conda environment.
-RUN conda create -y --name maskfill --file data/mask_fill_conda_requirements.txt python=3.6 -q
+RUN conda create -y --name maskfill --file data/mask_fill_conda_requirements.txt python=3.7 -q
 
 # Install additional Pip dependencies.
-RUN conda run --name maskfill pip install --no-input -r data/mask_fill_pip_requirements.txt
+RUN conda run --name maskfill pip install --no-input -r data/mask_fill_harmony_pip_requirements.txt
 
 # Set conda environment to maskfill, as `conda run` will not stream logging.
 # Setting these environment variables is the equivalent of `conda activate`.
@@ -41,11 +41,15 @@ ENV _CE_CONDA='' \
     PATH="/opt/conda/envs/maskfill/bin:${PATH}" \
     SHLVL=1
 
+# GDAL specific environment variables
 ENV CPL_ZIP_ENCODING=UTF-8 \
     GDAL_DATA=/opt/conda/envs/maskfill/share/gdal \
     GSETTINGS_SCHEMA_DIR=/opt/conda/envs/maskfill/share/glib-2.0/schemas \
     GSETTINGS_SCHEMA_DIR_CONDA_BACKUP='' \
     PROJ_LIB=/opt/conda/envs/maskfill/share/proj
+
+# An environment variable used by BaseHarmonyAdapter uses to not stage files
+ENV ENV=test
 
 # Configure a container to be executable via the `docker run` command.
 ENTRYPOINT ["/home/tests/run"]

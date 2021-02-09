@@ -131,4 +131,4 @@ fi
 
 # Execute the saved Docker image as a container.
 #
-docker run --rm -it -v ${HOST_DIRECTORY}:${CONTAINER_DIRECTORY} sds/maskfill $OUTPUT_STRING
+docker run --rm -it -v ${HOST_DIRECTORY}:${CONTAINER_DIRECTORY} sds/maskfill-sdps $OUTPUT_STRING

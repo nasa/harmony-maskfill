@@ -1,16 +1,15 @@
 #!/bin/bash
 
-image="sds/maskfill"
+image="sds/maskfill-test"
 tag=${1:-latest}
-
 
 # Look for old version of image and remove
 #
 old=$(docker images | grep "$image" | grep "$tag" | awk '{print $3}')
-if [ ! -z "$old" ]; then
-  docker rmi "$old"
+if [ ! -z "$old" ] && [ "$2" != "--no-delete" ]; then
+	docker rmi "$old"
 fi
 
 # Build the image
 #
-docker build -t ${image}:${tag} .
+docker build -t ${image}:${tag} -f tests/Dockerfile .
