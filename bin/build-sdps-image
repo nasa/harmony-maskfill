@@ -13,4 +13,4 @@ fi
 
 # Build the image
 #
-docker build -t ${image}:${tag} -f Dockerfile_sdps .
+docker build -t ${image}:${tag} -f SDPS.Dockerfile .
