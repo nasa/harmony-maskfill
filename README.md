@@ -22,8 +22,13 @@ To run the Harmony version of the service, replace the last command in the
 snippet above with:
 
 ```bash
-pip install -r ./data/mask_fill_harmony_pip_requirements.txt
+cd data
+pip install -r mask_fill_harmony_pip_requirements.txt
 ```
+
+Note, that installation most be done within the `data` directory so the
+reference to `mask_fill_pip_requirements.txt` within the Harmony Pip
+requirements file can be resolved.
 
 ## Development:
 
@@ -130,12 +135,12 @@ message = Message({
                 'start': '2020-01-01T00:00:00.000Z',
                 'end': '2020-12-31T00:00:00.0000Z'
             },
-            'url': 'tests/data/SMAP_L4_aup_input.h5'
+            'url': 'tests/data/SMAP_L4_SM_aup_input.h5'
         }]
     }],
 	'subset': {
         'shape': {
-            'href': '',
+            'href': 'tests/data/USA.geo.json',
             'type': 'application/geo+json'
         }
     },
