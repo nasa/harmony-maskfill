@@ -1,6 +1,6 @@
 # Harmony service library
 --extra-index-url https://maven.earthdata.nasa.gov/repository/python-repo/simple
-harmony-service-lib~=0.0.32
+harmony-service-lib~=0.0.35
 
 # Harmony-specific dependencies
 pystac~=0.5.3

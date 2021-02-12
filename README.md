@@ -96,8 +96,8 @@ There are other parameters that can be supplied to the script, but these are opt
 
 ## Running locally (Harmony method):
 
-You can also run the service within the `HarmonyAdapter`. When you do this you
-will need to set several environment variables, that Harmony expects. The first,
+You can also run the service within the `HarmonyAdapter`, starting within the root directory of the `maskfill` repository. 
+When you do this you will need to set several environment variables, that Harmony expects. The first,
 `ENV`, tells Harmony not to try and stage the results.
 
 Additionally, if you want to inspect the output, you'll need to temporarily
@@ -119,10 +119,11 @@ export STAGING_PATH=''
 Then in a Python session:
 
 ```Python
+from unittest.mock import patch
 from harmony.message import Message
 from harmony.util import config
 from harmony_adapter import HarmonyAdapter
-
+from tests.python.test_harmony_adapter import download_side_effect
 
 message = Message({
     'accessToken': 'fake_token',
@@ -147,8 +148,9 @@ message = Message({
 	'user': 'narmstrong'
 })
 
-maskfill_adapter = HarmonyAdapter(message, config=config(False))
-maskfill_adapter.invoke()
+with patch('harmony_adapter.download', download_side_effect):
+    maskfill_adapter = HarmonyAdapter(message, config=config(False))
+    maskfill_adapter.invoke()
 ```
 
 Note in the message above, the URL for a granule and shape file should be a
