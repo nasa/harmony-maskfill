@@ -1,7 +1,10 @@
 from logging import (basicConfig as basic_log_config, getLogger,
                      Handler as LogHandler, INFO)
+from os import sep
+from os.path import basename
+from shutil import copy
 from unittest import TestCase
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 from harmony.message import Message
 from harmony.util import config, HarmonyException
@@ -35,7 +38,22 @@ class TestLogHandler(LogHandler):
         self.messages = []
 
 
+def download_side_effect(file_path, working_dir, **kwargs):
+    """ A side effect to be used when mocking the `harmony.util.download`
+        function. This should copy the input file (assuming it is a local
+        file path) to the working directory, and then return the new file
+        path.
+
+    """
+    file_base_name = basename(file_path)
+    output_file_path = sep.join([working_dir, file_base_name])
+
+    copy(file_path, output_file_path)
+    return output_file_path
+
+
 @patch('harmony_adapter.stage', return_value='https://example.com/data')
+@patch('harmony_adapter.download', side_effect=download_side_effect)
 class TestHarmonyMaskFill(TestCase):
     """ A test class that will run the full MaskFill service using the
         `HarmonyAdapter` class.
@@ -75,7 +93,7 @@ class TestHarmonyMaskFill(TestCase):
     def tearDown(self):
         self.log_handler.reset()
 
-    def test_harmony_adapter_hdf5(self, mock_stage):
+    def test_harmony_adapter_hdf5(self, mock_download, mock_stage):
         """ Successful MaskFill run using the HarmonyAdapter and an HDF-5
             granule.
 
@@ -92,16 +110,22 @@ class TestHarmonyMaskFill(TestCase):
             'user': self.user,
         })
 
-        maskfill_adapter = HarmonyAdapter(test_data, config=config(False))
+        maskfill_config = config(False)
+        maskfill_adapter = HarmonyAdapter(test_data, config=maskfill_config)
         maskfill_adapter.invoke()
 
+        mock_download.asset_called_once_with(self.input_hdf5,
+                                             ANY,
+                                             logger=maskfill_adapter.logger,
+                                             access_token=self.access_token,
+                                             cfg=maskfill_config)
         mock_stage.assert_called_once_with(StringEndsWith(self.masked_hdf5),
                                            StringEndsWith(self.staged_hdf5),
                                            self.mimetype_hdf5,
                                            location=self.staging_location,
                                            logger=maskfill_adapter.logger)
 
-    def test_harmony_adapter_geotiff(self, mock_stage):
+    def test_harmony_adapter_geotiff(self, mock_download, mock_stage):
         """ Successful MaskFill run using the HarmonyAdapter and a GeoTIFF
             granule.
 
@@ -118,16 +142,22 @@ class TestHarmonyMaskFill(TestCase):
             'user': self.user,
         })
 
-        maskfill_adapter = HarmonyAdapter(test_data, config=config(False))
+        maskfill_config = config(False)
+        maskfill_adapter = HarmonyAdapter(test_data, config=maskfill_config)
         maskfill_adapter.invoke()
 
+        mock_download.asset_called_once_with(self.input_geotiff,
+                                             ANY,
+                                             logger=maskfill_adapter.logger,
+                                             access_token=self.access_token,
+                                             cfg=maskfill_config)
         mock_stage.assert_called_once_with(StringEndsWith(self.masked_geotiff),
                                            StringEndsWith(self.staged_geotiff),
                                            self.mimetype_geotiff,
                                            location=self.staging_location,
                                            logger=maskfill_adapter.logger)
 
-    def test_validate_message_no_message(self, mock_stage):
+    def test_validate_message_no_message(self, mock_download, mock_stage):
         """ Ensure that a `NoneType` message will raise an exception, during
             validation.
 
@@ -137,10 +167,11 @@ class TestHarmonyMaskFill(TestCase):
         with self.assertRaises(HarmonyException) as context:
             maskfill_adapter.invoke()
 
+        mock_download.assert_not_called()
         mock_stage.assert_not_called()
         self.assertEqual(context.exception.message, 'No message request')
 
-    def test_validate_message_no_granules(self, mock_stage):
+    def test_validate_message_no_granules(self, mock_download, mock_stage):
         """ Ensure that a message with no listed granules raises a
             HarmonyException, and does not attempt to process any further.
 
@@ -159,11 +190,12 @@ class TestHarmonyMaskFill(TestCase):
         with self.assertRaises(HarmonyException) as context:
             maskfill_adapter.invoke()
 
+        mock_download.assert_not_called()
         mock_stage.assert_not_called()
         self.assertEqual(context.exception.message,
                          'No granules specified for reprojection')
 
-    def test_validate_message_shape_file(self, mock_stage):
+    def test_validate_message_shape_file(self, mock_download, mock_stage):
         """ Ensure that if MaskFill is called without a shape file specified,
             or with a poorly specified shape file, it will raise a
             HarmonyException.
@@ -186,6 +218,7 @@ class TestHarmonyMaskFill(TestCase):
             with self.assertRaises(HarmonyException) as context:
                 maskfill_adapter.invoke()
 
+            mock_download.assert_not_called()
             mock_stage.assert_not_called()
             self.assertEqual(context.exception.message,
                              'Shape file must be specified for masking.')
