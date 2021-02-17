@@ -36,7 +36,7 @@ class TestHarmonyMaskFill(TestCase):
 
         cls.message = Message({
             'accessToken': 'fake_token',
-            'callback': 'https://example.com/calllback',
+            'callback': 'https://example.com/callback',
             'sources': [{'granules': [{'bbox': [-180, -90, 180, 90],
                                        'temporal': cls.temporal,
                                        'url': cls.input_hdf5}]}],

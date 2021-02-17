@@ -1,7 +1,7 @@
 #
 # Commands to use this file locally:
 #
-# docker build -f Dockerfile -t sds/maskfill .
+# docker build -f SDPS.Dockerfile -t sds/maskfill .
 # docker run -v /full/path/to/host/directory:/home/results sds/maskfill:latest "<full list of arguments>"
 #
 #
@@ -11,7 +11,7 @@ WORKDIR "/home"
 
 # Create Conda environment.
 COPY data/mask_fill_conda_requirements.txt data/mask_fill_conda_requirements.txt
-RUN conda create -y --name maskfill --file data/mask_fill_conda_requirements.txt python=3.6 -q && conda clean -a
+RUN conda create -y --name maskfill --file data/mask_fill_conda_requirements.txt python=3.7 -q && conda clean -a
 
 # Install additional Pip dependencies.
 COPY data/mask_fill_pip_requirements.txt data/mask_fill_pip_requirements.txt

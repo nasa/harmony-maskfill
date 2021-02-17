@@ -1,6 +1,6 @@
 #!/bin/bash
 
-image="sds/maskfill-sdps"
+image="sds/maskfill-harmony"
 tag=${1:-latest}
 
 
@@ -13,4 +13,4 @@ fi
 
 # Build the image
 #
-docker build -t ${image}:${tag} -f SDPS.Dockerfile .
+docker build -t ${image}:${tag} -f Harmony.Dockerfile .
