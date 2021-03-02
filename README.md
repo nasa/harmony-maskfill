@@ -148,7 +148,7 @@ message = Message({
 	'user': 'narmstrong'
 })
 
-with patch('harmony_adapter.download', download_side_effect):
+with patch('harmony_adapter.download', side_effect=download_side_effect):
     maskfill_adapter = HarmonyAdapter(message, config=config(False))
     maskfill_adapter.invoke()
 ```
