@@ -9,7 +9,6 @@ import gdal
 import numpy as np
 import rasterio
 import rasterio.mask
-from osgeo import gdal_array
 from osgeo import osr
 
 from pymods import MaskFillUtil
@@ -52,12 +51,19 @@ def produce_masked_geotiff(geotiff_path: str, shape_path: str, output_dir: str,
         return None
 
     if variable_should_be_masked(geotiff_path, exclusions):
-        raster_arr = gdal_array.LoadFile(geotiff_path)
+        input_dataset = gdal.Open(geotiff_path)
 
-        fill_value = get_fill_value(geotiff_path, default_fill_value, logger)
-        out_image = MaskFillUtil.mask_fill_array(raster_arr, mask_array,
-                                                 fill_value)
-        out_image = np.array([out_image])
+        fill_value = get_fill_value(input_dataset, default_fill_value, logger)
+
+        # Raster band indices in gdal.Dataset are 1-based, range is 0-based.
+        out_image = np.array([
+            MaskFillUtil.mask_fill_array(
+                input_dataset.GetRasterBand(band + 1).ReadAsArray(),
+                mask_array,
+                fill_value
+            )
+            for band in range(input_dataset.RasterCount)
+        ])
 
         # Output file with updated metadata
         out_meta = rasterio.open(geotiff_path).meta.copy()
@@ -147,7 +153,7 @@ def get_geotiff_proj4(geotiff_path: str) -> str:
     return srs.ExportToProj4()
 
 
-def get_fill_value(geotiff_path: str, default_fill_value: float,
+def get_fill_value(geotiff_dataset: gdal.Dataset, default_fill_value: float,
                    logger: Logger) -> float:
     """ Returns the fill value for the given GeoTIFF.
         If the GeoTIFF has no fill value, returns the given default fill value.
@@ -161,8 +167,7 @@ def get_fill_value(geotiff_path: str, default_fill_value: float,
             float: The fill value
 
     """
-    raster = gdal.Open(geotiff_path)
-    fill_value = raster.GetRasterBand(1).GetNoDataValue()
+    fill_value = geotiff_dataset.GetRasterBand(1).GetNoDataValue()
 
     if fill_value is None:
         logger.info('The GeoTIFF does not have a fill value, so the default '
