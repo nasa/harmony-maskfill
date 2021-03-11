@@ -390,3 +390,31 @@ class TestMaskFill(TestCase):
                                                             output_name))
 
         self.compare_geotiff_files(input_name, output_name)
+
+    @patch('MaskFill.get_input_parameters')
+    def test_mask_fill_geotiff_bands(self, mock_get_input_parameters):
+        """ Check that a GeoTIFF with multiple bands will successfully be
+            processed by MaskFill.
+
+        """
+        base_name = 'SMAP_L3_FT_P_banded'
+        input_name = f'tests/data/{base_name}_input.tif'
+        template_output = f'tests/data/{base_name}_output.tif'
+        test_output = (f'{self.output_dir}/{self.identifier}/{base_name}_'
+                       'input_mf.tif')
+        shape_file = 'tests/data/WV.geo.json'
+
+        geotiff_parameters = self.default_parameters
+        geotiff_parameters['input_file'] = input_name
+        geotiff_parameters['shape_file'] = shape_file
+
+        mock_get_input_parameters.return_value = self.create_parameters_namespace(
+            geotiff_parameters
+        )
+
+        response = maskfill_sdps()
+
+        self.assertEqual(response, get_xml_success_response(input_name,
+                                                            shape_file,
+                                                            test_output))
+        self.compare_geotiff_files(template_output, test_output)
