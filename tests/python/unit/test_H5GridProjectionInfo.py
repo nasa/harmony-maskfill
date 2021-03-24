@@ -3,10 +3,10 @@ from os import mkdir
 from os.path import isdir, join
 from shutil import rmtree
 from unittest import TestCase
-from unittest.mock import Mock, patch
-import json
+from unittest.mock import patch
 
 from pyproj.crs import CRS
+from pyproj.proj import Proj
 import h5py
 import numpy as np
 
@@ -16,8 +16,6 @@ from pymods.exceptions import (InsufficientDataError,
                                InvalidMetadata, MissingCoordinateDataset)
 from pymods.H5GridProjectionInfo import (dataset_all_fill_value,
                                          dataset_all_outside_valid_range,
-                                         euclidean_distance,
-                                         extrapolate_coordinate,
                                          get_cell_size_from_dimensions,
                                          get_cell_size_from_lat_lon_extents,
                                          get_corner_points_from_dimensions,
@@ -28,10 +26,9 @@ from pymods.H5GridProjectionInfo import (dataset_all_fill_value,
                                          get_grid_mapping_name,
                                          get_hdf_proj4,
                                          get_lon_lat_datasets,
-                                         get_pixel_size_from_data_extent,
+                                         get_projected_coordinate_extent,
                                          get_transform,
                                          get_transform_information,
-                                         get_valid_coordinates_extent,
                                          resolve_relative_dataset_path)
 
 
@@ -188,166 +185,6 @@ class TestH5GridProjectionInfo(TestCase):
 
         h5_file.close()
 
-    def test_euclidean_distance(self):
-        """The correct distance between two tuples of points should be calculated,
-        or if the dimensions of the tuples do not match, there should be a None
-        return.
-
-        """
-        tuple_one = (0, 0, 0)
-        tuple_two = (4, 3, 12)
-
-        test_args = [['3-D tuples, p1, p2', tuple_one, tuple_two, 13],
-                     ['3-D tuples, p2, p1', tuple_two, tuple_one, 13],
-                     ['2-D tuples', tuple_one[:2], tuple_two[:2], 5],
-                     ['Non matching tuple lengths', tuple_one, tuple_two[:2], None]]
-
-        for description, point_one, point_two, result in test_args:
-            with self.subTest(description):
-                self.assertEqual(euclidean_distance(point_one, point_two), result)
-
-    def test_extrapolate_coordinate(self):
-        """The coordinate should be correctly extrapolated, if the point being
-        extrapolated to contains a fill value, then a coordinate should be
-        calculated. If it doesn't contain the fill value, it should return
-        the array value at the requested indices.
-
-        """
-        fill_value = -9999.0
-        data_array = np.array([[0.0, 0.1, 0.2], [0.0, 0.1, 0.2], [0.0, 0.1, 0.2]])
-        filled_array = np.array([[fill_value, 0.1, 0.2],
-                                 [fill_value, 0.1, 0.2],
-                                 [fill_value, 0.1, 0.2]])
-        data_3d = np.stack([data_array, filled_array])
-
-        reference_indices = (2, 2)
-        target_indices = (0, 0)
-        pixel_scale_x = 0.1
-
-        h5_file = h5py.File(self.test_h5_name, 'w')
-        dataset = h5_file.create_dataset('test', data=data_array, fillvalue=fill_value)
-        filled_dataset = h5_file.create_dataset('filled_test',
-                                                data=filled_array,
-                                                fillvalue=fill_value)
-        dataset_3d = h5_file.create_dataset('three_dim', data=data_3d, fillvalue=fill_value)
-
-        test_args_2d = [['2-D corner extrapolated.', filled_dataset],
-                        ['2-D corner has data in it.', dataset]]
-
-        for description, test_dataset in test_args_2d:
-            with self.subTest(description):
-                self.assertEqual(
-                    extrapolate_coordinate(test_dataset, fill_value, 'x',
-                                           data_array[reference_indices],
-                                           reference_indices, 1,
-                                           target_indices, pixel_scale_x,
-                                           self.logger),
-                    0.0
-                )
-
-        test_args_3d = [['3-D corner extrapolated.', 1],
-                        ['3-D corner has data in it.', 0]]
-
-        for description, band in test_args_3d:
-            with self.subTest(description):
-                self.assertEqual(
-                    extrapolate_coordinate(dataset_3d, fill_value, 'x',
-                                           data_3d[band][reference_indices],
-                                           (band, 2, 2), 2, (band, 0, 0),
-                                           pixel_scale_x, self.logger),
-                    0.0
-                )
-
-        h5_file.close()
-
-    def test_get_pixel_size_from_data_extent(self):
-        """The correct pixel extents should be calculated for both dimensions,
-        and if one is invalid (largely due to date being in a single column or row),
-        the assumption of square pixels should be applied. Finally, if both
-        pixel scales are found to be zero, a custom exception, InsufficientDataError,
-        should be raised.
-
-        Note: Python indices for 2-D arrays are array[row][column]
-
-        """
-        x_two, y_two = (15.0, 5.0)
-        x_one, y_one = (10.0, 10.0)
-        ll_indices = (0, 0)
-        ur_indices = (5, 5)
-        ll_indices_3d = (0, 0, 0)
-        ur_indices_3d = (0, 5, 5)
-        scales = (1.0, -1.0)
-
-        valid_test_args = [['2-D both extents non-zero', ll_indices, ur_indices],
-                           ['3-D both extents non-zero', ll_indices_3d, ur_indices_3d]]
-
-        for description, ll_inds, ur_inds in valid_test_args:
-            with self.subTest(description):
-                self.assertEqual(
-                    get_pixel_size_from_data_extent(x_one, y_one, x_two, y_two,
-                                                    ll_inds, ur_inds),
-                    scales
-                )
-
-        test_args = [['2-D x extent zero', x_one, y_one, x_one, y_two, ll_indices, ur_indices],
-                     ['2-D y extent zero', x_one, y_one, x_two, y_one, ll_indices, ur_indices],
-                     ['2-D both extents zero', x_one, y_one, x_one, y_one, ll_indices, ur_indices],
-                     ['3-D x extent zero', x_one, y_one, x_one, y_two, ll_indices_3d, ur_indices_3d],
-                     ['3-D y extent zero', x_one, y_one, x_two, y_one, ll_indices_3d, ur_indices_3d],
-                     ['3-D both extents zero', x_one, y_one, x_one, y_one, ll_indices_3d, ur_indices_3d],
-                     ['Divide by zero x', x_one, y_one, x_two, y_two, (0, 0), (5, 0)],
-                     ['Divide by zero y', x_one, y_one, x_two, y_two, (0, 0), (0, 5)]]
-
-        for description, x_0, y_0, x_N, y_M, ll_inds, ur_inds in test_args:
-            with self.subTest(description):
-                with self.assertRaises(InsufficientDataError):
-                    get_pixel_size_from_data_extent(x_0, y_0, x_N, y_M,
-                                                    ll_inds, ur_inds)
-
-    def test_get_valid_coordinates_extent(self):
-        """The indices of the points containing valid data in both arrays,
-        nearest to the upper right and lower left corners should be returned.
-
-        """
-        fill_value = -1
-        data_array = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
-        data_bad_ll = np.array([[fill_value, 2, 3], [4, 5, 6], [7, 8, 9]])
-        data_bad_ur = np.array([[1, 2, 3], [4, 5, 6], [7, 8, fill_value]])
-        data_bad_both = np.array([[fill_value, 2, 3], [4, 5, 6], [7, 8, fill_value]])
-        lower_left_tuple = (0, 0)
-        upper_right_tuple = (2, 2)
-
-        test_args = [['Corners have valid data', data_array, data_array, lower_left_tuple, upper_right_tuple],
-                     ['Lower left is invalid in one array', data_array, data_bad_ll, (0, 1), upper_right_tuple],
-                     ['Lower left is invalid both arrays', data_bad_ll, data_bad_ll, (0, 1), upper_right_tuple],
-                     ['Upper right is invalid in one array', data_array, data_bad_ur, lower_left_tuple, (1, 2)],
-                     ['Upper right is invalid in both arrays', data_bad_ur, data_bad_ur, lower_left_tuple, (1, 2)],
-                     ['Both corners invalid in one array', data_bad_both, data_array, (0, 1), (1, 2)],
-                     ['Opposite corners invalid in each array', data_bad_ll, data_bad_ur, (0, 1), (1, 2)]]
-
-        for description, data_one, data_two, result_ll, result_ur in test_args:
-            with self.subTest(description):
-                lower_left_valid, upper_right_valid = get_valid_coordinates_extent(
-                    data_one, data_two, fill_value, fill_value, lower_left_tuple,
-                    upper_right_tuple
-                )
-                self.assertEqual(lower_left_valid, result_ll)
-                self.assertEqual(upper_right_valid, result_ur)
-
-        data_3d = np.stack([data_array, data_bad_both])
-
-        test_args = [['3-D corners valid', data_3d, data_3d, (0, 0, 0), (0, 2, 2), 0],
-                     ['3-D corner invalid', data_3d, data_3d, (1, 0, 1), (1, 1, 2), 1]]
-
-        for description, data_one, data_two, result_ll, result_ur, band in test_args:
-            with self.subTest(description):
-                lower_left_valid, upper_right_valid = get_valid_coordinates_extent(
-                    data_one, data_two, fill_value, fill_value, lower_left_tuple,
-                    upper_right_tuple, band
-                )
-                self.assertEqual(lower_left_valid, result_ll)
-                self.assertEqual(upper_right_valid, result_ur)
-
     @patch('pymods.H5GridProjectionInfo.get_crs')
     def test_get_corner_points_from_lat_lon(self, mock_get_crs):
         """Ensure extrapolation occurs where expected, corners with valid points
@@ -451,6 +288,79 @@ class TestH5GridProjectionInfo(TestCase):
                                                          self.logger)
 
         h5_file.close()
+
+    def test_get_projected_coordinate_extent(self):
+        """ Ensure the x and y dimension can be correctly extrapolated when
+            the coordinate arrays contain fill values in the corners.
+
+            An InsufficientDataError should be returned if unfilled data only
+            exist in a single row or column.
+
+        """
+        projection = Proj({'proj': 'eqc'})
+
+        fill_value = -1
+        data_array = np.ones((3, 3))
+        lat_array = np.array([[10.0, 10.0, 10.0, 10.0],
+                              [15.0, 15.0, 15.0, 15.0],
+                              [20.0, 20.0, 20.0, 20.0],
+                              [25.0, 25.0, 25.0, 25.0]])
+        lon_array = np.array([[5.0, 10.0, 15.0, 20.0],
+                              [5.0, 10.0, 15.0, 20.0],
+                              [5.0, 10.0, 15.0, 20.0],
+                              [5.0, 10.0, 15.0, 20.0]])
+
+        x_lower_left = 556597.453966368
+        y_lower_left = 1113194.9079327357
+        x_upper_right = 2226389.815865471
+        y_upper_right = 2782987.269831839
+
+        with self.subTest('x - No filled coordinates'):
+            valid_data = np.where(data_array == 1)
+            x_min, x_max = get_projected_coordinate_extent(projection,
+                                                           lat_array,
+                                                           lon_array,
+                                                           1, valid_data)
+
+            self.assertAlmostEqual(x_min, x_lower_left)
+            self.assertAlmostEqual(x_max, x_upper_right)
+
+        with self.subTest('x - Filled outer columns'):
+            valid_data = np.where((lon_array > 5) & (lon_array < 20))
+            x_min, x_max = get_projected_coordinate_extent(projection,
+                                                           lat_array,
+                                                           lon_array,
+                                                           1, valid_data)
+
+            self.assertAlmostEqual(x_min, x_lower_left)
+            self.assertAlmostEqual(x_max, x_upper_right)
+
+        with self.subTest('y - Filled outer rows'):
+            valid_data = np.where((lat_array < 25) & (lat_array > 10))
+            y_min, y_max = get_projected_coordinate_extent(projection,
+                                                           lat_array,
+                                                           lon_array,
+                                                           0, valid_data)
+
+            self.assertAlmostEqual(y_min, y_lower_left)
+            self.assertAlmostEqual(y_max, y_upper_right)
+
+        with self.subTest('x - only single column of data'):
+            valid_data = np.where((lon_array > 10) & (lon_array < 20))
+
+            with self.assertRaises(InsufficientDataError):
+                x_min, x_max = get_projected_coordinate_extent(projection,
+                                                               lat_array,
+                                                               lon_array,
+                                                               1, valid_data)
+
+        with self.subTest('y - only single row of data'):
+            valid_data = np.where((lat_array < 25) & (lat_array > 15))
+            with self.assertRaises(InsufficientDataError) as context_manager:
+                y_min, y_max = get_projected_coordinate_extent(projection,
+                                                               lat_array,
+                                                               lon_array,
+                                                               0, valid_data)
 
     def test_get_cell_size_from_dimensions(self):
         """Given an input dataset, check the returned cell_width and cell_height."""
