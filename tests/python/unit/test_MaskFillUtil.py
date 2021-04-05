@@ -1,11 +1,10 @@
+from logging import getLogger
 from unittest import TestCase
-from unittest.mock import patch
 
 import h5py
 import geopandas as gpd
 from geopandas.testing import geom_equals
 from pyproj import CRS
-import affine
 
 from pymods.cf_config import CFConfigH5
 from pymods.MaskFillUtil import (get_h5_mask_array_id, get_bounded_shape,
@@ -18,6 +17,7 @@ class TestMaskFillUtil(TestCase):
     @classmethod
     def setUpClass(cls):
         cls.cf_config = CFConfigH5('tests/data/SMAP_L3_FT_P_corners_input.h5')
+        cls.logger = getLogger('test')
 
     def test_get_h5_mask_array_id(self):
         """ Ensure that for datasets either with or without a DIMENSION_LIST
@@ -38,9 +38,9 @@ class TestMaskFillUtil(TestCase):
             dataset_two = h5_file['/Analysis_Data/sm_surface_analysis']
 
             mask_id_one = get_h5_mask_array_id(dataset_one, shape_path,
-                                               spl4smau_config)
+                                               spl4smau_config, self.logger)
             mask_id_two = get_h5_mask_array_id(dataset_two, shape_path,
-                                               spl4smau_config)
+                                               spl4smau_config, self.logger)
 
             self.assertEqual(mask_id_one, expected_id)
             self.assertEqual(mask_id_two, expected_id)
@@ -55,9 +55,9 @@ class TestMaskFillUtil(TestCase):
             dataset_two = h5_file[f'{group}/altitude_dem.Bands_02']
 
             mask_id_one = get_h5_mask_array_id(dataset_one, shape_path,
-                                               spl3ftp_config)
+                                               spl3ftp_config, self.logger)
             mask_id_two = get_h5_mask_array_id(dataset_two, shape_path,
-                                               spl3ftp_config)
+                                               spl3ftp_config, self.logger)
 
             self.assertEqual(mask_id_one, expected_mask_id_one)
             self.assertEqual(mask_id_two, expected_mask_id_two)

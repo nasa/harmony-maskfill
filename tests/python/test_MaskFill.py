@@ -8,14 +8,17 @@ from numpy import array, array_equal, ndarray, where
 from osgeo import gdal
 import h5py
 
-from MaskFill import (DEFAULT_FILL_VALUE, DEFAULT_MASK_GRID_CACHE, mask_fill,
-                      get_xml_success_response)
+from MaskFill import (DEFAULT_FILL_VALUE, DEFAULT_MASK_GRID_CACHE,
+                      maskfill_sdps, get_xml_success_response)
 
 
 class TestMaskFill(TestCase):
 
+    @classmethod
+    def setUpClass(cls):
+        cls.identifier = 'test'
+
     def setUp(self):
-        self.identifier = 'test'
         self.input_geotiff_file = 'tests/data/SMAP_L4_SM_aup_input.tif'
         self.input_h5_file = 'tests/data/SMAP_L4_SM_aup_input.h5'
         self.output_dir = 'tests/output'
@@ -200,7 +203,8 @@ class TestMaskFill(TestCase):
 
         """
         mock_get_input_parameters.return_value = self.create_parameters_namespace(self.default_parameters)
-        response = mask_fill()
+
+        response = maskfill_sdps()
 
         self.assertEqual(response, get_xml_success_response(self.input_h5_file,
                                                             self.shape_file,
@@ -220,7 +224,7 @@ class TestMaskFill(TestCase):
         geotiff_parameters['input_file'] = self.input_geotiff_file
 
         mock_get_input_parameters.return_value = self.create_parameters_namespace(geotiff_parameters)
-        response = mask_fill()
+        response = maskfill_sdps()
 
         self.assertEqual(response, get_xml_success_response(self.input_geotiff_file,
                                                             self.shape_file,
@@ -239,7 +243,7 @@ class TestMaskFill(TestCase):
         corner_parameters['input_file'] = self.input_corner_file
 
         mock_get_input_parameters.return_value = self.create_parameters_namespace(corner_parameters)
-        response = mask_fill()
+        response = maskfill_sdps()
 
         self.assertEqual(response, get_xml_success_response(self.input_corner_file,
                                                             self.shape_file,
@@ -264,7 +268,7 @@ class TestMaskFill(TestCase):
         polar_parameters['input_file'] = self.input_polar_h5_file
 
         mock_get_input_parameters.return_value = self.create_parameters_namespace(polar_parameters)
-        response = mask_fill()
+        response = maskfill_sdps()
 
         self.assertEqual(response, get_xml_success_response(self.input_polar_h5_file,
                                                             self.shape_file,
@@ -293,8 +297,8 @@ class TestMaskFill(TestCase):
             self.create_parameters_namespace(geotiff_parameters),
         ]
 
-        response_h5 = mask_fill()
-        response_geo = mask_fill()
+        response_h5 = maskfill_sdps()
+        response_geo = maskfill_sdps()
 
         self.assertEqual(response_h5, get_xml_success_response(self.input_comparison_h5,
                                                                shape_file,
@@ -335,7 +339,7 @@ class TestMaskFill(TestCase):
         h5_parameters['shape_file'] = self.shape_file_south_pole
 
         mock_get_input_parameters.return_value = self.create_parameters_namespace(h5_parameters)
-        response = mask_fill()
+        response = maskfill_sdps()
 
         self.assertEqual(response, get_xml_success_response(self.input_polar_h5_file,
                                                             self.shape_file_south_pole,
@@ -351,7 +355,7 @@ class TestMaskFill(TestCase):
         mock_get_input_parameters.return_value = self.create_parameters_namespace(
             geotiff_parameters
         )
-        response = mask_fill()
+        response = maskfill_sdps()
 
         self.assertEqual(response, get_xml_success_response(self.input_polar_geo_file,
                                                             self.shape_file_south_pole,
@@ -379,10 +383,38 @@ class TestMaskFill(TestCase):
             geotiff_parameters
         )
 
-        response = mask_fill()
+        response = maskfill_sdps()
 
         self.assertEqual(response, get_xml_success_response(input_name,
                                                             self.shape_file,
                                                             output_name))
 
         self.compare_geotiff_files(input_name, output_name)
+
+    @patch('MaskFill.get_input_parameters')
+    def test_mask_fill_geotiff_bands(self, mock_get_input_parameters):
+        """ Check that a GeoTIFF with multiple bands will successfully be
+            processed by MaskFill.
+
+        """
+        base_name = 'SMAP_L3_FT_P_banded'
+        input_name = f'tests/data/{base_name}_input.tif'
+        template_output = f'tests/data/{base_name}_output.tif'
+        test_output = (f'{self.output_dir}/{self.identifier}/{base_name}_'
+                       'input_mf.tif')
+        shape_file = 'tests/data/WV.geo.json'
+
+        geotiff_parameters = self.default_parameters
+        geotiff_parameters['input_file'] = input_name
+        geotiff_parameters['shape_file'] = shape_file
+
+        mock_get_input_parameters.return_value = self.create_parameters_namespace(
+            geotiff_parameters
+        )
+
+        response = maskfill_sdps()
+
+        self.assertEqual(response, get_xml_success_response(input_name,
+                                                            shape_file,
+                                                            test_output))
+        self.compare_geotiff_files(template_output, test_output)

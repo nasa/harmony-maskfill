@@ -8,5 +8,7 @@ __pycache__/
 htmlcov/
 
 # Test XML reports
+coverage/
 test-reports/
+tests/coverage
 tests/reports

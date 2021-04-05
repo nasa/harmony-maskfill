@@ -1,13 +1,16 @@
 from argparse import Namespace
+from logging import DEBUG, FileHandler, getLogger, INFO, StreamHandler
 from os import makedirs
-from os.path import basename, isdir, isfile, join, splitext
+from os.path import basename, isfile, join, splitext
 from shutil import rmtree
 from unittest import TestCase
 from unittest.mock import patch
 
-from MaskFill import (check_shapefile_geojson, DEFAULT_FILL_VALUE,
-                      format_parameters, get_log_file_path,
-                      get_xml_error_response, validate_input_parameters)
+from MaskFill import (check_shapefile_geojson, debug_bool, DEFAULT_FILL_VALUE,
+                      DEFAULT_MASK_GRID_CACHE, format_parameters,
+                      get_log_file_path, get_sdps_logger,
+                      get_xml_error_response, maskfill_sdps,
+                      validate_input_parameters)
 from pymods.exceptions import (InsufficientProjectionInformation,
                                InvalidMetadata, InvalidParameterValue,
                                MissingCoordinateDataset, MissingParameterValue,
@@ -16,17 +19,22 @@ from pymods.exceptions import (InsufficientProjectionInformation,
 
 class TestMaskFill(TestCase):
 
+    @classmethod
+    def setUpClass(cls):
+        cls.identifier = 'test'
+        cls.logger = getLogger(cls.identifier)
+        cls.input_geotiff_file = 'tests/data/SMAP_L4_SM_aup_input.tif'
+        cls.input_h5_file = 'tests/data/SMAP_L4_SM_aup_input.h5'
+        cls.output_dir = 'tests/output'
+        cls.shape_file = 'tests/data/USA.geo.json'
+
     def setUp(self):
-        self.identifier = 'test'
-        self.input_geotiff_file = 'tests/data/SMAP_L4_SM_aup_input.tif'
-        self.input_h5_file = 'tests/data/SMAP_L4_SM_aup_input.h5'
-        self.output_dir = 'tests/output'
-        self.shape_file = 'tests/data/USA.geo.json'
+        """ Create the output directory for each test. """
+        makedirs(self.output_dir)
 
     def tearDown(self):
         """Clean up test artifacts after each test."""
-        if isdir(self.output_dir):
-            rmtree(self.output_dir)
+        rmtree(self.output_dir)
 
     def create_parameters_namespace(self, parameters_dictionary):
         return Namespace(**parameters_dictionary)
@@ -49,28 +57,25 @@ class TestMaskFill(TestCase):
         """MaskFill.format_parameters handles the following cases:
 
         * Strings without single quotes are unchanged.
-        * Strings *with* single quotes have those quotes stripped out.
+        * Strings surrounded by single quotes have those quotes stripped out.
+        * Strings with internal single quotes retain those quotes.
         * Parameters that are of `None` type are unchanged.
         * Parameters that are of other, non-string type are unchanged.
 
         """
-        parameter_names = ['debug', 'fill_value', 'identifier', 'input_file',
-                           'mask_grid_cache', 'output_dir', 'shape_file']
-
         parameter_values = {'no-quotes': 'no-quotes',
-                            'with-a-\'quote': 'with-a-quote',
+                            '\'external-quotes\'': 'external-quotes',
+                            'with-a-\'quote': 'with-a-\'quote',
                             None: None,
                             123: 123}
 
         for input_value, output_value in parameter_values.items():
-            input_parameters = Namespace(**{parameter: input_value
-                                            for parameter in parameter_names})
-            formatted_parameters = list(format_parameters(input_parameters))
-
             with self.subTest(input_value=input_value):
-                self.assertEqual(len(parameter_names), len(formatted_parameters))
-                for parameter in formatted_parameters:
-                    self.assertEqual(parameter, output_value)
+                input_parameters = Namespace(**{'parameter_name': input_value})
+                output_parameters = format_parameters(input_parameters)
+
+                self.assertEqual(output_parameters['parameter_name'],
+                                 output_value)
 
     @patch('uuid.uuid4')
     def test_check_shapefile_geojson_path(self, mock_uuid4):
@@ -82,7 +87,6 @@ class TestMaskFill(TestCase):
     @patch('uuid.uuid4')
     def test_check_shapefile_geojson_native_string(self, mock_uuid4):
         """MaskFill.check_shapefile_geojson handles a raw GeoJSON string."""
-        makedirs(self.output_dir)
         test_uuid4 = '18045b77-5733-430f-a5f6-1547baea88d4'
         mock_uuid4.return_value = test_uuid4
         geojson_string = '{"type": "FeatureCollection", "features": []}'
@@ -99,35 +103,45 @@ class TestMaskFill(TestCase):
 
         self.assertEqual(saved_geojson_string, geojson_string)
 
+    def test_check_shapefile_geojson_missing_file(self):
+        """ If the BOUNDINGSHAPE argument is not specified, a
+            `MissingParameterValue` error should be raised.
+
+        """
+        expected_message = 'A shapefile is required for the mask fill utility'
+
+        with self.assertRaises(MissingParameterValue) as context:
+            check_shapefile_geojson(None, self.output_dir)
+            self.assertEqual(context.exception.message, expected_message)
+
     def test_validate_input_parameters_all_valid(self):
-        """No exception is raised when all parameters are valid."""
-        makedirs(self.output_dir)
-        self.assertEqual(validate_input_parameters(self.input_h5_file,
-                                                   self.shape_file,
-                                                   self.output_dir,
-                                                   DEFAULT_FILL_VALUE,
-                                                   None), None)
+        """ No exception is raised when all parameters are valid. If this is
+            the case, the return value is `None`.
+
+        """
+        self.assertIsNone(validate_input_parameters(self.input_h5_file,
+                                                    self.shape_file,
+                                                    self.output_dir,
+                                                    DEFAULT_FILL_VALUE,
+                                                    self.logger))
 
     def test_validate_input_parameters_valid_extensions(self):
         """Ensure the expected input file extensions are valid."""
-        makedirs(self.output_dir)
-
         for extension in ['h5', 'H5', 'tif', 'TIF']:
             with self.subTest(extension=extension):
                 input_file = f'{self.output_dir}/input.{extension}'
                 with open(input_file, 'w'):
                     pass
 
-                self.assertEqual(validate_input_parameters(input_file,
-                                                           self.shape_file,
-                                                           self.output_dir,
-                                                           DEFAULT_FILL_VALUE,
-                                                           None), None)
+                self.assertIsNone(validate_input_parameters(input_file,
+                                                            self.shape_file,
+                                                            self.output_dir,
+                                                            DEFAULT_FILL_VALUE,
+                                                            self.logger))
 
     def test_validate_input_parameters_invalid_extension(self):
         """Ensure invalid input file extensions are detected."""
         expected_message = 'The input data file must be a GeoTIFF or HDF5 file type'
-        makedirs(self.output_dir)
 
         input_file = f'{self.output_dir}/input.json'
         with open(input_file, 'w'):
@@ -136,75 +150,69 @@ class TestMaskFill(TestCase):
         with self.assertRaises(InvalidParameterValue) as context:
             validate_input_parameters(input_file, self.shape_file,
                                       self.output_dir, DEFAULT_FILL_VALUE,
-                                      None)
+                                      self.logger)
             self.assertEqual(context.exception.message, expected_message)
 
     def test_validate_input_parameters_no_input_file(self):
         """Validation should fail for either None or non-existant file."""
         expected_message = 'An input data file is required for the mask fill utility'
-        makedirs(self.output_dir)
 
         input_file = None
         with self.assertRaises(MissingParameterValue) as context:
             validate_input_parameters(input_file, self.shape_file,
                                       self.output_dir, DEFAULT_FILL_VALUE,
-                                      None)
+                                      self.logger)
             self.assertEqual(context.exception.message, expected_message)
 
     def test_validate_input_parameters_bad_input_file(self):
         """Validation should fail for either None or non-existant file."""
-        makedirs(self.output_dir)
-
         input_file = 'not_a_real_file.h5'
         expected_message = f'The path {input_file} does not exist'
 
         with self.assertRaises(MissingParameterValue) as context:
             validate_input_parameters(input_file, self.shape_file,
                                       self.output_dir, DEFAULT_FILL_VALUE,
-                                      None)
+                                      self.logger)
             self.assertEqual(context.exception.message, expected_message)
 
     def test_validate_input_parameters_bad_shape_file(self):
         """Validation should fail if the shape file doesn't exist."""
-        makedirs(self.output_dir)
         expected_message = 'The path not_a_real_file does not exist'
 
         with self.assertRaises(MissingParameterValue) as context:
             validate_input_parameters(self.input_h5_file, 'not_a_real_file',
                                       self.output_dir, DEFAULT_FILL_VALUE,
-                                      None)
+                                      self.logger)
             self.assertEqual(context.exception.message, expected_message)
 
     def test_validate_input_parameters_bad_output_dir(self):
         """Validation should fail if the output directory doesn't exist."""
-        expected_message = f'The path {self.output_dir} does not exist'
+        bad_directory = '/this/does/not/exist'
+        expected_message = f'The path {bad_directory} does not exist'
 
         with self.assertRaises(MissingParameterValue) as context:
             validate_input_parameters(self.input_h5_file, self.shape_file,
-                                      self.output_dir, DEFAULT_FILL_VALUE,
-                                      None)
+                                      bad_directory, DEFAULT_FILL_VALUE,
+                                      self.logger)
             self.assertEqual(context.exception.message, expected_message)
 
     def test_validate_input_parameters_valid_fill_value_type(self):
         """Validation should only pass for floats or integers."""
-        makedirs(self.output_dir)
-
         for fill_value in [1, 1.234]:
-            self.assertEqual(validate_input_parameters(self.input_h5_file,
-                                                       self.shape_file,
-                                                       self.output_dir,
-                                                       fill_value,
-                                                       None), None)
+            self.assertIsNone(validate_input_parameters(self.input_h5_file,
+                                                        self.shape_file,
+                                                        self.output_dir,
+                                                        fill_value,
+                                                        self.logger))
 
     def test_validate_input_parameters_invalid_fill_value_type(self):
         """Validation should fail for a string fill value."""
         expected_message = 'The default fill value must be a number'
-        makedirs(self.output_dir)
 
         with self.assertRaises(InvalidParameterValue) as context:
             validate_input_parameters(self.input_h5_file, self.shape_file,
                                       self.output_dir, 'not a number',
-                                      None)
+                                      self.logger)
             self.assertEqual(context.exception.message, expected_message)
 
     def test_get_xml_error_response(self):
@@ -240,3 +248,62 @@ class TestMaskFill(TestCase):
         for text in ['iesi:Exception', '<Code>InternalError',
                      'KeyError(\'latitude\'']:
             self.assertTrue(text in xml_error)
+
+    def test_get_sdps_logger(self):
+        """ Ensure a logger is correctly configured for running MaskFill in the
+            SDPS environment. This should include two handlers, one for a log
+            file and another for the terminal. Both should have identically
+            formatted output. The level of the logging should be determined by
+            the parsed input of "DEBUG", which defaults to false.
+
+        """
+        expected_log_name = f'{self.output_dir}/mask_fill.log'
+        test_args = [['debug=True', True, DEBUG], ['debug=False', False, INFO]]
+
+        for description, debug, expected_level in test_args:
+            with self.subTest(description):
+                logger = get_sdps_logger(self.output_dir, debug)
+
+                self.assertEqual(logger.name, 'MaskFill')
+                self.assertEqual(logger.getEffectiveLevel(), expected_level)
+                self.assertEqual(len(logger.handlers), 2)
+                self.assertIsInstance(logger.handlers[0], StreamHandler)
+                self.assertIsInstance(logger.handlers[1], FileHandler)
+                self.assertTrue(
+                    logger.handlers[1].baseFilename.endswith(expected_log_name)
+                )
+
+    def test_debug_bool(self):
+        """ Ensure the input value for DEBUG is correctly cast as a boolean. """
+        test_args = [['Boolean value', True, True],
+                     ['String', 'False', False],
+                     ['String with quotes', '\'True\'', True],
+                     ['Any other value', 1234, False]]
+
+        for description, input_value, expected_value in test_args:
+            with self.subTest(description):
+                self.assertEqual(debug_bool(input_value), expected_value)
+
+    @patch('MaskFill.get_input_parameters')
+    def test_maskfill_sdps_exception(self, mock_get_input_parameters):
+        """ Verify an exception is caught, and that it returns an appropriate
+            response. To simulate a failure, a `None` value is given for the
+            BOUNDINGSHAPE argument.
+
+        """
+        mock_get_input_parameters.return_value = self.create_parameters_namespace({
+            'debug': False,
+            'fill_value': DEFAULT_FILL_VALUE,
+            'identifier': 'test',
+            'input_file': 'tests/data/SMAP_L4_SM_aup_input.h5',
+            'mask_grid_cache': DEFAULT_MASK_GRID_CACHE,
+            'output_dir': 'tests/output',
+            'shape_file': None,
+        })
+
+        expected_response = get_xml_error_response(
+            'tests/output/test',
+            MissingParameterValue('A shapefile is required for the mask fill utility')
+        )
+
+        self.assertEqual(maskfill_sdps(), expected_response)

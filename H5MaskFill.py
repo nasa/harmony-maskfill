@@ -15,8 +15,7 @@
     Returns:
         str: The path to the output HDF-5 file
 """
-
-import logging
+from logging import Logger
 import os
 import shutil
 from typing import Dict, Set
@@ -24,8 +23,10 @@ from typing import Dict, Set
 import numpy as np
 import h5py
 
-from pymods import H5GridProjectionInfo, MaskFillUtil
+from pymods import MaskFillUtil
 from pymods.cf_config import CFConfigH5
+from pymods.H5GridProjectionInfo import (dataset_all_fill_value, get_fill_value,
+                                         get_hdf_proj4, get_transform)
 from pymods.MaskFillCaching import (cache_h5_mask_arrays,
                                     get_mask_array_path_from_id)
 from pymods.MaskFillUtil import apply_2D, get_h5_mask_array_id, process_h5_file
@@ -33,7 +34,7 @@ from pymods.MaskFillUtil import apply_2D, get_h5_mask_array_id, process_h5_file
 
 def produce_masked_hdf(hdf_path: str, shape_path: str, output_dir: str,
                        cache_dir: str, mask_grid_cache: str,
-                       default_fill_value: float) -> str:
+                       default_fill_value: float, logger: Logger) -> str:
     """ This is the main wrapper function that is called from MaskFill.py
         when processing an HDF-5 file. This deals primarily with instantiating
         a dictionary-based cache for masks, based on their coordinate
@@ -51,16 +52,16 @@ def produce_masked_hdf(hdf_path: str, shape_path: str, output_dir: str,
     if mask_grid_cache == 'maskgrid_only':
         process_h5_file(hdf_path, mask_fill, shape_path, cache_dir,
                         mask_grid_cache, default_fill_value, saved_mask_arrays,
-                        cf_config, exclusion_set)
+                        cf_config, exclusion_set, logger)
     else:
         new_file_path = MaskFillUtil.get_masked_file_path(hdf_path, output_dir)
         shutil.copy(hdf_path, new_file_path)
-        logging.debug(f'Created output file: {new_file_path}')
+        logger.debug(f'Created output file: {new_file_path}')
         process_h5_file(new_file_path, mask_fill, shape_path, cache_dir,
                         mask_grid_cache, default_fill_value, saved_mask_arrays,
-                        cf_config, exclusion_set)
+                        cf_config, exclusion_set, logger)
 
-    cache_h5_mask_arrays(saved_mask_arrays, cache_dir, mask_grid_cache)
+    cache_h5_mask_arrays(saved_mask_arrays, cache_dir, mask_grid_cache, logger)
 
     if mask_grid_cache != 'maskgrid_only':
         return MaskFillUtil.get_masked_file_path(hdf_path, output_dir)
@@ -85,7 +86,7 @@ def get_exclusions(h5_file_path: str, cf_config: CFConfigH5) -> Set[str]:
 def mask_fill(h5_dataset: h5py.Dataset, shape_path: str, cache_dir: str,
               mask_grid_cache: str, default_fill_value: float,
               saved_mask_arrays: Dict[str, np.ndarray],
-              cf_config: CFConfigH5, exclusions_set: Set[str]):
+              cf_config: CFConfigH5, exclusions_set: Set[str], logger: Logger):
     """ Replaces the data in the HDF5 dataset with a mask filled version of the
         data. This function is applied to each dataset via the apply_2D
         mechanism.
@@ -109,30 +110,31 @@ def mask_fill(h5_dataset: h5py.Dataset, shape_path: str, cache_dir: str,
     for exclusion in exclusions_set:
         # Check if any part of the dataset hierarchy matches the exclusion.
         if exclusion in split_dataset_name:
-            logging.debug(f'{exclusion} in {h5_dataset.name} is in exclusion '
-                          'list and will not be mask filled.')
+            logger.debug(f'{exclusion} in {h5_dataset.name} is in exclusion '
+                         'list and will not be mask filled.')
             return
 
     # Ensure dataset has at least two dimensions and can be mask filled
     if len(h5_dataset.shape) < 2 or not h5_dataset.attrs.__contains__('coordinates'):
-        logging.debug(
-            f'The dataset {h5_dataset.name} is not two dimensional '
-            f'or does not contain coordinates attribute, and cannot be mask filled')
+        logger.debug(f'The dataset {h5_dataset.name} is not two dimensional '
+                     'or does not contain coordinates attribute, and cannot '
+                     'be mask filled')
         return
-    elif H5GridProjectionInfo.dataset_all_fill_value(h5_dataset, cf_config, default_fill_value):
-        logging.debug(f'The dataset {h5_dataset.name} only contains fill value,'
-                      ' so there is no need to mask fill.')
+    elif dataset_all_fill_value(h5_dataset, cf_config, logger, default_fill_value):
+        logger.debug(f'The dataset {h5_dataset.name} only contains fill value,'
+                     ' so there is no need to mask fill.')
         return
 
     # Get the mask array corresponding to the HDF5 dataset and the shapefile
     mask_array = get_mask_array(h5_dataset, shape_path, cache_dir,
-                                mask_grid_cache, saved_mask_arrays, cf_config)
+                                mask_grid_cache, saved_mask_arrays, cf_config,
+                                logger)
 
     # Perform mask fill and write the new mask filled data to the dataset,
     # unless the mask_grid_cache value only requires us to create a mask array
     if mask_grid_cache != 'maskgrid_only':
-        fill_value = H5GridProjectionInfo.get_fill_value(h5_dataset, cf_config,
-                                                         default_fill_value)
+        fill_value = get_fill_value(h5_dataset, cf_config, logger,
+                                    default_fill_value)
         mask_filled_data = apply_2D(h5_dataset[:],
                                     MaskFillUtil.mask_fill_array,
                                     mask_array, fill_value)
@@ -144,7 +146,7 @@ def mask_fill(h5_dataset: h5py.Dataset, shape_path: str, cache_dir: str,
 
         if any(statistic in h5_dataset.attrs.keys()
                for statistic in statistics):
-            logging.debug(f'Updating statistics for {h5_dataset.name}')
+            logger.debug(f'Updating statistics for {h5_dataset.name}')
 
             # Get all values in mask_filled_data excluding the fill value
             unfilled_data = mask_filled_data[np.not_equal(mask_filled_data,
@@ -167,13 +169,13 @@ def mask_fill(h5_dataset: h5py.Dataset, shape_path: str, cache_dir: str,
             if h5_dataset.attrs.__contains__('observed_mean'):
                 h5_dataset.attrs.modify('observed_mean', observed_mean)
 
-        logging.debug(f'Mask filled the dataset {h5_dataset.name}')
+        logger.debug(f'Mask filled the dataset {h5_dataset.name}')
 
 
 def get_mask_array(h5_dataset: h5py.Dataset, shape_path: str,
                    cache_dir: str, mask_grid_cache: str,
                    saved_mask_arrays: Dict[str, np.ndarray],
-                   cf_config: CFConfigH5) -> np.ndarray:
+                   cf_config: CFConfigH5, logger: Logger) -> np.ndarray:
     """ Gets the mask array corresponding the HDF5 file and shape file from a
         set of saved mask arrays or the cache directory.
         If the mask array file does not already exist, it is created
@@ -194,12 +196,12 @@ def get_mask_array(h5_dataset: h5py.Dataset, shape_path: str,
     """
     # Get the mask id which corresponds to the mask required for the HDF5
     # dataset and shapefile
-    mask_id = get_h5_mask_array_id(h5_dataset, shape_path, cf_config)
+    mask_id = get_h5_mask_array_id(h5_dataset, shape_path, cf_config, logger)
 
     # If the required mask array is in the set of saved mask arrays,
     # get and return the mask array from the set
     if mask_id in saved_mask_arrays:
-        logging.debug(f'{h5_dataset.name}: Retrieving saved mask.')
+        logger.debug(f'{h5_dataset.name}: Retrieving saved mask.')
         return saved_mask_arrays[mask_id]
 
     # If the required mask array has already been created and cached, and the
@@ -207,12 +209,12 @@ def get_mask_array(h5_dataset: h5py.Dataset, shape_path: str,
     # cached mask array from the file
     mask_array_path = get_mask_array_path_from_id(mask_id, cache_dir)
     if 'use' in mask_grid_cache and os.path.exists(mask_array_path):
-        logging.debug(f'{h5_dataset.name}: Loading cached mask.')
+        logger.debug(f'{h5_dataset.name}: Loading cached mask.')
         mask_array = np.load(mask_array_path)
     # Otherwise, create the mask array
     else:
-        logging.debug(f'{h5_dataset.name}: Creating new mask.')
-        mask_array = create_mask_array(h5_dataset, shape_path, cf_config)
+        logger.debug(f'{h5_dataset.name}: Creating new mask.')
+        mask_array = create_mask_array(h5_dataset, shape_path, cf_config, logger)
 
     # Save and return the mask array
     saved_mask_arrays[mask_id] = mask_array
@@ -220,7 +222,7 @@ def get_mask_array(h5_dataset: h5py.Dataset, shape_path: str,
 
 
 def create_mask_array(h5_dataset: h5py.Dataset, shape_path: str,
-                      cf_config: CFConfigH5) -> np.ndarray:
+                      cf_config: CFConfigH5, logger: Logger) -> np.ndarray:
     """ Creates a mask array corresponding to the HDF5 dataset and shape file
         Args:
             h5_dataset (h5py._hl.dataset.Dataset): The given HDF5 dataset
@@ -230,8 +232,8 @@ def create_mask_array(h5_dataset: h5py.Dataset, shape_path: str,
         Returns:
             numpy.ndarray: The mask array
     """
-    proj4 = H5GridProjectionInfo.get_hdf_proj4(h5_dataset, cf_config)
-    transform = H5GridProjectionInfo.get_transform(h5_dataset, cf_config)
+    proj4 = get_hdf_proj4(h5_dataset, cf_config, logger)
+    transform = get_transform(h5_dataset, cf_config, logger)
 
     return MaskFillUtil.get_mask_array(shape_path, proj4,
                                        h5_dataset.shape[-2:], transform)

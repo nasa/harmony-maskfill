@@ -2,9 +2,9 @@
     from HDF-5 input files, including usage of CF-Conventions configuration
     file.
 """
-import logging
-import re
+from logging import Logger
 from typing import Dict, List, Optional, Tuple, Union
+import re
 
 import affine
 import numpy as np
@@ -18,7 +18,8 @@ from pymods.exceptions import (InsufficientDataError,
                                InvalidMetadata, MissingCoordinateDataset)
 
 
-def get_hdf_proj4(h5_dataset: Dataset, cf_config: CFConfigH5) -> str:
+def get_hdf_proj4(h5_dataset: Dataset, cf_config: CFConfigH5,
+                  logger: Logger) -> str:
     """ Returns the proj4 string corresponding to the coordinate reference
     system of the HDF5 dataset. Current logic:
 
@@ -41,15 +42,15 @@ def get_hdf_proj4(h5_dataset: Dataset, cf_config: CFConfigH5) -> str:
         units = dimensions[0].attrs.get('units', b'').decode()
 
         if 'degrees' in units:
-            logging.debug(f'Dataset {h5_dataset.name} has dimensions with '
-                          'units "degrees". Using Geographic coordinates.')
+            logger.debug(f'Dataset {h5_dataset.name} has dimensions with '
+                         'units "degrees". Using Geographic coordinates.')
             return '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs'
 
     grid_mapping_name = get_grid_mapping_name(h5_dataset)
 
     if grid_mapping_name is not None:
-        logging.debug(f'Dataset {h5_dataset.name} has grid_mapping data,'
-                      'using this to derive projection information.')
+        logger.debug(f'Dataset {h5_dataset.name} has grid_mapping data, '
+                     'using this to derive projection information.')
         return get_crs(h5_dataset.file[grid_mapping_name]).to_proj4()
 
     # Projection absent in granule; get information from MaskFill configuration.
@@ -58,9 +59,9 @@ def get_hdf_proj4(h5_dataset: Dataset, cf_config: CFConfigH5) -> str:
     if grid_mapping is None:
         raise InsufficientProjectionInformation(h5_dataset.name)
     else:
-        logging.debug(f'Dataset {h5_dataset.name} has no projection '
-                      'information; using default projection information for the '
-                      f'{cf_config.shortname} collection.')
+        logger.debug(f'Dataset {h5_dataset.name} has no projection '
+                     'information; using default projection information for '
+                     f'the {cf_config.shortname} collection.')
         return get_crs(grid_mapping).to_proj4()
 
 
@@ -186,13 +187,14 @@ def get_dataset_attributes(h5_dataset: Dataset) -> Dict:
             in h5_dataset.attrs.items()}
 
 
-def get_transform(h5_dataset: Dataset, cf_config: CFConfigH5) -> affine.Affine:
+def get_transform(h5_dataset: Dataset, cf_config: CFConfigH5,
+                  logger: Logger) -> affine.Affine:
     """ Determines the transform from the index coordinates of the HDF5 dataset
         to projected coordinates (meters) in the coordinate reference frame of the HDF5 dataset.
         See https://pypi.org/project/affine/ for more information.
 
         Reference corner points are (x_0, y_0) = (x[0][0], y[0][0]) and
-        (x_N, y_M) = (x[-1][-1], y[-1][-1]).
+        (x_n, y_m) = (x[-1][-1], y[-1][-1]).
 
         The projected coordinates of the corner pixels, x and y in metres, are
         used directly, as they are the centre of the pixels, as expected by
@@ -210,11 +212,11 @@ def get_transform(h5_dataset: Dataset, cf_config: CFConfigH5) -> affine.Affine:
     else:
         # Dimensions not defined, assume Geographic dimensions defined by
         # lat/lon coordinate references
-        x_0, x_N, y_0, y_M = get_corner_points_from_lat_lon(h5_dataset,
-                                                            cf_config)
+        x_0, x_n, y_0, y_m = get_corner_points_from_lat_lon(h5_dataset,
+                                                            cf_config, logger)
         cell_width, cell_height = get_cell_size_from_lat_lon_extents(h5_dataset,
-                                                                     x_0, x_N,
-                                                                     y_0, y_M)
+                                                                     x_0, x_n,
+                                                                     y_0, y_m)
 
         x_0 -= cell_width / 2.0
         y_0 -= cell_height / 2.0
@@ -257,8 +259,8 @@ def get_cell_size_from_dimensions(h5_dataset: Dataset) -> Tuple[int, int]:
 
 
 def get_cell_size_from_lat_lon_extents(h5_dataset: Dataset, x_0: float,
-                                       x_N: float, y_0: float,
-                                       y_M: float) -> Tuple[float, float]:
+                                       x_n: float, y_0: float,
+                                       y_m: float) -> Tuple[float, float]:
     """ Gets the cell height and width of the gridded HDF-5 dataset from the
         dataset's latitude and longitude coordinate datasets and their extents.
 
@@ -267,13 +269,13 @@ def get_cell_size_from_lat_lon_extents(h5_dataset: Dataset, x_0: float,
 
         Args:
             h5_dataset (h5py.Dataset): The HDF5 dataset
-            x_0, x_N, y_0, y_M: Minimum and maximum projected x and y values.
+            x_0, x_n, y_0, y_m: Minimum and maximum projected x and y values.
         Returns:
             tuple: (cell width, cell height)
     """
     x, y = get_lon_lat_arrays(h5_dataset)
-    cell_height = (y_M - y_0) / (len(y) - 1)
-    cell_width = (x_N - x_0) / (len(x) - 1)
+    cell_height = (y_m - y_0) / (len(y) - 1)
+    cell_width = (x_n - x_0) / (len(x) - 1)
     return cell_width, cell_height
 
 
@@ -283,17 +285,17 @@ def get_corner_points_from_dimensions(h5_dataset: Dataset) \
         Args:
              h5_dataset (h5py.Dataset): The HDF5 dataset
         Returns:
-            tuple: x_0, x_N, y 0, y M
+            tuple: x_0, x_n, y 0, y M
     """
     x, y = get_dimension_arrays(h5_dataset)
     cell_width, cell_height = get_cell_size_from_dimensions(h5_dataset)
-    x_0, x_N = x[0] - cell_width / 2.0, x[-1] + cell_width / 2.0
-    y_0, y_M = y[0] - cell_height / 2.0, y[-1] + cell_height / 2.0
-    return x_0, x_N, y_0, y_M
+    x_0, x_n = x[0] - cell_width / 2.0, x[-1] + cell_width / 2.0
+    y_0, y_m = y[0] - cell_height / 2.0, y[-1] + cell_height / 2.0
+    return x_0, x_n, y_0, y_m
 
 
-def get_corner_points_from_lat_lon(h5_dataset: Dataset,
-                                   cf_config: CFConfigH5) -> Tuple[float]:
+def get_corner_points_from_lat_lon(h5_dataset: Dataset, cf_config: CFConfigH5,
+                                   logger: Logger) -> Tuple[float]:
     """ Finds the min and max locations in both coordinate axes of the dataset.
         Args:
              h5_dataset (h5py.Dataset): The HDF5 dataset
@@ -301,11 +303,11 @@ def get_corner_points_from_lat_lon(h5_dataset: Dataset,
             tuple: x min, x max, y min, y max
     """
     grid_mapping_attributes = cf_config.get_dataset_grid_mapping_attributes(h5_dataset.name)
-    p = Proj(get_crs(grid_mapping_attributes))
+    projection = Proj(get_crs(grid_mapping_attributes))
 
     lon, lat = get_lon_lat_datasets(h5_dataset)
-    lon_fill_value = get_fill_value(lon, cf_config, None)
-    lat_fill_value = get_fill_value(lat, cf_config, None)
+    lon_fill_value = get_fill_value(lon, cf_config, logger, None)
+    lat_fill_value = get_fill_value(lat, cf_config, logger, None)
 
     if len(lon.shape) == 3:
         # If there are 3 dimensions, select the first for corner point location.
@@ -313,8 +315,8 @@ def get_corner_points_from_lat_lon(h5_dataset: Dataset,
         # TODO: refactor MaskFill so each band in a 3-D dataset is reprojected
         # and masked separately, instead of using coordinate data only from
         # one band.
-        logging.debug(f'lat/lon for {h5_dataset.name} is 3-D, using first '
-                      'band for coordinates.')
+        logger.debug(f'lat/lon for {h5_dataset.name} is 3-D, using first '
+                     'band for coordinates.')
         band = 0
     else:
         band = None
@@ -323,78 +325,105 @@ def get_corner_points_from_lat_lon(h5_dataset: Dataset,
     upper_right_tuple = tuple(extent - 1 for extent in lat.shape[-2:])
 
     if band is not None:
-        lon_corner_values = [lon[band][lower_left_tuple], lon[band][upper_right_tuple]]
-        lat_corner_values = [lat[band][lower_left_tuple], lat[band][upper_right_tuple]]
+        lon_values = lon[band]
+        lat_values = lat[band]
+        lon_corner_values = [lon_values[lower_left_tuple], lon_values[upper_right_tuple]]
+        lat_corner_values = [lat_values[lower_left_tuple], lat_values[upper_right_tuple]]
     else:
-        lon_corner_values = [lon[lower_left_tuple], lon[upper_right_tuple]]
-        lat_corner_values = [lat[lower_left_tuple], lat[upper_right_tuple]]
+        lon_values = lon[:]
+        lat_values = lat[:]
+        lon_corner_values = [lon_values[lower_left_tuple], lon_values[upper_right_tuple]]
+        lat_corner_values = [lat_values[lower_left_tuple], lat_values[upper_right_tuple]]
 
     if (
-        dataset_all_fill_value(lon, cf_config, None, band)
-        or dataset_all_fill_value(lat, cf_config, None, band)
+        dataset_all_fill_value(lon, cf_config, logger, None, band)
+        or dataset_all_fill_value(lat, cf_config, logger, None, band)
     ):
         # The longitude or latitude arrays are entirely fill values
         raise InsufficientDataError(f'{lon.name} or {lat.name} have no valid data.')
     elif lon_fill_value in lon_corner_values or lat_fill_value in lat_corner_values:
-        # At least one of the top right or bottom left have a fill value in
-        # either (or both) the latitude and longitude arrays.
-        # Get indices of the lower left and upper right points with valid coordinates
-        lower_left_indices, upper_right_indices = get_valid_coordinates_extent(
-            lat, lon, lat_fill_value, lon_fill_value, lower_left_tuple,
-            upper_right_tuple, band
-        )
+        # Find all pixels with a valid associated latitude and longitude:
+        valid_indices = np.where((lon_values != lon_fill_value)
+                                 & (lat_values != lat_fill_value))
 
-        x_ll_data, y_ll_data = p(lon[lower_left_indices], lat[lower_left_indices])
-        x_ur_data, y_ur_data = p(lon[upper_right_indices], lat[upper_right_indices])
-
-        # Derive pixel scales from pixels with valid coordiantes
-        pixel_scale_x, pixel_scale_y = get_pixel_size_from_data_extent(
-            x_ll_data, y_ll_data, x_ur_data, y_ur_data, lower_left_indices,
-            upper_right_indices
-        )
-
-        if lower_left_tuple == tuple(lower_left_indices[-2:]):
-            # The bottom left corner of the array has valid lon and lat data
-            x1, y1 = p(lon_corner_values[0], lat_corner_values[0])
-        else:
-            x1 = extrapolate_coordinate(lon, lon_fill_value, h5_dataset.name,
-                                        x_ll_data, lower_left_indices, -1,
-                                        lower_left_tuple, pixel_scale_x, band)
-
-            y1 = extrapolate_coordinate(lat, lat_fill_value, h5_dataset.name,
-                                        y_ll_data, lower_left_indices, -2,
-                                        lower_left_tuple, pixel_scale_y, band)
-
-        if upper_right_tuple == tuple(upper_right_indices[-2:]):
-            # The upper right corner of the array has valid lon and lat data
-            x2, y2 = p(lon_corner_values[1], lat_corner_values[1])
-        else:
-            x2 = extrapolate_coordinate(lon, lon_fill_value, h5_dataset.name,
-                                        x_ur_data, upper_right_indices, -1,
-                                        upper_right_tuple, pixel_scale_x, band)
-
-            y2 = extrapolate_coordinate(lat, lat_fill_value, h5_dataset.name,
-                                        y_ur_data, upper_right_indices, -2,
-                                        upper_right_tuple, pixel_scale_y, band)
+        # Get the extent in each direction, projected x and projected y:
+        x_0, x_n = get_projected_coordinate_extent(projection, lat_values,
+                                                   lon_values, 1, valid_indices)
+        y_0, y_m = get_projected_coordinate_extent(projection, lat_values,
+                                                   lon_values, 0, valid_indices)
     else:
         # The bottom left and top right both have valid latitudes and longitudes
-        x1, y1 = p(lon_corner_values[0], lat_corner_values[0])
-        x2, y2 = p(lon_corner_values[1], lat_corner_values[1])
+        x_0, y_0 = projection(lon_corner_values[0], lat_corner_values[0])
+        x_n, y_m = projection(lon_corner_values[1], lat_corner_values[1])
 
-    return x1, x2, y1, y2
+    return x_0, x_n, y_0, y_m
 
 
-def euclidean_distance(point_one: Tuple[int], point_two: Tuple[int]) -> float:
-    """Get the Euclidean distance between two points with an arbitrary number
-    of dimensions. (Both points should have the same number of dimensions.
+def get_projected_coordinate_extent(projection: Proj, latitude: np.ndarray,
+                                    longitude: np.ndarray,
+                                    array_dimension: int,
+                                    valid_indices: Tuple) -> Tuple:
+    """ Calculate the maximum and minimum projected coordinate in a single
+        dimension of coordinate grid. This method assumes that the data are
+        gridded, and that all points in the same row have the same projected
+        y value, while all points in the same column have the same projected
+        x value. This function will only be called if there are fill values in
+        the coordinate arrays in the (0, 0) and (M, N) corner points.
+
+        The first and last rows (or columns) with valid coordinate data are
+        found. Then the associated latitudes and longitudes are projected into
+        the coordinate references system (CRS) of the grid. The pixel scale in
+        that dimension is then calculated, before extrapolating from the
+        minimum and maximum valid coordinates to those of the first and last
+        rows (or columns) in the array.
 
     """
-    if len(point_one) == len(point_two):
-        return np.sqrt(sum([(coordinate_one - point_two[ind])**2.0
-                            for ind, coordinate_one
-                            in enumerate(point_one)]))
+    if array_dimension == 0:
+        projection_dim = 1
+        dimension_string, line_type = ('y', 'row')
     else:
-        return None
+        projection_dim = 0
+        dimension_string, line_type = ('x', 'column')
+
+    # Find the first instances of the minimum and maximum in the valid data
+    # array. valid_indices = ([i_0, i_1, ..., i_N], [j_0, j_1, ..., j_N])
+    # The minimum/maximum values are not retrieved directly as we need both
+    # the i and j index of the point in the minimum and maximum row or column
+    # with valid coordinate data.
+    argmin_valid_index = valid_indices[array_dimension].argmin()
+    argmax_valid_index = valid_indices[array_dimension].argmax()
+
+    longitude_min = longitude[valid_indices[0][argmin_valid_index],
+                              valid_indices[1][argmin_valid_index]]
+    longitude_max = longitude[valid_indices[0][argmax_valid_index],
+                              valid_indices[1][argmax_valid_index]]
+    latitude_min = latitude[valid_indices[0][argmin_valid_index],
+                            valid_indices[1][argmin_valid_index]]
+    latitude_max = latitude[valid_indices[0][argmax_valid_index],
+                            valid_indices[1][argmax_valid_index]]
+
+    min_point = projection(longitude_min, latitude_min)
+    max_point = projection(longitude_max, latitude_max)
+
+    if argmax_valid_index != argmin_valid_index:
+        index_of_max_point = valid_indices[array_dimension][argmax_valid_index]
+        index_of_min_point = valid_indices[array_dimension][argmin_valid_index]
+        pixel_size = (
+            max_point[projection_dim] - min_point[projection_dim]
+        ) / (index_of_max_point - index_of_min_point)
+    else:
+        raise InsufficientDataError(f'Only a single, unmasked {line_type} '
+                                    'of data. Unable to calculate '
+                                    f'{dimension_string} pixel size.')
+
+    min_valid_index = valid_indices[array_dimension][argmin_valid_index]
+    max_valid_index = valid_indices[array_dimension][argmax_valid_index]
+    lower_corner = min_point[projection_dim] - (min_valid_index * pixel_size)
+    upper_corner = max_point[projection_dim] + (
+        (latitude.shape[array_dimension] - 1 - max_valid_index) * pixel_size
+    )
+
+    return lower_corner, upper_corner
 
 
 def get_dimension_arrays(h5_dataset: Dataset) \
@@ -413,7 +442,7 @@ def get_lon_lat_arrays(h5_dataset: Dataset) \
         -> Tuple[List[float], List[float]]:  # degrees - lat, lon
     """ Gets the lat/lon arrays of the HDF5 dataset.
         Args:
-             h5_dataset (h5py._hl.dataset.Dataset): The HDF5 dataset
+             h5_dataset (h5py.Dataset): The HDF5 dataset
         Returns:
             tuple: The x coordinate array (longitude) and the y coordinate
                array (latitude), if the data are 3-dimensional, return the
@@ -426,7 +455,7 @@ def get_lon_lat_arrays(h5_dataset: Dataset) \
         return x[0][0], y[0][:, 0]
 
 
-def get_fill_value(h5_dataset: Dataset, cf_config: CFConfigH5,
+def get_fill_value(h5_dataset: Dataset, cf_config: CFConfigH5, logger: Logger,
                    default_fill_value: Optional[float]) -> Optional[float]:
     """ Returns the fill value for the given HDF5 dataset.
         If the HDF5 dataset has no fill value, returns the given default fill value.
@@ -439,7 +468,7 @@ def get_fill_value(h5_dataset: Dataset, cf_config: CFConfigH5,
         fillvalue class attribute.
 
         Args:
-            h5_dataset (h5py._hl.dataset.Dataset): The given HDF5 dataset
+            h5_dataset (h5py.Dataset): The given HDF5 dataset
             default_fill_value (float): The default value which is returned if
                 no fill value is found in the dataset
         Returns:
@@ -448,8 +477,8 @@ def get_fill_value(h5_dataset: Dataset, cf_config: CFConfigH5,
     config_fill_value = cf_config.get_dataset_fill_value(h5_dataset.name)
 
     if config_fill_value is not None:
-        logging.debug(f'The dataset {h5_dataset.name} has a known incorrect fill '
-                      f'value. Using {config_fill_value} instead.')
+        logger.debug(f'The dataset {h5_dataset.name} has a known incorrect fill '
+                     f'value. Using {config_fill_value} instead.')
         return config_fill_value
 
     fill_value_attribute = h5_dataset.attrs.get('_FillValue')
@@ -459,182 +488,13 @@ def get_fill_value(h5_dataset: Dataset, cf_config: CFConfigH5,
     elif h5_dataset.fillvalue != b'':
         return h5_dataset.fillvalue
     else:
-        logging.info(f'The dataset {h5_dataset.name} does not have a fill value, '
-                     f'so the default fill value {default_fill_value} will be used')
+        logger.info(f'The dataset {h5_dataset.name} does not have a fill value, '
+                    f'so the default fill value {default_fill_value} will be used')
         return default_fill_value
 
 
-def get_valid_coordinates_extent(latitude: np.array, longitude: np.array,
-                                 lat_fill_value: float, lon_fill_value: float,
-                                 lower_left_tuple: Tuple[int],
-                                 upper_right_tuple: Tuple[int],
-                                 band: Optional[int] = None) -> Tuple[Tuple[int]]:
-    """ Find the indices of the bottom-left-most and top-right-most points that
-        do not have a fill value in either the latitude or longitude arrays.
-
-        Args:
-            latitude: h5py.Dataset (2 or 3 dimensions).
-            longitude: h5py.Dataset (2 or 3 dimensions). The value for a given
-                set of indices (e.g. longitude[0][0]) pairs with the
-                latitude value at the same array location (e.g. latitude[0][0]).
-            lat_fill_value: Either the value taken directly from the latitude
-                Dataset object, or the global default fill value.
-            lon_fill_value: Either the value taken directly from the latitude
-                Dataset object, or the global default fill value.
-            lower_left_tuple: The indices of the bottom left corner of the
-                latitide and longitude arrays: (0, 0) or (0, 0, 0)
-            upper_right_tuple: The indices of the top right corner of the
-                latitude and longitude arrays, two or three dimensioned.
-        Returns:
-            lower_left_data: The indices of the element closest to the
-                bottom-left corner of the array with a non-fill value in both
-                the latitude and longitude arrays.
-            upper_right_data: The indices of the element closest to the
-                top-right corner of the array with a non-fill value in both
-                the latitude and longitude arrays.
-    """
-    if band is not None:
-        # Three dimensional case, only considering the specified band.
-        lat_array = latitude[band][:]
-        lon_array = longitude[band][:]
-    else:
-        # Two dimensional case
-        lat_array = latitude[:]
-        lon_array = longitude[:]
-
-    # Create lists of indices matching criteria, where i and j are
-    # array indices: ([i_0, i_1, i_2], [j_0, j_1, j_2])
-    data_indices_lat = np.where(lat_array != lat_fill_value)
-    data_indices_lon = np.where(lon_array != lon_fill_value)
-
-    # Convert into tuples of these indices: {[i_0, j_0], [i_1, j_1], [i_2, j_2]}
-    # More infomation on zip: https://docs.python.org/3.6/library/functions.html#zip
-    zipped_lat_indices = {item for item in zip(*data_indices_lat)}
-    zipped_lon_indices = {item for item in zip(*data_indices_lon)}
-    valid_lat_and_lon = list(zipped_lat_indices.intersection(zipped_lon_indices))
-
-    # Calculate the euclidean distance between the indices (not coordinates)
-    # of the lower left corner and each point with valid latitude and longitude.
-    diff_from_lower_left = [euclidean_distance(lower_left_tuple, coordinates)
-                            for coordinates
-                            in valid_lat_and_lon]
-
-    lower_left_data = valid_lat_and_lon[diff_from_lower_left.index(min(diff_from_lower_left))]
-
-    # Choose the indices which maximize the area between the
-    # lower left corner and upper right corner
-    area_from_lower_left = [(x - lower_left_data[0]) * (y - lower_left_data[1])
-                            for x, y in valid_lat_and_lon]
-
-    upper_right_data = valid_lat_and_lon[area_from_lower_left.index(max(area_from_lower_left))]
-
-    if band is not None:
-        # Prepend band on to output indices.
-        return (band, ) + lower_left_data, (band, ) + upper_right_data
-    else:
-        return lower_left_data, upper_right_data
-
-
-def get_pixel_size_from_data_extent(x_lower_left: np.float32, y_lower_left: np.float32,
-                                    x_upper_right: np.float32, y_upper_right: np.float32,
-                                    lower_left_indices: Tuple[int],
-                                    upper_right_indices: Tuple[int]) -> Tuple[np.float32]:
-    """ Take the bottom left most and upper right most points that have data
-        both the longitude and latitude arrays, and derive the pixel scale in
-        each direction. If all valid data is contained in a single row or column,
-        it is assumed that the pixels are square, and that the pixel scale in
-        the perpendicular direction can be applied.
-
-        Args:
-            x_lower_left: Projected x coordinate of the pixel nearest the bottom
-                left of the data array with a valid latitude and longitude.
-            y_lower_left: Projected y coordinate of the pixel nearest the bottom
-                left of the data array with a valid latitude and longitude.
-            x_upper_right: Projected x coordinate of the pixel nearest the top
-                right of the data array with a valid latitude and longitude.
-            y_upper_right: Projected y coordinate of the pixel nearest the top
-                right of the data array with a valid latitude and longitude.
-            lower_left_indices: A tuple of array indices for the pixel nearest
-                the bottom left of the data array with valid latitude and
-                longitude, corresponding to x_lower_left and y_lower_left,
-                e.g. (0, 0) or (0, 0, 0).
-            upper_right_indices: A tuple of array indices for the pixel nearest
-                the top right of the data array with valid latitude and
-                longitude, corresponding to x_upper_right and y_upper_right,
-                e.g. (1023, 1023) or (1023, 1023, 1)
-        Returns:
-            pixel_scale_x:
-            pixel_scale_y:
-
-    """
-    if upper_right_indices[-1] != lower_left_indices[-1]:
-        pixel_scale_x = ((x_upper_right - x_lower_left)
-                         / (upper_right_indices[-1] - lower_left_indices[-1]))
-    else:
-        pixel_scale_x = 0.0
-
-    if upper_right_indices[-2] != lower_left_indices[-2]:
-        pixel_scale_y = ((y_upper_right - y_lower_left)
-                         / (upper_right_indices[-2] - lower_left_indices[-2]))
-    else:
-        pixel_scale_y = 0.0
-
-    if pixel_scale_x == 0.0 and pixel_scale_y == 0.0:
-        raise InsufficientDataError('Only a single, unmasked data point in '
-                                    'coordinates. Unable to calculate corner points.')
-    elif pixel_scale_x == 0.0:
-        raise InsufficientDataError('Only a single, unmasked column of data. '
-                                    'Unable to calculate x pixel size.')
-    elif pixel_scale_y == 0.0:
-        raise InsufficientDataError('Only a single, unmasked row of data. '
-                                    'Unable to calculate y pixel size.')
-
-    return pixel_scale_x, pixel_scale_y
-
-
-def extrapolate_coordinate(coordinate_dataset: Dataset, coordinate_fill_value: float,
-                           dataset_name: str, reference_value: float,
-                           reference_indices: Tuple[int], coordinate_dim: int,
-                           target_indices: Tuple[int], pixel_scale: float,
-                           band: Optional[int] = None) -> np.float64:
-    """ Extrapolate data in one dimension from a point with a known value to
-        another point in an array.
-
-        Args:
-            coordinate_dataset: An h5py Dataset for either longtiude or latitude.
-            coordinate_fill_value: The fill value for the coordinate dataset.
-            dataset_name: The name of the h5py Dataset the refers to the coordinates
-                being extrapolated.
-            reference_value: Value of the coordinate at a reference point.
-            reference_indices: Indices within the coordinate dataset of the
-                reference point.
-            coordinate_dim: Which of the dimensions in the coordinate array
-                that corresponds to a change in that coordinate:
-                latitude: -2
-                longitude: -1
-            target_indices: The indices of the point being extrapolated to.
-            pixel_scale: The change in the coordinate dimension per pixel.
-        Returns:
-            extrapolated_value: The value of the coordinate, latitude or
-                longitude, at the target point.
-
-    """
-    if band is not None:
-        band_dataset = coordinate_dataset[band]
-    else:
-        band_dataset = coordinate_dataset
-
-    if band_dataset[target_indices] == coordinate_fill_value:
-        logging.info(f'{dataset_name}: Detected fill value in '
-                     f'{coordinate_dataset.name} at {target_indices}.')
-        return reference_value + ((target_indices[coordinate_dim]
-                                   - reference_indices[coordinate_dim]) * pixel_scale)
-    else:
-        return coordinate_dataset[target_indices]
-
-
 def dataset_all_fill_value(dataset: Dataset, cf_config: CFConfigH5,
-                           default_fill_value: float,
+                           logger: Logger, default_fill_value: float,
                            band: Optional[int] = None) -> bool:
     """ Check if an HDF5 dataset only contains a fill value.
 
@@ -647,7 +507,7 @@ def dataset_all_fill_value(dataset: Dataset, cf_config: CFConfigH5,
         Returns:
             is_filled: boolean
     """
-    fill_value = get_fill_value(dataset, cf_config, default_fill_value)
+    fill_value = get_fill_value(dataset, cf_config, logger, default_fill_value)
 
     if band is not None:
         return np.all(dataset[band][:] == fill_value)

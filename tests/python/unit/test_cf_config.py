@@ -2,7 +2,7 @@ from os import remove
 from unittest import TestCase
 import json
 
-from h5py import File, Dataset
+from h5py import File
 
 from pymods.cf_config import CFConfigGeotiff, CFConfigH5
 from pymods.exceptions import UnknownCollectionShortname

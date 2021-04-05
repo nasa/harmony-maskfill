@@ -1,32 +1,30 @@
 #
-# The created container will have a Conda environment, in which it will run a
-# Python unittest suite.
-#
-# The results of the test run will be saved to tests/reports, which should be
-# mounted as a shared volume with the host.
-#
 # Commands to use this file locally:
 #
-# docker build -f tests/Dockerfile -t maskfill .
-# docker run -v /full/path/to/host/directory/test-reports:/home/tests/reports maskfill:latest
+# docker build -f Harmony.Dockerfile -t sds/maskfill-harmony .
+# docker run -v /full/path/to/host/directory:/home/results sds/maskfill-harmony:latest "<full list of arguments>"
 #
-# Using Conda within ENTRYPOINT was taken from:
-# https://pythonspeed.com/articles/activate-conda-dockerfile/
 #
 FROM continuumio/miniconda3
 
 WORKDIR "/home"
 
+# Create Conda environment.
+COPY data/mask_fill_conda_requirements.txt data/mask_fill_conda_requirements.txt
+RUN conda create -y --name maskfill --file data/mask_fill_conda_requirements.txt python=3.7 -q && conda clean -a
+
+# Install additional Pip dependencies.
+COPY data/mask_fill_pip_requirements.txt data/mask_fill_pip_requirements.txt
+COPY data/mask_fill_harmony_pip_requirements.txt data/mask_fill_harmony_pip_requirements.txt
+RUN conda run --name maskfill pip install --no-input -r data/mask_fill_harmony_pip_requirements.txt
+
 # Place contents of the repository in the container.
 COPY . /home/
 
-# Create Conda environment.
-RUN conda create -y --name maskfill --file data/mask_fill_conda_requirements.txt python=3.7 -q
+# Create a directory to be the destination of a mounted volume:
+RUN mkdir /home/results
 
-# Install additional Pip dependencies.
-RUN conda run --name maskfill pip install --no-input -r data/mask_fill_harmony_pip_requirements.txt
-
-# Set conda environment to maskfill, as `conda run` will not stream logging.
+# Set conda environment for MaskFill, as `conda run` will not stream logging.
 # Setting these environment variables is the equivalent of `conda activate`.
 ENV _CE_CONDA='' \
     _CE_M='' \
@@ -41,15 +39,12 @@ ENV _CE_CONDA='' \
     PATH="/opt/conda/envs/maskfill/bin:${PATH}" \
     SHLVL=1
 
-# GDAL specific environment variables
+# Set GDAL related environment variables.
 ENV CPL_ZIP_ENCODING=UTF-8 \
     GDAL_DATA=/opt/conda/envs/maskfill/share/gdal \
     GSETTINGS_SCHEMA_DIR=/opt/conda/envs/maskfill/share/glib-2.0/schemas \
     GSETTINGS_SCHEMA_DIR_CONDA_BACKUP='' \
     PROJ_LIB=/opt/conda/envs/maskfill/share/proj
 
-# An environment variable used by BaseHarmonyAdapter uses to not stage files
-ENV ENV=test
-
 # Configure a container to be executable via the `docker run` command.
-ENTRYPOINT ["/home/tests/run"]
+ENTRYPOINT ["python", "harmony_adapter.py"]
