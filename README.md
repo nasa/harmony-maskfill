@@ -8,13 +8,13 @@ The utility accepts HDF-5 files which follow CF conventions and GeoTIFFs.
 ## Installation:
 
 MaskFill was developed using the Anaconda distribution of Python
-(https://www.anaconda.com/download) and conda virutal environment.
+(https://www.anaconda.com/download) and conda virtual environment.
 This simplifies dependency management. Run these commands to create a MaskFill
 conda virtual environment and install all the needed packages:
 
 ```bash
 conda create --name maskfill --file ./data/mask_fill_conda_requirements.txt
-source activate maskfill
+conda activate maskfill
 pip install -r ./data/mask_fill_pip_requirements.txt
 ```
 
@@ -26,7 +26,7 @@ cd data
 pip install -r mask_fill_harmony_pip_requirements.txt
 ```
 
-Note, that installation most be done within the `data` directory so the
+Note, that installation must be done within the `data` directory so the
 reference to `mask_fill_pip_requirements.txt` within the Harmony Pip
 requirements file can be resolved.
 
@@ -119,11 +119,10 @@ export STAGING_PATH=''
 Then in a Python session:
 
 ```Python
-from unittest.mock import patch
 from harmony.message import Message
 from harmony.util import config
 from harmony_adapter import HarmonyAdapter
-from tests.python.test_harmony_adapter import download_side_effect
+
 
 message = Message({
     'accessToken': 'fake_token',
@@ -136,25 +135,25 @@ message = Message({
                 'start': '2020-01-01T00:00:00.000Z',
                 'end': '2020-12-31T00:00:00.0000Z'
             },
-            'url': 'tests/data/SMAP_L4_SM_aup_input.h5'
+            'url': 'file:///full/path/to/maskfill/tests/data/SMAP_L4_SM_aup_input.h5'
         }]
     }],
 	'subset': {
         'shape': {
-            'href': 'tests/data/USA.geo.json',
+            'href': 'file:///full/path/to/maskfill/tests/data/USA.geo.json',
             'type': 'application/geo+json'
         }
     },
 	'user': 'narmstrong'
 })
 
-with patch('harmony_adapter.download', side_effect=download_side_effect):
-    maskfill_adapter = HarmonyAdapter(message, config=config(False))
-    maskfill_adapter.invoke()
+maskfill_adapter = HarmonyAdapter(message, config=config(False))
+maskfill_adapter.invoke()
 ```
 
 Note in the message above, the URL for a granule and shape file should be a
-path to a local file.
+path to a local file. Both paths will have to be updated to be the absolute
+file path on your local machine.
 
 ## Testing:
 
