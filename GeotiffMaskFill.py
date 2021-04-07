@@ -54,6 +54,8 @@ def produce_masked_geotiff(geotiff_path: str, shape_path: str, output_dir: str,
         input_dataset = gdal.Open(geotiff_path)
 
         fill_value = get_fill_value(input_dataset, default_fill_value, logger)
+        compression = (input_dataset.GetMetadata('IMAGE_STRUCTURE')
+                       .get('COMPRESSION', None))
 
         # Raster band indices in gdal.Dataset are 1-based, range is 0-based.
         out_image = np.array([
@@ -67,7 +69,8 @@ def produce_masked_geotiff(geotiff_path: str, shape_path: str, output_dir: str,
 
         # Output file with updated metadata
         out_meta = rasterio.open(geotiff_path).meta.copy()
-        out_meta.update({'driver': 'GTiff',
+        out_meta.update({'compress': compression,
+                         'driver': 'GTiff',
                          'height': out_image.shape[1],
                          'width': out_image.shape[2]})
 

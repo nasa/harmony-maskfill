@@ -418,3 +418,27 @@ class TestMaskFill(TestCase):
                                                             shape_file,
                                                             test_output))
         self.compare_geotiff_files(template_output, test_output)
+
+    @patch('MaskFill.get_input_parameters')
+    def test_mask_fill_geotiff_compression(self, mock_get_input_parameters):
+        """ Ensure that the compression of an input granule is preserved in the
+            output from MaskFill.
+
+        """
+        input_file = 'tests/data/SMAP_L4_SM_aup_compression.tif'
+        output_file = f'{self.output_dir}/{self.identifier}/SMAP_L4_SM_aup_compression_mf.tif'
+        geotiff_parameters = self.default_parameters
+        geotiff_parameters['input_file'] = input_file
+
+        mock_get_input_parameters.return_value = self.create_parameters_namespace(geotiff_parameters)
+        response = maskfill_sdps()
+
+        self.assertEqual(response, get_xml_success_response(input_file,
+                                                            self.shape_file,
+                                                            output_file))
+
+        self.compare_geotiff_files(self.output_geotiff_template, output_file)
+
+        geotiff_results = gdal.Open(output_file)
+        compression = geotiff_results.GetMetadata('IMAGE_STRUCTURE').get('COMPRESSION', None)
+        self.assertEqual(compression, 'LZW')
