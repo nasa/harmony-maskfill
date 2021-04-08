@@ -67,6 +67,16 @@ class TestH5MaskFill(TestCase):
 
                 mock_get_mask_array.assert_not_called()
 
+        with self.subTest('Variable name exactly matches an exclusion'):
+            dataset = h5_file.create_dataset('/excluded/variable',
+                                             data=np.ones((3, 2)), fillvalue=0)
+            dataset.attrs['coordinates'] = '/latitude, /longitude'
+            mask_fill(dataset, self.shape_file, self.cache_dir, 'maskgrid_only',
+                      fill_value, self.saved_mask_arrays, self.cf_config,
+                      {'/excluded/variable'}, self.logger)
+
+            mock_get_mask_array.assert_not_called()
+
     @patch('H5MaskFill.create_mask_array')
     def test_get_mask_array(self, mock_create_mask_array):
         """ Ensure that the following cases correctly occur:

@@ -109,9 +109,9 @@ def mask_fill(h5_dataset: h5py.Dataset, shape_path: str, cache_dir: str,
     split_dataset_name = h5_dataset.name.split('/')
     for exclusion in exclusions_set:
         # Check if any part of the dataset hierarchy matches the exclusion.
-        if exclusion in split_dataset_name:
-            logger.debug(f'{exclusion} in {h5_dataset.name} is in exclusion '
-                         'list and will not be mask filled.')
+        if exclusion in split_dataset_name or exclusion == h5_dataset.name:
+            logger.debug(f'Dataset {h5_dataset.name} matches an exclusion '
+                         'and will not be mask filled.')
             return
 
     # Ensure dataset has at least two dimensions and can be mask filled
