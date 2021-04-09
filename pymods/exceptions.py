@@ -95,14 +95,3 @@ class NoMatchingData(CustomError):
     """
     def __init__(self, message='No data found that matched the subset constraints.'):
         super().__init__('NoMatchingData', message, 3)
-
-
-class UnknownCollectionShortname(CustomError):
-    """ Exception raised when MaskFill is unable to determine the collection
-        shortname from either the granule metadata or file prefix.
-
-    """
-    def __init__(self, file_name):
-        super().__init__('UnknownCollectionShortname',
-                         f'Cannot find collection shortname for {file_name}',
-                         7)
