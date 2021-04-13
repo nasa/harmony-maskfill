@@ -14,7 +14,7 @@ from MaskFill import (check_shapefile_geojson, debug_bool, DEFAULT_FILL_VALUE,
 from pymods.exceptions import (InsufficientProjectionInformation,
                                InvalidMetadata, InvalidParameterValue,
                                MissingCoordinateDataset, MissingParameterValue,
-                               NoMatchingData, UnknownCollectionShortname)
+                               NoMatchingData)
 
 
 class TestMaskFill(TestCase):
@@ -224,8 +224,7 @@ class TestMaskFill(TestCase):
                            NoMatchingData(),
                            MissingCoordinateDataset('file.hdf', 'dataset'),
                            InsufficientProjectionInformation('dataset'),
-                           InvalidMetadata('science_variable', 'name', 'value'),
-                           UnknownCollectionShortname('file.h5')]
+                           InvalidMetadata('science_variable', 'name', 'value')]
 
         for exception in test_exceptions:
             with self.subTest(exception.exception_type):

@@ -12,8 +12,6 @@ import re
 from h5py import File
 from numpy import bytes_
 
-from pymods.exceptions import UnknownCollectionShortname
-
 
 class CFConfig(ABC):
     """ A base class defining functionality common to both the HDF-5 and
@@ -91,6 +89,8 @@ class CFConfig(ABC):
             SMAP_L3_FT_P. (If the collection is actually SPL3FTP, then
             "SMAP_L3_FT_P" will be the only match)
 
+            If the file prefix is unknown, a value of `None` will be returned.
+
         """
         shortname = None
         file_basename = os.path.basename(file_path)
@@ -102,10 +102,6 @@ class CFConfig(ABC):
                     and (shortname is None or len(config_shortname) > len(shortname))
             ):
                 shortname = config_shortname
-
-        if shortname is None:
-            # File name prefix wasn't in the shortname mapping.
-            raise UnknownCollectionShortname(file_path)
 
         return shortname
 
@@ -119,11 +115,16 @@ class CFConfig(ABC):
             returned instead.
 
         """
-        return next((configuration_item
-                     for shortname_pattern, configuration_item
-                     in self.full_config[config_group].items()
-                     if re.match(shortname_pattern, self.shortname)),
-                    default_value)
+        if self.shortname is not None:
+            item = next((configuration_item
+                         for shortname_pattern, configuration_item
+                         in self.full_config[config_group].items()
+                         if re.match(shortname_pattern, self.shortname)),
+                        default_value)
+        else:
+            item = default_value
+
+        return item
 
     @abstractmethod
     def get_file_exclusions(self) -> List[str]:
@@ -132,7 +133,6 @@ class CFConfig(ABC):
             be masked by MaskFill.
 
         """
-        pass
 
     def get_dataset_fill_value(self, dataset_name: str) -> Optional[Any]:
         """ Search the collection specific dictionary containing corrected

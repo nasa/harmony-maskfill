@@ -5,7 +5,6 @@ import json
 from h5py import File
 
 from pymods.cf_config import CFConfigGeotiff, CFConfigH5
-from pymods.exceptions import UnknownCollectionShortname
 
 
 class TestCFConfig(TestCase):
@@ -32,9 +31,11 @@ class TestCFConfig(TestCase):
                 'SPL3FTP_E'
             )
 
-        with self.subTest('Unknown shortname raises exception'):
-            with self.assertRaises(UnknownCollectionShortname):
-                self.cf_config._get_shortname_from_config('RANDOM.h5')
+        with self.subTest('Unknown shortname returns None'):
+            self.assertEqual(
+                self.cf_config._get_shortname_from_config('RANDOM.h5'),
+                None
+            )
 
     def test_get_dataset_fill_value(self):
         """ Ensure a fill value stored in the configuration file is returned
@@ -90,7 +91,8 @@ class TestCFConfigH5(TestCase):
         """ Ensure that a CFConfigH5 object can be created, using the shortname
             either from granule metadata, or the listed mapping of file name
             prefixes to shortnames. If the granule does not allow MaskFill to
-            identify a collection, then check the correct exception is raised.
+            identify a collection, then ensure no collection specific metadata
+            augmentations are retrieved from the configuration file.
 
         """
         with self.subTest('Shortname in metadata'):
@@ -132,12 +134,15 @@ class TestCFConfigH5(TestCase):
             remove(test_file_name)
 
         with self.subTest('Unknown shortname'):
-            with self.assertRaises(UnknownCollectionShortname):
-                test_file_name = 'tests/data/RANDOM_granule.h5'
-                temp_file = File(test_file_name, 'w')
-                temp_file.close()
+            test_file_name = 'tests/data/RANDOM_granule.h5'
+            temp_file = File(test_file_name, 'w')
+            temp_file.close()
 
-                cf_config = CFConfigH5(test_file_name)
+            cf_config = CFConfigH5(test_file_name)
+            self.assertEqual(cf_config.shortname, None)
+            self.assertListEqual(cf_config.coordinate_variables, [])
+            self.assertDictEqual(cf_config.fill_values, {})
+            self.assertDictEqual(cf_config.grid_mapping_groups, {})
 
         remove('tests/data/RANDOM_granule.h5')
 
@@ -192,7 +197,8 @@ class TestCFConfigGeotiff(TestCase):
     def test_instantiation(self):
         """ Ensure that the CFConfigGeotiff class can successfully be
             instantiated. Or, if an unrecognised collection shortname is given,
-            the expected custom exception is raised.
+            the class is instantiated, but the instance does not include any
+            collection specific metadata augmentation.
 
         """
         with self.subTest('Valid collection'):
@@ -209,8 +215,11 @@ class TestCFConfigGeotiff(TestCase):
             )
 
         with self.subTest('Unknown shortname'):
-            with self.assertRaises(UnknownCollectionShortname):
-                cf_config = CFConfigGeotiff('RANDOM_variable.tif')
+            cf_config = CFConfigGeotiff('RANDOM_variable.tif')
+            self.assertEqual(cf_config.shortname, None)
+            self.assertListEqual(cf_config.coordinate_variables, [])
+            self.assertDictEqual(cf_config.fill_values, {})
+            self.assertDictEqual(cf_config.grid_mapping_groups, {})
 
     def test_get_file_exclusions(self):
         """ Check the expected list of file exclusions are returned. For a

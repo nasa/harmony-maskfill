@@ -47,8 +47,7 @@ import uuid
 from pymods.exceptions import (InsufficientProjectionInformation,
                                InternalError, InvalidMetadata,
                                InvalidParameterValue, MissingCoordinateDataset,
-                               MissingParameterValue, NoMatchingData,
-                               UnknownCollectionShortname)
+                               MissingParameterValue, NoMatchingData)
 import GeotiffMaskFill
 import H5MaskFill
 
@@ -57,8 +56,7 @@ DEFAULT_FILL_VALUE = -9999
 DEFAULT_MASK_GRID_CACHE = 'ignore_and_delete'
 OUTPUT_EXCEPTIONS = (InsufficientProjectionInformation, InvalidMetadata,
                      InvalidParameterValue, MissingCoordinateDataset,
-                     MissingParameterValue, NoMatchingData,
-                     UnknownCollectionShortname)
+                     MissingParameterValue, NoMatchingData)
 
 
 def mask_fill(input_file: str, shape_file: str, output_dir: str,
@@ -308,7 +306,6 @@ def get_xml_error_response(output_dir: str, raised_exception: Exception) -> str:
                 * Exit status 4: MissingCoordinateDataset
                 * Exit status 5: InsufficientProjectionInformation
                 * Exit status 6: InvalidMetadata
-                * Exit status 7: UnknownCollectionShortname
 
         Returns:
             str: An ESI standard XML error response
