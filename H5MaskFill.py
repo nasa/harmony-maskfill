@@ -115,10 +115,14 @@ def mask_fill(h5_dataset: h5py.Dataset, shape_path: str, cache_dir: str,
             return
 
     # Ensure dataset has at least two dimensions and can be mask filled
-    if len(h5_dataset.shape) < 2 or not h5_dataset.attrs.__contains__('coordinates'):
+    if (
+            len(h5_dataset.shape) < 2
+            or not any(attribute in h5_dataset.attrs
+                       for attribute in ('coordinates', 'DIMENSION_LIST'))
+    ):
         logger.debug(f'The dataset {h5_dataset.name} is not two dimensional '
-                     'or does not contain coordinates attribute, and cannot '
-                     'be mask filled')
+                     'or does not contain a coordinates or DIMENSION_LIST '
+                     'attribute, and cannot be mask filled')
         return
     elif dataset_all_fill_value(h5_dataset, cf_config, logger, default_fill_value):
         logger.debug(f'The dataset {h5_dataset.name} only contains fill value,'
