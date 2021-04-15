@@ -442,3 +442,28 @@ class TestMaskFill(TestCase):
         geotiff_results = gdal.Open(output_file)
         compression = geotiff_results.GetMetadata('IMAGE_STRUCTURE').get('COMPRESSION', None)
         self.assertEqual(compression, 'LZW')
+
+    @patch('MaskFill.get_input_parameters')
+    def test_mask_fill_h5_dimension_list(self, mock_get_input_parameters):
+        """ Ensure a science variable with DIMENSION_LIST, but not coordinates
+            metadata attributes will be masked.
+
+        """
+        input_file = 'tests/data/SMAP_L4_SM_aup_dimension_list_input.h5'
+        shape_file = 'tests/data/afg_kite.geo.json'
+        output_file = (f'{self.output_dir}/{self.identifier}/'
+                       'SMAP_L4_SM_aup_dimension_list_input_mf.h5')
+        template_output = 'tests/data/SMAP_L4_SM_aup_dimension_list_output.h5'
+
+        parameters = self.default_parameters
+        parameters['input_file'] = input_file
+        parameters['shape_file'] = shape_file
+
+        mock_get_input_parameters.return_value = self.create_parameters_namespace(parameters)
+        response = maskfill_sdps()
+
+        self.assertEqual(response, get_xml_success_response(input_file,
+                                                            shape_file,
+                                                            output_file))
+
+        self.compare_h5_files(template_output, output_file)

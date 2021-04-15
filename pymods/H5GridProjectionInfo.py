@@ -23,7 +23,7 @@ def get_hdf_proj4(h5_dataset: Dataset, cf_config: CFConfigH5,
     """ Returns the proj4 string corresponding to the coordinate reference
     system of the HDF5 dataset. Current logic:
 
-    * Check for DIMENSIONS_LIST attribute on dataset. If present, check the
+    * Check for DIMENSION_LIST attribute on dataset. If present, check the
       units of the first dimension dataset for "degrees". If present, return
       geographic.
     * Next check for the grid_mapping attribute. If present return this variable.
