@@ -48,11 +48,13 @@ requirements file can be resolved.
 During regular development, developers should create feature branches from the
 `dev` branch. When feature work is done, this branch should be merged back into
 `dev` via a pull request (PR). When it is time for a full SDPS release, a
-release branch will be created from the head of the `dev` branch. This release
-branch should be named with the following format: `202_UPDATES`. When the
-release branch is deemed ready, the branch should be merged into `master` and
-back into `dev`. Merger into `master` will trigger the release of a new
-`master` artefact in Maven.
+release branch will be created from the head of the `dev` branch. Within this
+release branch a `VERSION` file should be updated, or created if not present,
+containing a single string name for the release. For example: "202_UPDATES". A
+PR should be then made between this release branch and the `master` branch.
+Merging this PR will trigger the deployment of two new artefacts to Maven, one
+to `master/maskfill.tar.gz`, and a second relating to the version listed in the
+`VERSION` file, e.g. `202_UPDATES/maskfill.tar.gz`.
 
 ### Hot shelves:
 
@@ -64,12 +66,10 @@ from the master branch. It should have a name with the format:
 HOTSHELF-DAS-XYZ
 ```
 
-The name of this branch will be used in naming the tarball saved in Maven, so
-it is important to maintain a consistent naming convention for the hot shelf
-branches.
-
-When hot shelf work is complete, a pull request should be opened against the
-master branch.
+When hot shelf work is complete, the contents of the `VERSION` file in the root
+directory of the repository should be updated to `HOTSHELF-DAS-XYZ` (where
+`DAS-XYZ` is the related ticket number) and a pull request should be opened
+against the `master` branch.
 
 After the merge into the master branch, the developer who worked on the hot
 shelf also needs to then merge the changes into the `dev` branch.
@@ -77,6 +77,17 @@ shelf also needs to then merge the changes into the `dev` branch.
 If there has been a lot of work since the last release, then this
 step may be tricky. An additional branch to deal with merge conflicts may be
 required.
+
+### Harmony releases:
+
+The Bamboo build plan and deployment project for MaskFill are configured to
+deploy a new version to the Harmony SIT and Sandbox environments every time a
+pull request is merged into the `dev` branch. From that point, a release to SIT
+can be manually promoted to UAT, or even production via Bamboo at
+`ci.earthdata.nasa.gov`. Note, the long term access keys for each environment
+will need to be up to date for these deployments to be successful. If the
+deployments fail it is likely due to out-of-date AWS long term access
+credentials.
 
 ## Running locally (SDPS method):
 
