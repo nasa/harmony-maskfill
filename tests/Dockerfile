@@ -1,6 +1,8 @@
 #
-# The created container will have a Conda environment, in which it will run a
-# Python unittest suite.
+# Test image for the Harmony sds/maskfill-harmony service. This image uses the
+# main service image, sds/maskfill-harmony, as a base layer for the tests. This
+# ensures that the contents of the service image are tested, preventing
+# discrepancies between the service and test environments.
 #
 # The results of the test run will be saved to tests/reports, which should be
 # mounted as a shared volume with the host.
@@ -10,21 +12,12 @@
 # docker build -f tests/Dockerfile -t maskfill .
 # docker run -v /full/path/to/host/directory/test-reports:/home/tests/reports maskfill:latest
 #
-# Using Conda within ENTRYPOINT was taken from:
-# https://pythonspeed.com/articles/activate-conda-dockerfile/
+# Updated: 2021-06-25
 #
-FROM continuumio/miniconda3
+FROM sds/maskfill-harmony
 
-WORKDIR "/home"
-
-# Place contents of the repository in the container.
-COPY . /home/
-
-# Create Conda environment.
-RUN conda create -y --name maskfill --file data/mask_fill_conda_requirements.txt python=3.7 -q
-
-# Install additional Pip dependencies.
-RUN conda run --name maskfill pip install --no-input -r data/mask_fill_harmony_pip_requirements.txt
+# Copy test directory containing Python unittest suite, test data and utilities
+COPY ./tests tests
 
 # Set conda environment to maskfill, as `conda run` will not stream logging.
 # Setting these environment variables is the equivalent of `conda activate`.
