@@ -82,9 +82,9 @@
             ".*": "EASE2_global"
         },
         "ATL(16|17)": {
-            "global.*": "EASE2_global",
-            "npolar.*": "EASE2_npolar",
-            "spolar.*": "EASE2_spolar"
+            "/global.*": "EASE2_global",
+            "/npolar.*": "EASE2_npolar",
+            "/spolar.*": "EASE2_spolar"
         },
         "ATL20": {
             ".*": "NSIDC_sea_ice_npolar_stereo"
@@ -169,33 +169,33 @@
             "/GEO/l(at|ong)itude"
         ],
         "SPL4SMAU": [
-            "/FileMainGroup/cell_(column|row)",
-            "/FileMainGroup/cell_l(at|on)"
+            "/cell_(column|row)",
+            "/cell_l(at|on)"
         ],
         "SPL4SMGP": [
-            "/FileMainGroup/cell_(column|row)",
-            "/FileMainGroup/cell_l(at|on)"
+            "/cell_(column|row)",
+            "/cell_l(at|on)"
         ],
         "SPL4SMLM": [
-            "/FileMainGroup/cell_(column|row)",
-            "/FileMainGroup/cell_l(at|on)"
+            "/cell_(column|row)",
+            "/cell_l(at|on)"
         ],
         "ATL16": [
-            "/FileMainGroup1/global_grid_l(at|on)",
-            "/FileMainGroup2/npolar_grid_l(at|on)",
-            "/FileMainGroup3/spolar_grid_l(at|on)",
+            "/global_grid_l(at|on)",
+            "/npolar_grid_l(at|on)",
+            "/spolar_grid_l(at|on)",
             "/orbit_info/crossing_time",
             "/orbit_info/sc_orient_time"
         ],
         "ATL17": [
-            "/FileMainGroup1/global_grid_l(at|on)",
-            "/FileMainGroup2/npolar_grid_l(at|on)",
-            "/FileMainGroup3/spolar_grid_l(at|on)",
+            "/global_grid_l(at|on)",
+            "/npolar_grid_l(at|on)",
+            "/spolar_grid_l(at|on)",
             "/orbit_info/crossing_time",
             "/orbit_info/sc_orient_time"
         ],
         "ATL20": [
-            "/FileMainGroup/grid_l(at|on)"
+            "/grid_l(at|on)"
         ],
         "VNP10": [
             "/SnowData/Geolocation_Fields/L(at|ong)itude"
