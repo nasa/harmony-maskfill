@@ -82,9 +82,9 @@
             ".*": "EASE2_global"
         },
         "ATL(16|17)": {
-            "/global.*": "EASE2_global",
-            "/npolar.*": "EASE2_npolar",
-            "/spolar.*": "EASE2_spolar"
+            "/global.*": "geographic",
+            "/npolar.*": "geographic",
+            "/spolar.*": "geographic"
         },
         "ATL20": {
             ".*": "NSIDC_sea_ice_npolar_stereo"
@@ -114,6 +114,11 @@
 			"latitude_of_projection_origin": -90,
 			"longitude_of_projection_origin": 0,
 			"unit": "m"
+		},
+		"geographic": {
+			"geographic_crs_name": "WGS 84",
+			"grid_mapping_name": "latitude_longitude",
+			"horizontal_datum_name": "WGS84"
 		},
 		"NSIDC_sea_ice_npolar_stereo": {
 			"false_easting": 0,
