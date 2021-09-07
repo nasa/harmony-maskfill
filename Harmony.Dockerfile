@@ -1,9 +1,20 @@
 #
+# Service image for sds/maskfill-harmony, a Harmony backend service that masks
+# gridded Earth Observation data according to a user-supplied GeoJSON shape
+# file. This service can process either HDF-5 or GeoTIFF files, and will
+# preserve the input file format and compression in the output product.
+#
+# This image instantiates a conda environment, with required packages, before
+# installing additional dependencies via Pip. The service code is then copied
+# into the Docker image, before environment variables are set to activate the
+# created conda environment.
+#
 # Commands to use this file locally:
 #
 # docker build -f Harmony.Dockerfile -t sds/maskfill-harmony .
 # docker run -v /full/path/to/host/directory:/home/results sds/maskfill-harmony:latest "<full list of arguments>"
 #
+# Updated: 2021-06-25
 #
 FROM continuumio/miniconda3
 

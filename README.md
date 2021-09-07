@@ -8,13 +8,13 @@ The utility accepts HDF-5 files which follow CF conventions and GeoTIFFs.
 ## Installation:
 
 MaskFill was developed using the Anaconda distribution of Python
-(https://www.anaconda.com/download) and conda virutal environment.
+(https://www.anaconda.com/download) and conda virtual environment.
 This simplifies dependency management. Run these commands to create a MaskFill
 conda virtual environment and install all the needed packages:
 
 ```bash
 conda create --name maskfill --file ./data/mask_fill_conda_requirements.txt
-source activate maskfill
+conda activate maskfill
 pip install -r ./data/mask_fill_pip_requirements.txt
 ```
 
@@ -26,7 +26,7 @@ cd data
 pip install -r mask_fill_harmony_pip_requirements.txt
 ```
 
-Note, that installation most be done within the `data` directory so the
+Note, that installation must be done within the `data` directory so the
 reference to `mask_fill_pip_requirements.txt` within the Harmony Pip
 requirements file can be resolved.
 
@@ -48,11 +48,13 @@ requirements file can be resolved.
 During regular development, developers should create feature branches from the
 `dev` branch. When feature work is done, this branch should be merged back into
 `dev` via a pull request (PR). When it is time for a full SDPS release, a
-release branch will be created from the head of the `dev` branch. This release
-branch should be named with the following format: `202_UPDATES`. When the
-release branch is deemed ready, the branch should be merged into `master` and
-back into `dev`. Merger into `master` will trigger the release of a new
-`master` artefact in Maven.
+release branch will be created from the head of the `dev` branch. Within this
+release branch a `VERSION` file should be updated, or created if not present,
+containing a single string name for the release. For example: "202_UPDATES". A
+PR should be then made between this release branch and the `master` branch.
+Merging this PR will trigger the deployment of two new artefacts to Maven, one
+to `master/maskfill.tar.gz`, and a second relating to the version listed in the
+`VERSION` file, e.g. `202_UPDATES/maskfill.tar.gz`.
 
 ### Hot shelves:
 
@@ -64,12 +66,10 @@ from the master branch. It should have a name with the format:
 HOTSHELF-DAS-XYZ
 ```
 
-The name of this branch will be used in naming the tarball saved in Maven, so
-it is important to maintain a consistent naming convention for the hot shelf
-branches.
-
-When hot shelf work is complete, a pull request should be opened against the
-master branch.
+When hot shelf work is complete, the contents of the `VERSION` file in the root
+directory of the repository should be updated to `HOTSHELF-DAS-XYZ` (where
+`DAS-XYZ` is the related ticket number) and a pull request should be opened
+against the `master` branch.
 
 After the merge into the master branch, the developer who worked on the hot
 shelf also needs to then merge the changes into the `dev` branch.
@@ -77,6 +77,17 @@ shelf also needs to then merge the changes into the `dev` branch.
 If there has been a lot of work since the last release, then this
 step may be tricky. An additional branch to deal with merge conflicts may be
 required.
+
+### Harmony releases:
+
+The Bamboo build plan and deployment project for MaskFill are configured to
+deploy a new version to the Harmony SIT and Sandbox environments every time a
+pull request is merged into the `dev` branch. From that point, a release to SIT
+can be manually promoted to UAT, or even production via Bamboo at
+`ci.earthdata.nasa.gov`. Note, the long term access keys for each environment
+will need to be up to date for these deployments to be successful. If the
+deployments fail it is likely due to out-of-date AWS long term access
+credentials.
 
 ## Running locally (SDPS method):
 
@@ -119,11 +130,10 @@ export STAGING_PATH=''
 Then in a Python session:
 
 ```Python
-from unittest.mock import patch
 from harmony.message import Message
 from harmony.util import config
 from harmony_adapter import HarmonyAdapter
-from tests.python.test_harmony_adapter import download_side_effect
+
 
 message = Message({
     'accessToken': 'fake_token',
@@ -136,25 +146,25 @@ message = Message({
                 'start': '2020-01-01T00:00:00.000Z',
                 'end': '2020-12-31T00:00:00.0000Z'
             },
-            'url': 'tests/data/SMAP_L4_SM_aup_input.h5'
+            'url': 'file:///full/path/to/maskfill/tests/data/SMAP_L4_SM_aup_input.h5'
         }]
     }],
 	'subset': {
         'shape': {
-            'href': 'tests/data/USA.geo.json',
+            'href': 'file:///full/path/to/maskfill/tests/data/USA.geo.json',
             'type': 'application/geo+json'
         }
     },
 	'user': 'narmstrong'
 })
 
-with patch('harmony_adapter.download', side_effect=download_side_effect):
-    maskfill_adapter = HarmonyAdapter(message, config=config(False))
-    maskfill_adapter.invoke()
+maskfill_adapter = HarmonyAdapter(message, config=config(False))
+maskfill_adapter.invoke()
 ```
 
 Note in the message above, the URL for a granule and shape file should be a
-path to a local file.
+path to a local file. Both paths will have to be updated to be the absolute
+file path on your local machine.
 
 ## Testing:
 

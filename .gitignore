@@ -1,7 +1,16 @@
+# Python cached files:
 __pycache__/
-.idea
 *.pyc
 *.pyo
+
+# IntelliJ:
+.idea
+
+# MacOS Finder hidden file:
+.DS_Store
+
+# Jupyter notebook checkpoints:
+.ipynb_checkpoints
 
 # Coverage reports
 .coverage
