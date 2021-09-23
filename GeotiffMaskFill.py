@@ -5,11 +5,10 @@ from shutil import copyfile
 from typing import List
 import re
 
-import gdal
+from osgeo import gdal, osr
 import numpy as np
 import rasterio
 import rasterio.mask
-from osgeo import osr
 
 from pymods import MaskFillUtil
 from pymods.cf_config import CFConfigGeotiff

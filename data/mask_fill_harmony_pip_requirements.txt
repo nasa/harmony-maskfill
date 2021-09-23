@@ -1,5 +1,5 @@
 # Harmony service library
-harmony-service-lib~=1.0.4
+harmony-service-lib~=1.0.12
 
 # Harmony-specific dependencies
 pystac~=0.5.3

@@ -5,12 +5,11 @@ import hashlib
 import os
 
 from affine import Affine
-from geopandas import GeoSeries
-from osgeo import osr
+from geopandas import GeoDataFrame, GeoSeries
+from osgeo import gdal, osr
 from pyproj import Transformer, CRS
 from rasterio import features  # as in geographic features, shapes, polygons
 from shapely.geometry import Polygon
-import gdal
 import geopandas as gpd
 import h5py
 import numpy as np
@@ -90,7 +89,7 @@ def get_bounded_shape(shape_path, epsg, proj4, out_shape, transform):
 
     # Create bounding box in geographic coordinates
     bbox = [(minx, miny), (maxx, miny), (maxx, maxy), (minx, maxy)]
-    bbox_gdf = gpd.GeoDataFrame(geometry=GeoSeries(Polygon(bbox), crs={'init': 'epsg:4326'}))
+    bbox_gdf = GeoDataFrame(geometry=GeoSeries(Polygon(bbox), crs='EPSG:4326'))
 
     # Intersect shapes with bounding box
     shape_gdf = gpd.read_file(shape_path)

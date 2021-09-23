@@ -13,7 +13,8 @@ This simplifies dependency management. Run these commands to create a MaskFill
 conda virtual environment and install all the needed packages:
 
 ```bash
-conda create --name maskfill --file ./data/mask_fill_conda_requirements.txt
+conda create --name maskfill --file ./data/mask_fill_conda_requirements.txt \
+  python=3.9 --channel conda-forge --channel defaults
 conda activate maskfill
 pip install -r ./data/mask_fill_pip_requirements.txt
 ```
