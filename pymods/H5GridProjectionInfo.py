@@ -3,7 +3,7 @@
     file.
 """
 from logging import Logger
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 import re
 
 import affine
@@ -39,7 +39,7 @@ def get_hdf_proj4(h5_dataset: Dataset, cf_config: CFConfigH5,
     dimensions = get_dimension_datasets(h5_dataset)
 
     if dimensions is not None:
-        units = dimensions[0].attrs.get('units', b'').decode()
+        units = get_decoded_attribute(dimensions[0], 'units', default='')
 
         if 'degrees' in units:
             logger.debug(f'Dataset {h5_dataset.name} has dimensions with '
@@ -72,14 +72,11 @@ def get_grid_mapping_name(h5_dataset: Dataset) -> Optional[str]:
         relative variable paths.
 
     """
-    grid_mapping_attribute = h5_dataset.attrs.get('grid_mapping', None)
+    grid_mapping_attribute = get_decoded_attribute(h5_dataset, 'grid_mapping')
 
     if isinstance(grid_mapping_attribute, Reference):
         grid_mapping_name = h5_dataset.file[grid_mapping_attribute].name
     elif grid_mapping_attribute is not None:
-        if isinstance(grid_mapping_attribute, (bytes, np.bytes_)):
-            grid_mapping_attribute = grid_mapping_attribute.decode()
-
         # Splitting based on a colon, will eliminate any issues from the
         # grid mapping being of the extended format.
         grid_mapping_name = resolve_relative_dataset_path(
@@ -99,7 +96,9 @@ def get_lon_lat_datasets(h5_dataset: Dataset) -> Tuple[Dataset, Dataset]:
                    both datasets are of type h5py._hl.dataset.Dataset
     """
     h5_file = h5_dataset.file
-    coordinate_list = re.split('[, ]', h5_dataset.attrs['coordinates'].decode())
+    coordinate_list = re.split('[, ]', get_decoded_attribute(h5_dataset,
+                                                             'coordinates',
+                                                             ''))
 
     for coordinate in coordinate_list:
         try:
@@ -125,7 +124,7 @@ def get_dimension_datasets(h5_dataset: Dataset) -> Optional[Tuple[Dataset, Datas
                    both datasets are of type h5py._hl.dataset.Dataset
     """
     h5_file = h5_dataset.file
-    dim_list = h5_dataset.attrs.get('DIMENSION_LIST', None)
+    dim_list = get_decoded_attribute(h5_dataset, 'DIMENSION_LIST')
 
     if dim_list is not None:
         for ref in dim_list:
@@ -158,14 +157,7 @@ def get_crs(grid_mapping: Union[Dataset, Dict]) -> CRS:
         cf_parameters = get_dataset_attributes(grid_mapping)
 
     try:
-        # pyproj==2.3.1 doesn't handle standard_parallel properly.
-        # pyproj~=3.0 does. Upgrading should simplify the following lines:
-        # crs = CRS.from_cf(cf_parameters)
-        crs_dict = CRS.from_cf(cf_parameters).to_dict()
-        if 'standard_parallel' in cf_parameters:
-            crs_dict['lat_ts'] = cf_parameters['standard_parallel']
-
-        crs = CRS.from_dict(crs_dict)
+        crs = CRS.from_cf(cf_parameters)
     except CRSError:
         if 'srid' in cf_parameters:
             crs = CRS(cf_parameters['srid'])
@@ -180,11 +172,21 @@ def get_dataset_attributes(h5_dataset: Dataset) -> Dict:
         `bytes` are decoded during the list comprehension.
 
     """
-    return {attribute_key: (attribute_value.decode()
-                            if isinstance(attribute_value, bytes)
-                            else attribute_value)
-            for attribute_key, attribute_value
-            in h5_dataset.attrs.items()}
+    return {attribute_key: get_decoded_attribute(h5_dataset, attribute_key)
+            for attribute_key
+            in h5_dataset.attrs}
+
+
+def get_decoded_attribute(h5_dataset: Dataset, attribute_key: str,
+                          default: Optional[Any] = None) -> Any:
+    """ Ensure that any Byte type attributes are decoded to a string. Otherwise
+        return the metadata attribute as stored in the H5 file.
+
+    """
+    attribute_value = h5_dataset.attrs.get(attribute_key, default)
+    return (attribute_value.decode()
+            if isinstance(attribute_value, (bytes, np.bytes_))
+            else attribute_value)
 
 
 def get_transform(h5_dataset: Dataset, cf_config: CFConfigH5,
@@ -232,14 +234,15 @@ def get_transform_information(h5_dataset: Dataset) -> str:
         operations.
 
     """
-    dimension_list = h5_dataset.attrs.get('DIMENSION_LIST', None)
+    dimension_list = get_decoded_attribute(h5_dataset, 'DIMENSION_LIST')
+
     if dimension_list is not None:
         h5_file = h5_dataset.file
         dimension_names = ', '.join([h5_file[reference[0]].name
                                      for reference in dimension_list])
         output_string = f'DIMENSION_LIST: {dimension_names}'
     else:
-        output_string = f'coords: {h5_dataset.attrs["coordinates"].decode()}'
+        output_string = f'coords: {get_decoded_attribute(h5_dataset, "coordinates")}'
 
     return output_string
 
@@ -481,7 +484,7 @@ def get_fill_value(h5_dataset: Dataset, cf_config: CFConfigH5, logger: Logger,
                      f'value. Using {config_fill_value} instead.')
         return config_fill_value
 
-    fill_value_attribute = h5_dataset.attrs.get('_FillValue')
+    fill_value_attribute = get_decoded_attribute(h5_dataset, '_FillValue')
 
     if fill_value_attribute is not None:
         return fill_value_attribute
@@ -526,8 +529,8 @@ def dataset_all_outside_valid_range(dataset: Dataset) -> bool:
         Returns:
             all_out_of_range: boolean
     """
-    valid_min = dataset.attrs.get('valid_min', None)
-    valid_max = dataset.attrs.get('valid_max', None)
+    valid_min = get_decoded_attribute(dataset, 'valid_min')
+    valid_max = get_decoded_attribute(dataset, 'valid_max', None)
     dataset_array = dataset[()]
 
     if valid_min is not None and valid_max is not None:
@@ -553,7 +556,6 @@ def resolve_relative_dataset_path(h5_dataset: Dataset,
     """
     referee_location = h5_dataset.parent.name
     referee_pieces = referee_location.split('/')[1:]
-    relative_first_piece = relative_path.split(':')[0]
 
     if relative_path.startswith('/'):
         # If the path starts with a slash, assume it is absolute

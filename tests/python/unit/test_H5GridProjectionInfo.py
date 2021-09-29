@@ -21,6 +21,7 @@ from pymods.H5GridProjectionInfo import (dataset_all_fill_value,
                                          get_corner_points_from_dimensions,
                                          get_corner_points_from_lat_lon,
                                          get_crs, get_dataset_attributes,
+                                         get_decoded_attribute,
                                          get_dimension_datasets,
                                          get_fill_value,
                                          get_grid_mapping_name,
@@ -764,3 +765,50 @@ class TestH5GridProjectionInfo(TestCase):
                     dataset.attrs.update(dataset_attributes)
 
                 self.assertEqual(get_crs(input_object).to_proj4(), proj4_string)
+
+    def test_get_decoded_attribute(self):
+        """ Ensure attributes will be retrieved with the correct type. If the
+            extracted type is a bytes object, it should be decoded to a string,
+            otherwise the type of the retrieved metadata attribute should match
+            the type as contained in the HDF-5 file.
+
+        """
+        string_value = 'this is a string'
+        decoded_bytes = 'bytes'
+        bytes_value = bytes(decoded_bytes, 'utf-8')
+        numerical_value = 123.456
+        np_bytes_value = np.bytes_(decoded_bytes, 'utf-8')
+
+        test_args = [
+            ['String attribute', 'string_value', string_value],
+            ['Bytes attribute decoded', 'bytes_value', decoded_bytes],
+            ['np.bytes_ attribute decoded', 'np_bytes_value', decoded_bytes],
+            ['Numerical attribute', 'numerical_value', numerical_value],
+            ['Absent attribute defaults to None', 'Missing', None]
+        ]
+
+        default_test_args = [
+            ['Default not used when value present', 'string_value', 'default', string_value],
+            ['Default value used', 'missing', 'default', 'default'],
+            ['Bytes default is decoded', 'missing', bytes_value, decoded_bytes],
+        ]
+        with h5py.File('test.h5', 'w', driver='core', backing_store=False) as h5_file:
+            attributes = h5py.AttributeManager(parent=h5_file)
+            attributes.create('string_value', string_value)
+            attributes.create('bytes_value', bytes_value)
+            attributes.create('numerical_value', numerical_value)
+            attributes.create('np_bytes_value', np_bytes_value)
+
+            for description, attribute_key, expected_value in test_args:
+                with self.subTest(description):
+                    self.assertEqual(
+                        get_decoded_attribute(h5_file, attribute_key),
+                        expected_value
+                    )
+
+            for description, key, default, expected_value in default_test_args:
+                with self.subTest(description):
+                    self.assertEqual(
+                        get_decoded_attribute(h5_file, key, default),
+                        expected_value
+                    )

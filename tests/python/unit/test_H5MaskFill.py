@@ -93,7 +93,7 @@ class TestH5MaskFill(TestCase):
         dataset = h5_file['/Analysis_Data/sm_profile_analysis']
 
         # Pre-calculated ID, to use for dictionary key and file name:
-        mask_id = 'a62e96c11d707f2153e4f6a7da7707fc681152a358b816af5c9bcd11'
+        mask_id = '45a5aa3c6b02ae31b06ae524ee823474132b6f4a74a790bf37623f17'
 
         saved_mask = np.ones((2, 3))
         cached_mask = np.ones((3, 4))

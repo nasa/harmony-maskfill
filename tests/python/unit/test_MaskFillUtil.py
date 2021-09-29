@@ -3,7 +3,7 @@ from unittest import TestCase
 
 import h5py
 import geopandas as gpd
-from geopandas.testing import geom_equals
+from geopandas.testing import assert_geodataframe_equal
 from pyproj import CRS
 
 from pymods.cf_config import CFConfigH5
@@ -32,7 +32,7 @@ class TestMaskFillUtil(TestCase):
         spl4smau_config = CFConfigH5('tests/data/SMAP_L4_SM_aup_input.h5')
 
         with self.subTest('DIMENSION_LIST present, shared dimensions'):
-            expected_id = 'a62e96c11d707f2153e4f6a7da7707fc681152a358b816af5c9bcd11'
+            expected_id = '45a5aa3c6b02ae31b06ae524ee823474132b6f4a74a790bf37623f17'
             h5_file = h5py.File('tests/data/SMAP_L4_SM_aup_input.h5', 'r')
             dataset_one = h5_file['/Analysis_Data/sm_profile_analysis']
             dataset_two = h5_file['/Analysis_Data/sm_surface_analysis']
@@ -80,15 +80,15 @@ class TestMaskFillUtil(TestCase):
         gdf1 = gpd.read_file('tests/data/south_pole_bounded.geojson')
         gdf2 = get_bounded_shape(shape_path, epsg, None, None, None)
 
-        assert geom_equals(gdf1, gdf2)
+        assert_geodataframe_equal(gdf1, gdf2)
 
         # Test creating bounding shape from proj4 string
         epsg = CRS(proj4).to_epsg()
         gdf3 = get_bounded_shape(shape_path, epsg, None, None, None)
-        assert geom_equals(gdf1, gdf3)
+        assert_geodataframe_equal(gdf1, gdf3)
 
         # Test calculating bounding shape from proj4, out shape, and transform
         gdf4 = gpd.read_file('tests/data/south_pole_bounded2.geojson')
         gdf5 = get_bounded_shape(shape_path, None, proj4, out_shape, transform)
 
-        assert geom_equals(gdf4, gdf5)
+        assert_geodataframe_equal(gdf4, gdf5)
