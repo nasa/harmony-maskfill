@@ -31,6 +31,14 @@ Note, that installation must be done within the `data` directory so the
 reference to `mask_fill_pip_requirements.txt` within the Harmony Pip
 requirements file can be resolved.
 
+Updating third party, non-Harmony dependencies will result in changes to the
+underlying conda environment as used by SDPS. When this occurs, the string
+contained within `data/MASKFILL_CONDA_ENVIRONMENT.txt` must be changed so that
+a new SDPS conda environment can be created, without overwriting the previous
+environment. When updating the environment dependencies, a corresponding conda
+environment *must* be created within SDPS. The name of that environment should
+match the contents of `data/MASKFILL_CONDA_ENVIRONMENT.txt`.
+
 ## Development:
 
 ### General notes:
