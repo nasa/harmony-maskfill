@@ -16,9 +16,10 @@
         str: The path to the output HDF-5 file
 """
 from logging import Logger
-import os
-import shutil
 from typing import Dict, Set
+import os
+import re
+import shutil
 
 import numpy as np
 import h5py
@@ -78,7 +79,7 @@ def get_exclusions(h5_file_path: str, cf_config: CFConfigH5) -> Set[str]:
     with h5py.File(h5_file_path, mode='r') as input_file:
         exclusion_set = get_coordinates(input_file)
 
-    exclusion_set.update(cf_config.get_file_exclusions())
+    exclusion_set.update(set(cf_config.get_file_exclusions()))
 
     return exclusion_set
 
@@ -106,12 +107,10 @@ def mask_fill(h5_dataset: h5py.Dataset, shape_path: str, cache_dir: str,
                 primarily in detecting default configuration values.
     """
     # Test if h5_dataset matches within list of exclusions for maskfill
-    split_dataset_name = h5_dataset.name.split('/')
     for exclusion in exclusions_set:
-        # Check if any part of the dataset hierarchy matches the exclusion.
-        if exclusion in split_dataset_name or exclusion == h5_dataset.name:
-            logger.debug(f'Dataset {h5_dataset.name} matches an exclusion '
-                         'and will not be mask filled.')
+        if re.search(exclusion, h5_dataset.name):
+            logger.debug(f'Dataset {h5_dataset.name} matches exclusion '
+                         f'{exclusion} and will not be mask filled.')
             return
 
     # Ensure dataset has at least two dimensions and can be mask filled

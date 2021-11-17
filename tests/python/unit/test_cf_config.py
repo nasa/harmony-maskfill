@@ -148,14 +148,14 @@ class TestCFConfigH5(TestCase):
 
     def test_get_file_exclusions(self):
         """ Check the expected list of file exclusions are returned. For an
-            HDF-5 file, these should be a static list maintained in the
-            MaskFill configuration file.
+            HDF-5 file, these should be regular expressions for variable full
+            paths.
 
         """
         cf_config = CFConfigH5('tests/data/SMAP_L3_FT_P_corners_input.h5')
-        self.assertSetEqual(
+        self.assertListEqual(
             cf_config.get_file_exclusions(),
-            set(self.raw_config['maskfill_dataset_exclusions'])
+            self.raw_config['collection_coordinate_variables']['SPL3FTP']
         )
 
     def test_shortname_attribute_present(self):
