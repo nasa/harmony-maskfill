@@ -126,13 +126,13 @@ class CFConfig(ABC):
 
         return item
 
-    @abstractmethod
     def get_file_exclusions(self) -> List[str]:
-        """ This method will be specific to whether the input file is HDF-5 or
-            GeoTIFF. It will return a list of variable names that should not
-            be masked by MaskFill.
+        """ Return a list of regular expressions that will match to all
+            variables within a collection that should not be masked. These will
+            largely be coordinates or grid related.
 
         """
+        return self.coordinate_variables
 
     def get_dataset_fill_value(self, dataset_name: str) -> Optional[Any]:
         """ Search the collection specific dictionary containing corrected
@@ -223,14 +223,6 @@ class CFConfigH5(CFConfig):
                  in h5_file[collection_path['group']].attrs)
         )
 
-    def get_file_exclusions(self) -> Set[str]:
-        """ Return maskfill_dataset_exclusions. For HDF-5 files these are a
-            globally defined list of variables, as the single granule file can
-            be parsed to find coordinate references.
-
-        """
-        return set(self.full_config['maskfill_dataset_exclusions'])
-
 
 class CFConfigGeotiff(CFConfig):
 
@@ -242,12 +234,3 @@ class CFConfigGeotiff(CFConfig):
         """
         # If the shortname is not in the mapping, an exception will be raised
         return self._get_shortname_from_config(file_path)
-
-    def get_file_exclusions(self) -> List[str]:
-        """ Match to the key in collection_coordinate_variables. For a GeoTIFF
-            file, all exclusions are explicitly listed, as each band has its
-            own file, that does not preserve metadata relationships to other
-            bands.
-
-        """
-        return self.coordinate_variables

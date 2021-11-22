@@ -142,13 +142,13 @@ class TestH5MaskFill(TestCase):
         self.assertIsInstance(coordinates, set)
         for item in coordinates:
             self.assertIsInstance(item, str)
-        for item in {'/cell_lat', '/cell_lon'}:
-            self.assertIn(item, coordinates)
+
+        self.assertTrue({'/cell_lat', '/cell_lon'}.issubset(coordinates))
 
     def test_get_exclusions(self):
         """ Assert for H5MaskFill.get_exclusions:
              - set of strings is returned
-             - coordinates are included
+             - coordinate exclusions are included
              - configuration exclusions are included
         """
         file_name = 'tests/data/SMAP_L4_SM_aup_input.h5'
@@ -162,13 +162,13 @@ class TestH5MaskFill(TestCase):
 
         coordinates = get_coordinates(h5_file)
 
+        self.assertTrue(coordinates.issubset(exclusions))
         for item in coordinates:
             self.assertIn(item, exclusions)
 
         # check for exclusions (copied here from config file)
-        for item in {'cell_row', 'cell_column', 'EASE_column',
-                     'EASE_row', 'EASE_column_index', 'EASE_row_index'}:
-            self.assertIn(item, exclusions)
+        config_file_exclusions = {'/cell_(column|row)', '/cell_l(at|on)'}
+        self.assertTrue(config_file_exclusions.issubset(exclusions))
 
     @patch('H5MaskFill.get_exclusions')
     @patch('H5MaskFill.get_mask_array')

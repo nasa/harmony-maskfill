@@ -133,14 +133,8 @@
 			"unit": "m"
 		}
 	},
-    "maskfill_dataset_exclusions": [
-        "cell_row", "cell_column",
-        "EASE_column", "EASE_row",
-        "EASE_column_index", "EASE_row_index",
-        "grid_lat", "grid_lon"
-    ],
     "collection_coordinate_variables": {
-        "SMAP_L2_SM_SP": [
+        "SPL2SMAP_S": [
             "/Soil_Moisture_Retrieval_Data_1km/l(at|ong)itude(:?_apm)?_1km",
             "/Soil_Moisture_Retrieval_Data_1km/EASE_(column|row)_index(:?_apm)?_1km",
             "/Soil_Moisture_Retrieval_Data_3km/l(at|ong)itude(:?_apm)?_3km",
@@ -158,6 +152,14 @@
             "/Freeze_Thaw_Retrieval_Data/l(at|ong)itude.Bands_(:?0)?[12]",
             "/Freeze_Thaw_Retrieval_Data/EASE_(column|row)_index.Bands_(:?0)?[12]"
         ],
+        "SPL3SMA": [
+            "/Freeze_Thaw_Retrieval_Data/l(at|ong)itude.Bands_(:?0)?[12]",
+            "/Freeze_Thaw_Retrieval_Data/EASE_(column|row)_index.Bands_(:?0)?[12]"
+        ],
+        "SPL3SMAP": [
+            "/Freeze_Thaw_Retrieval_Data/l(at|ong)itude.Bands_(:?0)?[12]",
+            "/Freeze_Thaw_Retrieval_Data/EASE_(column|row)_index.Bands_(:?0)?[12]"
+        ],
         "SPL3SMP": [
             "/Soil_Moisture_Retrieval_Data_AM/l(at|ong)itude(:?_centroid)?",
             "/Soil_Moisture_Retrieval_Data_AM/EASE_(column|row)_index",
@@ -165,10 +167,10 @@
             "/Soil_Moisture_Retrieval_Data_PM/EASE_(column|row)_index_pm"
         ],
         "SPL3SMP_E": [
-            "/Soil_Moisture_Retrieval_Data_AM/l(at|ong)itude(:?_centroid)?",
-            "/Soil_Moisture_Retrieval_Data_AM/EASE_(column|row)_index",
-            "/Soil_Moisture_Retrieval_Data_PM/l(at|ong)itude(:?_centroid)?_pm",
-            "/Soil_Moisture_Retrieval_Data_PM/EASE_(column|row)_index_pm"
+            "/Soil_Moisture_Retrieval_Data_(:?Polar_)?AM/l(at|ong)itude(:?_centroid)?",
+            "/Soil_Moisture_Retrieval_Data_(:?Polar_)?AM/EASE_(column|row)_index",
+            "/Soil_Moisture_Retrieval_Data_(:?Polar_)?PM/l(at|ong)itude(:?_centroid)?_pm",
+            "/Soil_Moisture_Retrieval_Data_(:?Polar_)?PM/EASE_(column|row)_index_pm"
         ],
         "SPL4CMDL": [
             "/GEO/l(at|ong)itude"

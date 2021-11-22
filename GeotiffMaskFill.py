@@ -185,8 +185,9 @@ def variable_should_be_masked(geotiff_path: str,
         path (with underscores in place of forward slashes), to the full list
         of collection variables that should be excluded from masking.
 
-        Any potential directory structure is omitted, in case this causes a
-        false positive match.
+        Any potential directory structure in the file name is omitted, in case
+        this causes a false positive match.
+
     """
     geotiff_base_path = basename(geotiff_path)
 
