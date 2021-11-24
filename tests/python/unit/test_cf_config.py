@@ -124,11 +124,11 @@ class TestCFConfigH5(TestCase):
             )
             self.assertDictEqual(
                 cf_config.fill_values,
-                self.raw_config['corrected_fill_values']['SPL3SM(P|P_E)']
+                self.raw_config['corrected_fill_values']['SPL3SMP']
             )
             self.assertDictEqual(
                 cf_config.grid_mapping_groups,
-                self.raw_config['grid_mapping_supplements']['SPL3SM(P|P_E|A|AP)']
+                self.raw_config['grid_mapping_supplements']['SPL3SM(P|A|AP)']
             )
 
             remove(test_file_name)

@@ -1,30 +1,30 @@
 {
     "collection_shortname_paths": [
-		{
-			"attribute": "shortName",
-			"group": "/Metadata/DatasetIdentification"
-		},
-		{
-			"attribute": "shortName",
-			"group": "/METADATA/DatasetIdentification"
-		},
-		{
-			"attribute": "shortName",
+        {
+            "attribute": "shortName",
+            "group": "/Metadata/DatasetIdentification"
+        },
+        {
+            "attribute": "shortName",
+            "group": "/METADATA/DatasetIdentification"
+        },
+        {
+            "attribute": "shortName",
             "group": "/Metadata/SeriesIdentification"
-		},
-		{
-			"attribute": "shortName",
+        },
+        {
+            "attribute": "shortName",
             "group": "/METADATA/SeriesIdentification"
-		},
-		{
-			"attribute": "shortName",
-			"group": "/"
-		},
-		{
-			"attribute": "short_name",
-			"group": "/"
-		}
-	],
+        },
+        {
+            "attribute": "shortName",
+            "group": "/"
+        },
+        {
+            "attribute": "short_name",
+            "group": "/"
+        }
+    ],
     "collection_shortname_to_prefix_mapping": {
         "SPL2SMAP_S": "SMAP_L2_SM_SP",
         "SPL3FTP": "SMAP_L3_FT_P",
@@ -59,7 +59,13 @@
             "/Soil_Moisture_Retrieval_Data/latitude": -9999.0,
             "/Soil_Moisture_Retrieval_Data/longitude": -9999.0
         },
-        "SPL3SM(P|P_E)": {
+        "SPL3SMP_E": {
+            "/Soil_Moisture_Retrieval_Data_AM/latitude": -9999.0,
+            "/Soil_Moisture_Retrieval_Data_AM/longitude": -9999.0,
+            "/Soil_Moisture_Retrieval_Data_Polar_AM/latitude": -9999.0,
+            "/Soil_Moisture_Retrieval_Data_Polar_AM/longitude": -9999.0
+        },
+        "SPL3SMP": {
             "/Soil_Moisture_Retrieval_Data_AM/latitude": -9999.0,
             "/Soil_Moisture_Retrieval_Data_AM/longitude": -9999.0
         }
@@ -75,7 +81,11 @@
         "SPL3FTA": {
             ".*" : "EASE2_npolar"
         },
-        "SPL3SM(P|P_E|A|AP)": {
+        "SPL3SMP_E": {
+            "/Soil_Moisture_Retrieval_Data_(A|P)M/.*": "EASE2_global",
+            "/Soil_Moisture_Retrieval_Data_Polar_(A|P)M/.*": "EASE2_npolar"
+        },
+        "SPL3SM(P|A|AP)": {
             ".*": "EASE2_global"
         },
         "SPL4.*": {
@@ -90,49 +100,49 @@
             ".*": "NSIDC_sea_ice_npolar_stereo"
         }
     },
-	"grid_mapping_definitions": {
-		"EASE2_global": {
-			"false_easting": 0,
-			"false_northing": 0,
-			"grid_mapping_name": "lambert_cylindrical_equal_area",
-			"longitude_of_central_meridian": 0,
-			"standard_parallel": 30,
-			"unit": "m"
-		},
-		"EASE2_npolar": {
-			"false_easting": 0,
-			"false_northing": 0,
-			"grid_mapping_name": "lambert_azimuthal_equal_area",
-			"latitude_of_projection_origin": 90,
-			"longitude_of_projection_origin": 0,
-			"unit": "m"
-		},
-		"EASE2_spolar": {
-			"false_easting": 0,
-			"false_northing": 0,
-			"grid_mapping_name": "lambert_azimuthal_equal_area",
-			"latitude_of_projection_origin": -90,
-			"longitude_of_projection_origin": 0,
-			"unit": "m"
-		},
-		"geographic": {
-			"geographic_crs_name": "WGS 84",
-			"grid_mapping_name": "latitude_longitude",
-			"horizontal_datum_name": "WGS84"
-		},
-		"NSIDC_sea_ice_npolar_stereo": {
-			"false_easting": 0,
-			"false_northing": 0,
-			"grid_mapping_name": "stereographic",
-			"latitude_of_projection_origin": 90,
-			"longitude_of_projection_origin": -45,
-			"projected_crs_name": "NSIDC Sea Ice Polar Stereographic North",
-			"semi_major_axis": 6378273,
-			"semi_minor_axis": 6356889.449,
-			"standard_parallel": 70,
-			"unit": "m"
-		}
-	},
+    "grid_mapping_definitions": {
+        "EASE2_global": {
+            "false_easting": 0,
+            "false_northing": 0,
+            "grid_mapping_name": "lambert_cylindrical_equal_area",
+            "longitude_of_central_meridian": 0,
+            "standard_parallel": 30,
+            "unit": "m"
+        },
+        "EASE2_npolar": {
+            "false_easting": 0,
+            "false_northing": 0,
+            "grid_mapping_name": "lambert_azimuthal_equal_area",
+            "latitude_of_projection_origin": 90,
+            "longitude_of_projection_origin": 0,
+            "unit": "m"
+        },
+        "EASE2_spolar": {
+            "false_easting": 0,
+            "false_northing": 0,
+            "grid_mapping_name": "lambert_azimuthal_equal_area",
+            "latitude_of_projection_origin": -90,
+            "longitude_of_projection_origin": 0,
+            "unit": "m"
+        },
+        "geographic": {
+            "geographic_crs_name": "WGS 84",
+            "grid_mapping_name": "latitude_longitude",
+            "horizontal_datum_name": "WGS84"
+        },
+        "NSIDC_sea_ice_npolar_stereo": {
+            "false_easting": 0,
+            "false_northing": 0,
+            "grid_mapping_name": "stereographic",
+            "latitude_of_projection_origin": 90,
+            "longitude_of_projection_origin": -45,
+            "projected_crs_name": "NSIDC Sea Ice Polar Stereographic North",
+            "semi_major_axis": 6378273,
+            "semi_minor_axis": 6356889.449,
+            "standard_parallel": 70,
+            "unit": "m"
+        }
+    },
     "collection_coordinate_variables": {
         "SPL2SMAP_S": [
             "/Soil_Moisture_Retrieval_Data_1km/l(at|ong)itude(:?_apm)?_1km",
