@@ -1,17 +1,18 @@
 """ Utility functions to support MaskFill processing """
 from logging import Logger
-from typing import Tuple
+from typing import Tuple, Union
+from warnings import catch_warnings, simplefilter
 import hashlib
 import os
 
 from affine import Affine
 from geopandas import GeoDataFrame, GeoSeries
-from osgeo import gdal, osr
+from h5py import Dataset, File as H5File, Group
+from osgeo import gdal
 from pyproj import Transformer, CRS
-from rasterio import features  # as in geographic features, shapes, polygons
+from rasterio.features import rasterize
 from shapely.geometry import Polygon
 import geopandas as gpd
-import h5py
 import numpy as np
 import rasterio
 
@@ -19,57 +20,64 @@ from pymods import H5GridProjectionInfo
 from pymods.cf_config import CFConfigH5
 
 
-def get_mask_array(shape_path, proj4, out_shape, transform):
+def get_mask_array(shape_path: str, crs: CRS, out_shape: Tuple[int, int],
+                   transform: Affine) -> np.ndarray:
     """ Rasterizes the intersection of the given shapes and the bounding box of
         the data to create a mask array.
 
         Args:
             shape_path (string): The path to the shape file
-            proj4 (string): The proj4 string corresponding to the target CRS
+            crs (pyproj.CRS): The target CRS
             out_shape (tuple): The shape of the resultant mask array
             transform (affine.Affine): A transform mapping from image coordinates
             to world coordinates
         Returns:
             numpy.ndarray: A numpy array representing the rasterized shapes
     """
-    epsg = CRS(proj4).to_epsg()
-    bounded_shape_gdf = get_bounded_shape(shape_path, epsg, proj4, out_shape, transform)
+    bounded_shape_gdf = get_bounded_shape(shape_path, crs, out_shape,
+                                          transform)
 
     # Project data frame to new coordinate reference system
-    projected_gdf = bounded_shape_gdf.to_crs(proj4)
+    projected_gdf = bounded_shape_gdf.to_crs(crs)
     shapes = projected_gdf['geometry']
 
     # Rasterize the bounded and projected shapes into the mask array
     if shapes.is_empty.empty:
         return np.ones(out_shape)
 
-    mask = features.rasterize(shapes=shapes, default_value=0, fill=1, out_shape=out_shape,
-                              dtype=np.uint8, transform=transform, all_touched=True)
-    return mask
+    return rasterize(shapes=shapes, default_value=0, fill=1,
+                     out_shape=out_shape, dtype=np.uint8, transform=transform,
+                     all_touched=True)
 
 
-def get_bounded_shape(shape_path, epsg, proj4, out_shape, transform):
-    """ Creates a geodataframe (in geographic coordinates) for the shapes in the shape file.
-    Bounds the shapes by the geographic extent of the data.
+def get_bounded_shape(shape_path: str, crs: CRS, out_shape: Tuple[int, int],
+                      transform: Affine) -> gpd.GeoDataFrame:
+    """ Creates a geodataframe (in geographic coordinates) for the shapes in
+        the shape file. Bounds the shapes by the geographic extent of the data.
 
             Args:
                 shape_path (string): The path to the shape file
-                epsg (int): The epsg code of the data
-                proj4 (string): The proj4 string corresponding to the target CRS
+                crs (pyproj.CRS): CRS of the target grid.
                 out_shape (tuple): The shape of the resultant mask array
                 transform (affine.Affine): A transform mapping from image coordinates
                 to world coordinates
             Returns:
                 geodataframe: The bounded shape geodataframe
-        """
 
-    if epsg is not None:
+        `pyproj.CRS` will not necessarily populate an Area Of Use for non-EPSG
+        defined CRS objects, so if a CRS has an EPSG code, this will need to be
+        used to instantiate a new CRS with an area of use.
+
+    """
+    epsg = crs.to_epsg()
+
+    if epsg is not None and not should_ignore_pyproj_bounds(crs):
         # Get geographic extent of data using the EPSG code
         minx, miny, maxx, maxy = CRS(epsg).area_of_use.bounds
 
-    # Transform all indices in the data array to geographic coordinates
-    # and get min/max lat/lon values
     else:
+        # Transform all indices in the data array to geographic coordinates
+        # and get min/max lat/lon values
         y_vals, x_vals = np.indices(out_shape)
         indices = [x_vals.flatten(), y_vals.flatten()]
 
@@ -78,7 +86,7 @@ def get_bounded_shape(shape_path, epsg, proj4, out_shape, transform):
         A, b = transform_matrix[:2, :2], transform_matrix[:2, 2:]
         crs_coors = np.matmul(A, indices) + b  # coordinates in the original CRS
 
-        to_geo_trans = Transformer.from_proj(proj4, 'EPSG:4326')
+        to_geo_trans = Transformer.from_crs(crs, 4326)
         y_geo, x_geo = to_geo_trans.transform(crs_coors[0, :], crs_coors[1, :])
 
         x_geo = x_geo[np.isfinite(x_geo)]
@@ -97,11 +105,30 @@ def get_bounded_shape(shape_path, epsg, proj4, out_shape, transform):
     return bounded_shape_gdf
 
 
-def mask_fill_array(raster_arr, mask_array, fill_value):
+def should_ignore_pyproj_bounds(crs: CRS) -> bool:
+    """ A function to check if the CRS is a projection that should not use the
+        bounds defined by the `pyproj.CRS` object. For example, strict UTM
+        zones are constrained to 6 degree-wide longitudinal regions, but users
+        may have shapes that transcend these regions.
+
+        `pyproj` gives a warning when converting CRS objects to a Proj4 string,
+        however, we do not require the additional information that may be lost,
+        so those warnings are suppressed in this function.
+
+    """
+    with catch_warnings():
+        simplefilter('ignore')
+        proj4_string = crs.to_proj4()
+
+    return '+proj=utm' in proj4_string
+
+
+def mask_fill_array(raster_arr: np.ndarray, mask_array: np.ndarray,
+                    fill_value: float) -> np.ndarray:
     """ Performs a mask fill on raster_arr using the mask mask_array
         Args:
-            raster_arr (numpy.ndarray): The array to be mask filled
-            mask_array (numpy.ndarray): The mask array which will be applied to raster_arr
+            raster_arr: The array to be masked.
+            mask_array: The mask array which will be applied to raster_arr
             fill_value (float): Value used to fill in the masked values when necessary
         Returns:
             numpy.ndarray: The mask filled array
@@ -111,7 +138,7 @@ def mask_fill_array(raster_arr, mask_array, fill_value):
     return out_image.filled()
 
 
-def get_masked_file_path(original_file_path, output_dir):
+def get_masked_file_path(original_file_path: str, output_dir: str) -> str:
     """ Returns the path to the mask filled output file.
         Args:
             original_file_path (str): The original file which is to be mask filled
@@ -122,32 +149,25 @@ def get_masked_file_path(original_file_path, output_dir):
     """
     base_name = os.path.basename(original_file_path)
     file_name, extension = os.path.splitext(base_name)
-    return os.path.join(output_dir, file_name + "_mf" + extension)
+    return os.path.join(output_dir, f'{file_name}_mf{extension}')
 
 
-def get_h5_mask_array_id(h5_dataset: h5py.Dataset, shape_path: str,
-                         cf_config: CFConfigH5, logger: Logger) -> str:
+def get_h5_mask_array_id(h5_dataset: Dataset, crs: CRS,
+                         shape_path: str) -> str:
     """ Creates an ID corresponding to the given shape file, projection
         information, pixel-to-projected coordinates Affine transformation
         inputs, and shape of a dataset, which determine the mask array for
         the dataset.
-
-        Args:
-            h5_dataset: The given HDF5 dataset
-            shape_path: Path to a shape file used to create the mask array
-                for the mask fill.
-            shortname: The short form name of the granule collection.
 
         Returns:
             str: A string ID generated via a hashing algorithm, based upon the
                 a combined input string of the shape file path, dataset shape,
                 dataset projection and Affine transformation.
     """
-    proj_string = H5GridProjectionInfo.get_hdf_proj4(h5_dataset, cf_config, logger)
-    transform = H5GridProjectionInfo.get_transform_information(h5_dataset)
+    transform_info = H5GridProjectionInfo.get_transform_information(h5_dataset)
     dataset_shape = h5_dataset[:].shape
 
-    return create_mask_array_id(proj_string, transform, dataset_shape, shape_path)
+    return create_mask_array_id(crs, transform_info, dataset_shape, shape_path)
 
 
 def get_geotiff_mask_array_id(geotiff_path: str, shape_path: str) -> str:
@@ -167,47 +187,44 @@ def get_geotiff_mask_array_id(geotiff_path: str, shape_path: str) -> str:
     """
     # The mask array is determined by the CRS of the dataset, the dataset's
     # transform, the shape of the dataset, and the shapes used in the mask.
-    proj_string = get_geotiff_proj4(geotiff_path)
+    crs = get_geotiff_crs(geotiff_path)
     dataset_shape, transform = get_geotiff_info(geotiff_path)
 
-    return create_mask_array_id(proj_string, transform, dataset_shape, shape_path)
+    return create_mask_array_id(crs, transform, dataset_shape, shape_path)
 
 
-def create_mask_array_id(proj_string, transform, dataset_shape, shape_file_path):
-    """ Creates an id corresponding to the given shapefile, projection information, and shape of a dataset,
-        which determine the mask array for the dataset.
+def create_mask_array_id(crs: CRS, transform: Union[str, Affine],
+                         dataset_shape: Tuple[int],
+                         shape_file_path: str) -> str:
+    """ Creates an ID corresponding to the given shapefile, projection
+        information (CRS and affine transformation), and shape of a dataset.
+
         Args:
-            proj_string (str): A proj4 string which describes the projection information of the data
-            transform (affine.Affine): The affine transform corresponding to the data
-            dataset_shape (tuple): The shape of the data
-            shape_file_path (str): The path to the given shapefile
+            crs: A `pyproj.CRS` object describing the projection of the data.
+            transform:
+              - GeoTIFF (affine.Affine): The affine transform for the grid.
+              - HDF-5 (str): A string describing the affine transform.
+            dataset_shape (tuple): The shape of the data array.
+            shape_file_path (str): The path to the given shapefile.
         Returns:
             str: A string ID generated via a hashing algorithm, based upon the
                 a combined input string of the shape file path, dataset shape,
                 dataset projection and Affine transformation.
     """
-    mask_id = proj_string + str(transform) + str(dataset_shape) + shape_file_path
+    mask_id = (f'{crs.to_string()}{str(transform)}{str(dataset_shape)}'
+               f'{shape_file_path}')
 
-    # Hash the mask id and return
-    mask_id = hashlib.sha224(mask_id.encode()).hexdigest()
-    return mask_id
+    return hashlib.sha224(mask_id.encode()).hexdigest()
 
 
-def get_geotiff_proj4(geotiff_path):
-    """ Returns the proj4 string corresponding to the coordinate reference
-    system of the GeoTIFF file.
+def get_geotiff_crs(geotiff_path: str) -> CRS:
+    """ Returns a `pyproj.crs.Crs` object that is constructed from the Well
+        Known Text (WKT) representation of the GeoTIFF projection information.
 
-    Args:
-        geotiff_path (str): The path to the GeoTIFF file
-
-    Returns:
-        str: The proj4 string corresponding to the given file.
     """
     data = gdal.Open(geotiff_path)
-    proj_text = data.GetProjection()
-    srs = osr.SpatialReference()
-    srs.ImportFromWkt(proj_text)
-    return srs.ExportToProj4()
+    wkt_string = data.GetProjection()
+    return CRS.from_wkt(wkt_string)
 
 
 def get_geotiff_info(geotiff_path: str) -> Tuple[Tuple[int], Affine]:
@@ -238,13 +255,13 @@ def process_h5_file(file_path, process, *args):
     def process_children(obj, process, *args):
         for name, child in obj.items():
             # Process the children of a group
-            if isinstance(child, h5py.Group):
+            if isinstance(child, Group):
                 process_children(child, process, *args)
             # Process datasets
-            elif isinstance(child, h5py.Dataset):
+            elif isinstance(child, Dataset):
                 process(child, *args)
 
-    with h5py.File(file_path, mode='r+') as file:
+    with H5File(file_path, mode='r+') as file:
         process_children(file, process, *args)
 
 

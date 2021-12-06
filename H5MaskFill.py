@@ -21,13 +21,14 @@ import os
 import re
 import shutil
 
+from pyproj import CRS
 import numpy as np
 import h5py
 
 from pymods import MaskFillUtil
 from pymods.cf_config import CFConfigH5
 from pymods.H5GridProjectionInfo import (dataset_all_fill_value, get_fill_value,
-                                         get_hdf_proj4, get_transform)
+                                         get_hdf_crs, get_transform)
 from pymods.MaskFillCaching import (cache_h5_mask_arrays,
                                     get_mask_array_path_from_id)
 from pymods.MaskFillUtil import apply_2D, get_h5_mask_array_id, process_h5_file
@@ -197,9 +198,11 @@ def get_mask_array(h5_dataset: h5py.Dataset, shape_path: str,
         Returns:
             numpy.ndarray: The mask array
     """
+    crs = get_hdf_crs(h5_dataset, cf_config, logger)
+
     # Get the mask id which corresponds to the mask required for the HDF5
     # dataset and shapefile
-    mask_id = get_h5_mask_array_id(h5_dataset, shape_path, cf_config, logger)
+    mask_id = get_h5_mask_array_id(h5_dataset, crs, shape_path)
 
     # If the required mask array is in the set of saved mask arrays,
     # get and return the mask array from the set
@@ -211,20 +214,21 @@ def get_mask_array(h5_dataset: h5py.Dataset, shape_path: str,
     # mask_grid_cache value allows the use of cached arrays, read in the
     # cached mask array from the file
     mask_array_path = get_mask_array_path_from_id(mask_id, cache_dir)
+
     if 'use' in mask_grid_cache and os.path.exists(mask_array_path):
         logger.debug(f'{h5_dataset.name}: Loading cached mask.')
         mask_array = np.load(mask_array_path)
-    # Otherwise, create the mask array
     else:
         logger.debug(f'{h5_dataset.name}: Creating new mask.')
-        mask_array = create_mask_array(h5_dataset, shape_path, cf_config, logger)
+        mask_array = create_mask_array(h5_dataset, crs, shape_path, cf_config,
+                                       logger)
 
     # Save and return the mask array
     saved_mask_arrays[mask_id] = mask_array
     return mask_array
 
 
-def create_mask_array(h5_dataset: h5py.Dataset, shape_path: str,
+def create_mask_array(h5_dataset: h5py.Dataset, crs: CRS, shape_path: str,
                       cf_config: CFConfigH5, logger: Logger) -> np.ndarray:
     """ Creates a mask array corresponding to the HDF5 dataset and shape file
         Args:
@@ -235,11 +239,10 @@ def create_mask_array(h5_dataset: h5py.Dataset, shape_path: str,
         Returns:
             numpy.ndarray: The mask array
     """
-    proj4 = get_hdf_proj4(h5_dataset, cf_config, logger)
-    transform = get_transform(h5_dataset, cf_config, logger)
+    transform = get_transform(h5_dataset, crs, cf_config, logger)
 
-    return MaskFillUtil.get_mask_array(shape_path, proj4,
-                                       h5_dataset.shape[-2:], transform)
+    return MaskFillUtil.get_mask_array(shape_path, crs, h5_dataset.shape[-2:],
+                                       transform)
 
 
 def get_coordinates(input_file: h5py.File) -> Set[str]:

@@ -6,7 +6,7 @@ from harmony.message import Message
 from harmony.util import config, HarmonyException
 
 from harmony_adapter import HarmonyAdapter
-from tests.python.test_harmony_adapter import TestLogHandler
+from tests.test_harmony_adapter import TestLogHandler
 
 
 class TestHarmonyMaskFill(TestCase):
