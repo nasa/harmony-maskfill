@@ -5,6 +5,7 @@ from shutil import rmtree
 from unittest import TestCase
 from unittest.mock import patch
 
+from pyproj import CRS
 import h5py
 import numpy as np
 
@@ -91,9 +92,17 @@ class TestH5MaskFill(TestCase):
         """
         h5_file = h5py.File('tests/data/SMAP_L4_SM_aup_input.h5', 'r')
         dataset = h5_file['/Analysis_Data/sm_profile_analysis']
+        # The following CRS uses the parameters for EASE-2 Grid Global, as
+        # taken from the MaskFill configuration file.
+        crs = CRS.from_cf({'false_easting': 0,
+                           'false_northing': 0,
+                           'grid_mapping_name': 'lambert_cylindrical_equal_area',
+                           'longitude_of_central_meridian': 0,
+                           'standard_parallel': 30,
+                           'unit': 'm'})
 
         # Pre-calculated ID, to use for dictionary key and file name:
-        mask_id = '45a5aa3c6b02ae31b06ae524ee823474132b6f4a74a790bf37623f17'
+        mask_id = '363e68e915f63cc2a2dfa464028f9d393e86bc3c36c5c8e02c5badbd'
 
         saved_mask = np.ones((2, 3))
         cached_mask = np.ones((3, 4))
@@ -124,7 +133,7 @@ class TestH5MaskFill(TestCase):
                                         self.output_dir, 'use_cache', {},
                                         self.cf_config, self.logger)
             np.testing.assert_array_equal(mask_array, new_mask)
-            mock_create_mask_array.assert_called_once_with(dataset,
+            mock_create_mask_array.assert_called_once_with(dataset, crs,
                                                            self.shape_file,
                                                            self.cf_config,
                                                            self.logger)

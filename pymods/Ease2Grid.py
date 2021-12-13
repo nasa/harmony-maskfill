@@ -1,21 +1,23 @@
-""" Class file for EASE-2 Grid objects, providing the essential corner-point coordinates
-    (projected meters), pixel-size, AFFINE transformation matrix and CRS transformation
-    object for the standard set of EASE-2 grids.  Initialized and defined in terms of the
-    base resolution: 36K, 12K, 9K, 3K, 1K.
+""" Class file for EASE-2 Grid objects, providing the essential corner-point
+    coordinates (projected meters), pixel-size, AFFINE transformation matrix
+    and CRS transformation object for the standard set of EASE-2 grids.
+    Initialized and defined in terms of the base resolution: 36km, 12km, 9km,
+    3km, 1km.
+
 """
 from enum import Enum
 
 import affine  # Affine Transform Matrix support, from Index to Projected-Meters math
 from pyproj import CRS, Transformer  # Coordinate Reference System, Projected-Meters to/from degrees
 
-GLOBAL_PROJ = CRS.from_proj4("+ellps=WGS84 +datum=WGS84 +proj=cea  +lat_ts=30")
-POLAR_PROJ = CRS.from_proj4("+ellps=WGS84 +datum=WGS84 +proj=laea +lat_0=90")
+GLOBAL_PROJ = CRS.from_epsg(6933)
+NORTH_POLAR_PROJ = CRS.from_epsg(6931)
 LAT_LONG_PROJ = CRS.from_epsg(4326)
 
 # Transform from cea to lat/long coordinates
 GLOBAL_CRS_TRANSFORM = Transformer.from_crs(GLOBAL_PROJ, LAT_LONG_PROJ)
 # Transform from laea to lat/long coordinates
-POLAR_CRS_TRANSFORM = Transformer.from_crs(POLAR_PROJ, LAT_LONG_PROJ)
+POLAR_CRS_TRANSFORM = Transformer.from_crs(NORTH_POLAR_PROJ, LAT_LONG_PROJ)
 
 
 class Ease2GridResolution(Enum):

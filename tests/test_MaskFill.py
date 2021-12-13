@@ -220,7 +220,7 @@ class TestMaskFill(TestCase):
         templated output file by checking the dataset and metadata.
 
         """
-        geotiff_parameters = self.default_parameters
+        geotiff_parameters = self.default_parameters.copy()
         geotiff_parameters['input_file'] = self.input_geotiff_file
 
         mock_get_input_parameters.return_value = self.create_parameters_namespace(geotiff_parameters)
@@ -239,7 +239,7 @@ class TestMaskFill(TestCase):
         latitude arrays.
 
         """
-        corner_parameters = self.default_parameters
+        corner_parameters = self.default_parameters.copy()
         corner_parameters['input_file'] = self.input_corner_file
 
         mock_get_input_parameters.return_value = self.create_parameters_namespace(corner_parameters)
@@ -264,7 +264,7 @@ class TestMaskFill(TestCase):
         The data use the NSIDC EASE-2 polar standard grid.
 
         """
-        polar_parameters = self.default_parameters
+        polar_parameters = self.default_parameters.copy()
         polar_parameters['input_file'] = self.input_polar_h5_file
 
         mock_get_input_parameters.return_value = self.create_parameters_namespace(polar_parameters)
@@ -329,12 +329,12 @@ class TestMaskFill(TestCase):
     @patch('MaskFill.get_input_parameters')
     def test_mask_fill_south_pole(self, mock_get_input_parameters):
         """ Test mask fill with a shapefile containing the south pole for
-        both h5 and geotiff files.
+            both h5 and geotiff files.
 
         """
 
         # h5 file test
-        h5_parameters = self.default_parameters
+        h5_parameters = self.default_parameters.copy()
         h5_parameters['input_file'] = self.input_polar_h5_file
         h5_parameters['shape_file'] = self.shape_file_south_pole
 
@@ -348,7 +348,7 @@ class TestMaskFill(TestCase):
         self.compare_h5_files(self.output_h5_template_south_pole, self.output_polar_h5_file)
 
         # Geotiff file test
-        geotiff_parameters = self.default_parameters
+        geotiff_parameters = self.default_parameters.copy()
         geotiff_parameters['input_file'] = self.input_polar_geo_file
         geotiff_parameters['shape_file'] = self.shape_file_south_pole
 
@@ -376,7 +376,7 @@ class TestMaskFill(TestCase):
         input_name = f'tests/data/{geotiff_base}.tif'
         output_name = f'{self.output_dir}/{self.identifier}/{geotiff_base}_mf.tif'
 
-        geotiff_parameters = self.default_parameters
+        geotiff_parameters = self.default_parameters.copy()
         geotiff_parameters['input_file'] = input_name
 
         mock_get_input_parameters.return_value = self.create_parameters_namespace(
@@ -404,7 +404,7 @@ class TestMaskFill(TestCase):
                        'input_mf.tif')
         shape_file = 'tests/data/WV.geo.json'
 
-        geotiff_parameters = self.default_parameters
+        geotiff_parameters = self.default_parameters.copy()
         geotiff_parameters['input_file'] = input_name
         geotiff_parameters['shape_file'] = shape_file
 
@@ -427,7 +427,7 @@ class TestMaskFill(TestCase):
         """
         input_file = 'tests/data/SMAP_L4_SM_aup_compression.tif'
         output_file = f'{self.output_dir}/{self.identifier}/SMAP_L4_SM_aup_compression_mf.tif'
-        geotiff_parameters = self.default_parameters
+        geotiff_parameters = self.default_parameters.copy()
         geotiff_parameters['input_file'] = input_file
 
         mock_get_input_parameters.return_value = self.create_parameters_namespace(geotiff_parameters)
@@ -455,7 +455,7 @@ class TestMaskFill(TestCase):
                        'SMAP_L4_SM_aup_dimension_list_input_mf.h5')
         template_output = 'tests/data/SMAP_L4_SM_aup_dimension_list_output.h5'
 
-        parameters = self.default_parameters
+        parameters = self.default_parameters.copy()
         parameters['input_file'] = input_file
         parameters['shape_file'] = shape_file
 
@@ -467,3 +467,53 @@ class TestMaskFill(TestCase):
                                                             output_file))
 
         self.compare_h5_files(template_output, output_file)
+
+    @patch('MaskFill.get_input_parameters')
+    def test_mask_fill_h5_utm(self, mock_get_input_parameters):
+        """ Ensure an HDF-5 file can be correctly masked when the input file
+            has a UTM grid.
+
+        """
+        input_file = 'tests/data/SMAP_L4_SM_aup_UTM_input.h5'
+        shape_file = 'tests/data/COL.geo.json'
+        output_file = (f'{self.output_dir}/{self.identifier}/'
+                       'SMAP_L4_SM_aup_UTM_input_mf.h5')
+        template_output = 'tests/data/SMAP_L4_SM_aup_UTM_output.h5'
+
+        parameters = self.default_parameters.copy()
+        parameters['input_file'] = input_file
+        parameters['shape_file'] = shape_file
+
+        mock_get_input_parameters.return_value = self.create_parameters_namespace(parameters)
+        response = maskfill_sdps()
+
+        self.assertEqual(response, get_xml_success_response(input_file,
+                                                            shape_file,
+                                                            output_file))
+
+        self.compare_h5_files(template_output, output_file)
+
+    @patch('MaskFill.get_input_parameters')
+    def test_mask_fill_geo_utm(self, mock_get_input_parameters):
+        """ Ensure a GeoTIFF file can be correctly masked when the input file
+            has a UTM grid.
+
+        """
+        input_file = 'tests/data/SMAP_L4_SM_aup_UTM_input.tif'
+        shape_file = 'tests/data/COL.geo.json'
+        output_file = (f'{self.output_dir}/{self.identifier}/'
+                       'SMAP_L4_SM_aup_UTM_input_mf.tif')
+        template_output = 'tests/data/SMAP_L4_SM_aup_UTM_output.tif'
+
+        parameters = self.default_parameters.copy()
+        parameters['input_file'] = input_file
+        parameters['shape_file'] = shape_file
+
+        mock_get_input_parameters.return_value = self.create_parameters_namespace(parameters)
+        response = maskfill_sdps()
+
+        self.assertEqual(response, get_xml_success_response(input_file,
+                                                            shape_file,
+                                                            output_file))
+
+        self.compare_geotiff_files(template_output, output_file)
