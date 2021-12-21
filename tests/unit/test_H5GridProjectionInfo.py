@@ -5,8 +5,7 @@ from shutil import rmtree
 from unittest import TestCase
 from unittest.mock import patch
 
-from pyproj.crs import CRS
-from pyproj.proj import Proj
+from pyproj import CRS, Proj
 import h5py
 import numpy as np
 
@@ -20,15 +19,18 @@ from pymods.H5GridProjectionInfo import (dataset_all_fill_value,
                                          get_cell_size_from_lat_lon_extents,
                                          get_corner_points_from_dimensions,
                                          get_corner_points_from_lat_lon,
-                                         get_crs, get_dataset_attributes,
+                                         get_crs_from_grid_mapping,
+                                         get_dataset_attributes,
+                                         get_decoded_attribute,
                                          get_dimension_datasets,
                                          get_fill_value,
                                          get_grid_mapping_name,
-                                         get_hdf_proj4,
+                                         get_hdf_crs,
                                          get_lon_lat_datasets,
                                          get_projected_coordinate_extent,
                                          get_transform,
                                          get_transform_information,
+                                         has_geographic_dimensions,
                                          resolve_relative_dataset_path)
 
 
@@ -185,8 +187,7 @@ class TestH5GridProjectionInfo(TestCase):
 
         h5_file.close()
 
-    @patch('pymods.H5GridProjectionInfo.get_crs')
-    def test_get_corner_points_from_lat_lon(self, mock_get_crs):
+    def test_get_corner_points_from_lat_lon(self):
         """Ensure extrapolation occurs where expected, corners with valid points
         are used outright, and a InsufficientDataError is returned for entirely
         filled coordinate arrays.
@@ -196,7 +197,7 @@ class TestH5GridProjectionInfo(TestCase):
         is consistent with expectations.
 
         """
-        mock_get_crs.return_value = {'proj': 'eqc'}
+        crs = CRS.from_proj4('+proj=eqc')
 
         fill_value = -1
         data_array = np.ones((3, 3))
@@ -261,7 +262,7 @@ class TestH5GridProjectionInfo(TestCase):
 
                 dataset.attrs['coordinates'] = f'{lat_name} {lon_name}'.encode('utf-8')
 
-                corners = get_corner_points_from_lat_lon(dataset,
+                corners = get_corner_points_from_lat_lon(dataset, crs,
                                                          self.cf_config,
                                                          self.logger)
 
@@ -283,7 +284,7 @@ class TestH5GridProjectionInfo(TestCase):
 
                 data.attrs['coordinates'] = f'{lat_name} {lon_name}'.encode('utf-8')
 
-                corners = get_corner_points_from_lat_lon(data,
+                corners = get_corner_points_from_lat_lon(data, crs,
                                                          self.cf_config,
                                                          self.logger)
 
@@ -381,11 +382,8 @@ class TestH5GridProjectionInfo(TestCase):
 
         h5_file.close()
 
-    @patch('pymods.H5GridProjectionInfo.get_crs')
-    def test_get_cell_size_from_lat_lon_extents(self, mock_get_crs):
+    def test_get_cell_size_from_lat_lon_extents(self):
         """Given an input dataset, check the returned cell_width and cell_height."""
-        mock_get_crs.return_value = {'proj': 'lonlat'}
-
         data_array = np.ones((3, 4))
         lon_array = np.array([[1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4]])
         lat_array = np.array([[2, 2, 2, 2], [4, 4, 4, 4], [6, 6, 6, 6]])
@@ -446,6 +444,7 @@ class TestH5GridProjectionInfo(TestCase):
          [g, h, i]]       [0, 0, 1]]
 
         """
+        crs = CRS(4326)
         data_array = np.ones((3, 4))
         x_array = np.array([2, 3, 4, 5])
         y_array = np.array([4, 7, 10])
@@ -456,7 +455,8 @@ class TestH5GridProjectionInfo(TestCase):
         y = h5_file.create_dataset('y', data=y_array)
         data.attrs.create('DIMENSION_LIST', ((y.ref, ), (x.ref, )), dtype=h5py.ref_dtype)
 
-        affine_transformation = get_transform(data, self.cf_config, self.logger)
+        affine_transformation = get_transform(data, crs, self.cf_config,
+                                              self.logger)
 
         self.assertEqual(affine_transformation.a, 1)
         self.assertEqual(affine_transformation.b, 0)
@@ -474,8 +474,7 @@ class TestH5GridProjectionInfo(TestCase):
 
     @patch('pymods.H5GridProjectionInfo.get_cell_size_from_dimensions')
     @patch('pymods.H5GridProjectionInfo.get_corner_points_from_dimensions')
-    @patch('pymods.H5GridProjectionInfo.get_crs')
-    def test_get_transform_coordinates(self, mock_get_crs,
+    def test_get_transform_coordinates(self,
                                        mock_get_corner_points_from_dimensions,
                                        mock_get_cell_size_from_dimensions):
         """Ensure the correct Affine transformation matrix is formed for a
@@ -489,7 +488,7 @@ class TestH5GridProjectionInfo(TestCase):
          [g, h, i]]       [0, 0, 1]]
 
         """
-        mock_get_crs.return_value = {'proj': 'lonlat'}
+        crs = CRS.from_epsg(4326)
 
         data_array = np.ones((3, 3))
         lon_array = np.array([[2, 3, 4], [2, 3, 4], [2, 3, 4]])
@@ -503,7 +502,8 @@ class TestH5GridProjectionInfo(TestCase):
         data.attrs['coordinates'] = b'/longitude /latitude'
         data_array = np.ones((3, 4))
 
-        affine_transformation = get_transform(data, self.cf_config, self.logger)
+        affine_transformation = get_transform(data, crs, self.cf_config,
+                                              self.logger)
 
         self.assertEqual(affine_transformation.a, 1)
         self.assertEqual(affine_transformation.b, 0)
@@ -576,13 +576,17 @@ class TestH5GridProjectionInfo(TestCase):
                     lon_out, lat_out = get_lon_lat_datasets(dataset)
                     self.assertTrue(missing_coords in context.exception.message)
 
-    def test_get_hdf_proj4(self):
-        """Ensure that a Proj4 string is returned, where possible. The order
-        of projection information should be: DIMENSION_LIST, grid_mapping,
-        configuration file or raise an exception.
+    def test_get_hdf_crs(self):
+        """Ensure that a `pyproj.CRS` object is returned, where possible. The
+            order of projection information should be: DIMENSION_LIST,
+            grid_mapping, configuration file or raise an exception.
+
+            - EPSG:4326: Geographic.
+            - EPSG:6931: EASE-2 Grid North.
+            - EPSG:6933: EASE-2 Grid Global.
 
         """
-        global_proj4 = CRS('EPSG:6933').to_cf()
+        global_grid_mapping_cf = CRS(6933).to_cf()
         dim_x_name = '/x'
         dim_y_name = '/y'
         dataset_name = '/Freeze_Thaw_Retrieval_polar/latitude'
@@ -593,34 +597,95 @@ class TestH5GridProjectionInfo(TestCase):
         dim_x = h5_file.create_dataset(dim_x_name, data=np.ones((2, )))
         dim_y = h5_file.create_dataset(dim_y_name, data=np.ones((3, )))
         grid_mapping = h5_file.create_dataset('grid_mapping', (10, ))
-        grid_mapping.attrs.update(global_proj4)
+        grid_mapping.attrs.update(global_grid_mapping_cf)
+
+        with self.subTest('No projection information or configuration, raises exception'):
+            with self.assertRaises(InsufficientProjectionInformation):
+                with patch.object(CFConfigH5,
+                                  'get_dataset_grid_mapping_attributes',
+                                  return_value=None):
+
+                    cf_config = CFConfigH5('tests/data/SMAP_L3_FT_P_corners_input.h5')
+                    crs = get_hdf_crs(config_dataset, cf_config,
+                                      self.logger)
 
         with self.subTest('No information, uses configured defaults.'):
-            proj4 = get_hdf_proj4(config_dataset, self.cf_config, self.logger)
-            self.assertTrue(proj4.startswith('+proj=laea'))
+            crs = get_hdf_crs(config_dataset, self.cf_config, self.logger)
+            self.assertEqual(crs.to_epsg(), 6931)
 
-        with self.subTest('grid_mapping attribute present.'):
+        with self.subTest('grid_mapping attribute present (EASE-2 Global).'):
             config_dataset.attrs['grid_mapping'] = grid_mapping.ref
-            proj4 = get_hdf_proj4(config_dataset, self.cf_config, self.logger)
-            self.assertTrue(proj4.startswith('+proj=cea'))
+            crs = get_hdf_crs(config_dataset, self.cf_config, self.logger)
+            self.assertTrue(crs.to_epsg(), 6933)
 
         with self.subTest('DIMENSION_LIST present, units degrees.'):
             dim_x.attrs['units'] = bytes('degrees', 'utf-8')
             config_dataset.attrs.create('DIMENSION_LIST',
                                         ((dim_x.ref, ), (dim_y.ref, )),
                                         dtype=h5py.ref_dtype)
-            proj4 = get_hdf_proj4(config_dataset, self.cf_config, self.logger)
-            self.assertTrue(proj4.startswith('+proj=longlat'))
+            crs = get_hdf_crs(config_dataset, self.cf_config, self.logger)
+            self.assertTrue(crs.to_epsg(), 4326)
 
         with self.subTest('DIMENSION_LIST, non degrees falls back to grid_mapping.'):
             dim_x.attrs['units'] = bytes('metres', 'utf-8')
-            proj4 = get_hdf_proj4(config_dataset, self.cf_config, self.logger)
-            self.assertTrue(proj4.startswith('+proj=cea'))
+            crs = get_hdf_crs(config_dataset, self.cf_config, self.logger)
+            self.assertTrue(crs.to_epsg(), 6933)
+
+        h5_file.close()
+
+    def test_has_geographic_dimensions(self):
+        """ Ensure if a variable can be correctly determined as geographically
+            gridded based on its dimensions.
+
+        """
+        dimension_data = np.linspace(0, 10, num=11)
+        science_data = np.ones((11, 11))
+        h5_file = h5py.File(self.test_h5_name, 'w')
+        geo_dimension = h5_file.create_dataset('geo_dim', data=dimension_data)
+        geo_dimension.attrs['units'] = 'degrees_east'
+        non_geo_dimension = h5_file.create_dataset('non_geo_dim',
+                                                   data=dimension_data)
+        non_geo_dimension.attrs['unit'] = 'm'
+        no_unit_dimension = h5_file.create_dataset('no_unit_dim',
+                                                   data=dimension_data)
+
+        no_dim_dataset = h5_file.create_dataset('var_no_dims',
+                                                data=science_data)
+        geo_dataset = h5_file.create_dataset('var_with_geo_dims',
+                                             data=science_data)
+        non_geo_dataset = h5_file.create_dataset('var_with_non_geo_dims',
+                                                 data=science_data)
+        no_units_dataset = h5_file.create_dataset('var_with_unitless_dims',
+                                                  data=science_data)
+
+        geo_dataset.attrs.create(
+            'DIMENSION_LIST', ((geo_dimension.ref, ), (geo_dimension.ref, )),
+            dtype=h5py.ref_dtype
+        )
+        non_geo_dataset.attrs.create('DIMENSION_LIST',
+                                     ((non_geo_dimension.ref, ), ),
+                                     dtype=h5py.ref_dtype)
+        no_units_dataset.attrs.create('DIMENSION_LIST',
+                                      ((no_unit_dimension.ref, ), ),
+                                      dtype=h5py.ref_dtype)
+
+        with self.subTest('Geographic dimensions'):
+            self.assertTrue(has_geographic_dimensions(geo_dataset))
+
+        test_args = [['No dimensions present', no_dim_dataset],
+                     ['Non-geographic dimensions', non_geo_dataset],
+                     ['Dimension with no units', no_units_dataset]]
+
+        for description, test_dataset in test_args:
+            with self.subTest(description):
+                self.assertFalse(has_geographic_dimensions(test_dataset))
+
+        h5_file.close()
 
     def test_get_dimension_datasets(self):
         """If a dataset has a DIMENSION_LIST attribute, the listed references
-        should be extracted and returned. Otherwise, the function should return
-        None.
+            should be extracted and returned. Otherwise, the function should
+            return None.
 
         """
         dim_x_name = '/x'
@@ -728,7 +793,7 @@ class TestH5GridProjectionInfo(TestCase):
                 with self.assertRaises(InvalidMetadata):
                     resolve_relative_dataset_path(dataset, relative_path)
 
-    def test_get_crs(self):
+    def test_get_crs_from_grid_mapping(self):
         """ Ensure that this function can handle:
 
             * A dictionary of grid mapping attributes
@@ -736,8 +801,7 @@ class TestH5GridProjectionInfo(TestCase):
             * A dataset where the grid mapping metadata failed, but has an SRID
 
         """
-        proj4_string = ('+proj=cea +lat_ts=30 +lon_0=0 +x_0=0 +y_0=0 '
-                        '+datum=WGS84 +units=m +no_defs +type=crs')
+        expected_epsg_code = 6933
 
         h5_file = h5py.File(self.test_h5_name, 'w')
         dataset = h5_file.create_dataset('crs', data=np.ones((1,)))
@@ -753,9 +817,9 @@ class TestH5GridProjectionInfo(TestCase):
         bad_wkt_attribute = {'crs_wkt': 'PROJCRS["THIS IS GARBLED"]',
                              'srid': 'urn:ogc:def:crs:EPSG::6933'}
 
-        test_args = [['EPSG code', cf_attributes, None],
-                     ['Good CF attributes', dataset, cf_attributes],
-                     ['SRID backup', dataset, bad_wkt_attribute]]
+        test_args = [['Dictionary of attributes', cf_attributes, None],
+                     ['Good CF attributes in dataset', dataset, cf_attributes],
+                     ['SRID backup in dataset', dataset, bad_wkt_attribute]]
 
         for description, input_object, dataset_attributes in test_args:
             with self.subTest(description):
@@ -763,4 +827,52 @@ class TestH5GridProjectionInfo(TestCase):
                     dataset.attrs.clear()
                     dataset.attrs.update(dataset_attributes)
 
-                self.assertEqual(get_crs(input_object).to_proj4(), proj4_string)
+                self.assertEqual(get_crs_from_grid_mapping(input_object).to_epsg(),
+                                 expected_epsg_code)
+
+    def test_get_decoded_attribute(self):
+        """ Ensure attributes will be retrieved with the correct type. If the
+            extracted type is a bytes object, it should be decoded to a string,
+            otherwise the type of the retrieved metadata attribute should match
+            the type as contained in the HDF-5 file.
+
+        """
+        string_value = 'this is a string'
+        decoded_bytes = 'bytes'
+        bytes_value = bytes(decoded_bytes, 'utf-8')
+        numerical_value = 123.456
+        np_bytes_value = np.bytes_(decoded_bytes, 'utf-8')
+
+        test_args = [
+            ['String attribute', 'string_value', string_value],
+            ['Bytes attribute decoded', 'bytes_value', decoded_bytes],
+            ['np.bytes_ attribute decoded', 'np_bytes_value', decoded_bytes],
+            ['Numerical attribute', 'numerical_value', numerical_value],
+            ['Absent attribute defaults to None', 'Missing', None]
+        ]
+
+        default_test_args = [
+            ['Default not used when value present', 'string_value', 'default', string_value],
+            ['Default value used', 'missing', 'default', 'default'],
+            ['Bytes default is decoded', 'missing', bytes_value, decoded_bytes],
+        ]
+        with h5py.File('test.h5', 'w', driver='core', backing_store=False) as h5_file:
+            attributes = h5py.AttributeManager(parent=h5_file)
+            attributes.create('string_value', string_value)
+            attributes.create('bytes_value', bytes_value)
+            attributes.create('numerical_value', numerical_value)
+            attributes.create('np_bytes_value', np_bytes_value)
+
+            for description, attribute_key, expected_value in test_args:
+                with self.subTest(description):
+                    self.assertEqual(
+                        get_decoded_attribute(h5_file, attribute_key),
+                        expected_value
+                    )
+
+            for description, key, default, expected_value in default_test_args:
+                with self.subTest(description):
+                    self.assertEqual(
+                        get_decoded_attribute(h5_file, key, default),
+                        expected_value
+                    )

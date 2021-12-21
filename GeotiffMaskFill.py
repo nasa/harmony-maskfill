@@ -5,16 +5,16 @@ from shutil import copyfile
 from typing import List
 import re
 
-import gdal
+from osgeo import gdal
 import numpy as np
 import rasterio
 import rasterio.mask
-from osgeo import osr
 
 from pymods import MaskFillUtil
 from pymods.cf_config import CFConfigGeotiff
 from pymods.MaskFillCaching import (cache_geotiff_mask_array,
                                     get_geotiff_cached_mask_array)
+from pymods.MaskFillUtil import get_geotiff_crs
 
 
 def produce_masked_geotiff(geotiff_path: str, shape_path: str, output_dir: str,
@@ -131,29 +131,10 @@ def create_mask_array(geotiff_path: str, shape_path: str) -> np.ndarray:
 
     """
     raster = rasterio.open(geotiff_path)
-    proj4 = get_geotiff_proj4(geotiff_path)
+    crs = get_geotiff_crs(geotiff_path)
 
-    return MaskFillUtil.get_mask_array(shape_path, proj4, raster.read(1).shape,
+    return MaskFillUtil.get_mask_array(shape_path, crs, raster.read(1).shape,
                                        raster.transform)
-
-
-def get_geotiff_proj4(geotiff_path: str) -> str:
-    """ Returns the proj4 string corresponding to the coordinate reference
-        system of the GeoTIFF file.
-
-        Args:
-            geotiff_path (str): The path to the GeoTIFF file
-        Returns:
-            str: The proj4 string corresponding to the given file
-
-    """
-
-    data = gdal.Open(geotiff_path)
-
-    proj_text = data.GetProjection()
-    srs = osr.SpatialReference()
-    srs.ImportFromWkt(proj_text)
-    return srs.ExportToProj4()
 
 
 def get_fill_value(geotiff_dataset: gdal.Dataset, default_fill_value: float,
@@ -186,8 +167,9 @@ def variable_should_be_masked(geotiff_path: str,
         path (with underscores in place of forward slashes), to the full list
         of collection variables that should be excluded from masking.
 
-        Any potential directory structure is omitted, in case this causes a
-        false positive match.
+        Any potential directory structure in the file name is omitted, in case
+        this causes a false positive match.
+
     """
     geotiff_base_path = basename(geotiff_path)
 

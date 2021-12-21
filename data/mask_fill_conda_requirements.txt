@@ -1,7 +1,8 @@
-affine==2.2.2
-geopandas==0.4.1
-h5py==2.10.0
-numpy==1.16.4
-pandas==1.0.5
-pycodestyle==2.5.0
-gdal
+affine==2.3.0
+gdal==3.3.2
+geopandas==0.9.0
+h5py==3.4.0
+numpy==1.21.2
+pandas==1.3.3
+pyproj==3.2.1
+rasterio==1.2.8

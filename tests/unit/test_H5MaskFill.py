@@ -5,6 +5,7 @@ from shutil import rmtree
 from unittest import TestCase
 from unittest.mock import patch
 
+from pyproj import CRS
 import h5py
 import numpy as np
 
@@ -91,9 +92,17 @@ class TestH5MaskFill(TestCase):
         """
         h5_file = h5py.File('tests/data/SMAP_L4_SM_aup_input.h5', 'r')
         dataset = h5_file['/Analysis_Data/sm_profile_analysis']
+        # The following CRS uses the parameters for EASE-2 Grid Global, as
+        # taken from the MaskFill configuration file.
+        crs = CRS.from_cf({'false_easting': 0,
+                           'false_northing': 0,
+                           'grid_mapping_name': 'lambert_cylindrical_equal_area',
+                           'longitude_of_central_meridian': 0,
+                           'standard_parallel': 30,
+                           'unit': 'm'})
 
         # Pre-calculated ID, to use for dictionary key and file name:
-        mask_id = 'a62e96c11d707f2153e4f6a7da7707fc681152a358b816af5c9bcd11'
+        mask_id = '363e68e915f63cc2a2dfa464028f9d393e86bc3c36c5c8e02c5badbd'
 
         saved_mask = np.ones((2, 3))
         cached_mask = np.ones((3, 4))
@@ -124,7 +133,7 @@ class TestH5MaskFill(TestCase):
                                         self.output_dir, 'use_cache', {},
                                         self.cf_config, self.logger)
             np.testing.assert_array_equal(mask_array, new_mask)
-            mock_create_mask_array.assert_called_once_with(dataset,
+            mock_create_mask_array.assert_called_once_with(dataset, crs,
                                                            self.shape_file,
                                                            self.cf_config,
                                                            self.logger)
@@ -142,13 +151,13 @@ class TestH5MaskFill(TestCase):
         self.assertIsInstance(coordinates, set)
         for item in coordinates:
             self.assertIsInstance(item, str)
-        for item in {'/cell_lat', '/cell_lon'}:
-            self.assertIn(item, coordinates)
+
+        self.assertTrue({'/cell_lat', '/cell_lon'}.issubset(coordinates))
 
     def test_get_exclusions(self):
         """ Assert for H5MaskFill.get_exclusions:
              - set of strings is returned
-             - coordinates are included
+             - coordinate exclusions are included
              - configuration exclusions are included
         """
         file_name = 'tests/data/SMAP_L4_SM_aup_input.h5'
@@ -162,13 +171,13 @@ class TestH5MaskFill(TestCase):
 
         coordinates = get_coordinates(h5_file)
 
+        self.assertTrue(coordinates.issubset(exclusions))
         for item in coordinates:
             self.assertIn(item, exclusions)
 
         # check for exclusions (copied here from config file)
-        for item in {'cell_row', 'cell_column', 'EASE_column',
-                     'EASE_row', 'EASE_column_index', 'EASE_row_index'}:
-            self.assertIn(item, exclusions)
+        config_file_exclusions = {'/cell_(column|row)', '/cell_l(at|on)'}
+        self.assertTrue(config_file_exclusions.issubset(exclusions))
 
     @patch('H5MaskFill.get_exclusions')
     @patch('H5MaskFill.get_mask_array')

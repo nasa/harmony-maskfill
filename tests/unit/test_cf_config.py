@@ -124,11 +124,11 @@ class TestCFConfigH5(TestCase):
             )
             self.assertDictEqual(
                 cf_config.fill_values,
-                self.raw_config['corrected_fill_values']['SPL3SM(P|P_E)']
+                self.raw_config['corrected_fill_values']['SPL3SMP']
             )
             self.assertDictEqual(
                 cf_config.grid_mapping_groups,
-                self.raw_config['grid_mapping_supplements']['SPL3SM(P|P_E|A|AP)']
+                self.raw_config['grid_mapping_supplements']['SPL3SM(P|A|AP)']
             )
 
             remove(test_file_name)
@@ -148,14 +148,14 @@ class TestCFConfigH5(TestCase):
 
     def test_get_file_exclusions(self):
         """ Check the expected list of file exclusions are returned. For an
-            HDF-5 file, these should be a static list maintained in the
-            MaskFill configuration file.
+            HDF-5 file, these should be regular expressions for variable full
+            paths.
 
         """
         cf_config = CFConfigH5('tests/data/SMAP_L3_FT_P_corners_input.h5')
-        self.assertSetEqual(
+        self.assertListEqual(
             cf_config.get_file_exclusions(),
-            set(self.raw_config['maskfill_dataset_exclusions'])
+            self.raw_config['collection_coordinate_variables']['SPL3FTP']
         )
 
     def test_shortname_attribute_present(self):

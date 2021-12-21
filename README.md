@@ -13,7 +13,8 @@ This simplifies dependency management. Run these commands to create a MaskFill
 conda virtual environment and install all the needed packages:
 
 ```bash
-conda create --name maskfill --file ./data/mask_fill_conda_requirements.txt
+conda create --name maskfill --file ./data/mask_fill_conda_requirements.txt \
+  python=3.9 --channel conda-forge --channel defaults
 conda activate maskfill
 pip install -r ./data/mask_fill_pip_requirements.txt
 ```
@@ -29,6 +30,14 @@ pip install -r mask_fill_harmony_pip_requirements.txt
 Note, that installation must be done within the `data` directory so the
 reference to `mask_fill_pip_requirements.txt` within the Harmony Pip
 requirements file can be resolved.
+
+Updating third party, non-Harmony dependencies will result in changes to the
+underlying conda environment as used by SDPS. When this occurs, the string
+contained within `data/MASKFILL_CONDA_ENVIRONMENT.txt` must be changed so that
+a new SDPS conda environment can be created, without overwriting the previous
+environment. When updating the environment dependencies, a corresponding conda
+environment *must* be created within SDPS. The name of that environment should
+match the contents of `data/MASKFILL_CONDA_ENVIRONMENT.txt`.
 
 ## Development:
 
@@ -176,7 +185,7 @@ following commands:
 
 ```bash
 export ENV=test
-python -m unittest discover tests/python
+python -m unittest discover tests
 ```
 
 The environment variable `ENV` must be set to ensure that all unit tests that
@@ -186,9 +195,9 @@ The unit tests also contain basic tests for code style, ensuring that all Python
 files conform to [PEP8](https://www.python.org/dev/peps/pep-0008/), excluding
 checks on line-length.
 
-Tests within `tests/python/test_MaskFill.py` are designed to test the full use
+Tests within `tests/test_MaskFill.py` are designed to test the full use
 of the functionality, taking an input file, creating an output file and comparing
-that output file to a template. Those within `tests/python/unit` are designed
+that output file to a template. Those within `tests/unit` are designed
 as more granular unit tests of the logic and behaviour of individual functions.
 
 ### Test coverage report:
@@ -198,7 +207,7 @@ the following three commands.
 
 ```
 export ENV=test
-coverage run -m unittest discover tests/python
+coverage run -m unittest discover tests
 coverage report --omit=tests/*
 ```
 
@@ -210,7 +219,7 @@ can create a `coverage` directory and run the following commands:
 ```
 export ENV=test
 mkdir -p coverage
-coverage run -m unittest discover tests/python
+coverage run -m unittest discover tests
 coverage html --omit=tests/* -d coverage
 ```
 

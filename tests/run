@@ -6,7 +6,7 @@
 #
 #####################################
 
-coverage run -m xmlrunner discover tests/python -o tests/reports
+coverage run -m xmlrunner discover tests -o tests/reports
 
 echo "\n\n"
 
