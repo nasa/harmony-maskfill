@@ -1,7 +1,8 @@
 ## Overview:
 
 The `MaskFill` utility works with gridded data, applying a fill value in all pixels
-outside of a provided shape.
+outside of a provided shape. This utility is now available either on-premises
+via SPDS or as a Harmony service.
 
 The utility accepts HDF-5 files which follow CF conventions and GeoTIFFs.
 
@@ -52,7 +53,30 @@ match the contents of `data/MASKFILL_CONDA_ENVIRONMENT.txt`.
   git rebase -i HEAD~N
   ```
 
-### Regular releases:
+### Versioning:
+
+There are two versions associated with MaskFill: the Harmony version and the
+SDPS version.
+
+The Harmony version is a semantic version number (`major.minor.patch`), which
+should be iterated every release. It is contained in the
+`docker/service_version.txt` file. When making any update to the service code,
+the version number in this file should be updated before making a pull request.
+The general rules for iterating a semantic version number are:
+
+* Major: When API changes are made to the service that are not backwards
+  compatible.
+* Minor: When functionality is added in a backwards compatible way.
+* Patch: Used for backwards compatible bug fixes or performance improvements.
+
+When the Docker image is built, it will be tagged with the semantic version
+number as stored in `docker/service_version.txt`.
+
+The SDPS version is saved in the `VERSION` file. This should only be iterated
+shortly before the SDPS release or hotshelves. More details on that process are
+in the next two sections of this README.
+
+### Regular SDPS releases:
 
 During regular development, developers should create feature branches from the
 `dev` branch. When feature work is done, this branch should be merged back into
@@ -65,7 +89,7 @@ Merging this PR will trigger the deployment of two new artefacts to Maven, one
 to `master/maskfill.tar.gz`, and a second relating to the version listed in the
 `VERSION` file, e.g. `202_UPDATES/maskfill.tar.gz`.
 
-### Hot shelves:
+### SDPS Hot shelves:
 
 Hot shelves occur when bug fixes are required outside of the regular release
 cycle. When one has been identified, and new hot shelf branch should be created
@@ -116,9 +140,18 @@ There are other parameters that can be supplied to the script, but these are opt
 
 ## Running locally (Harmony method):
 
-You can also run the service within the `HarmonyAdapter`, starting within the root directory of the `maskfill` repository. 
-When you do this you will need to set several environment variables, that Harmony expects. The first,
-`ENV`, tells Harmony not to try and stage the results.
+The best method to run Harmony locally is to have a local instance of Harmony
+running that is configured to use the MaskFill service. Requests can then be
+made as they would for any other environment (production, UAT, SIT) via:
+
+* [harmony-py](https://github.com/nasa/harmony-py)
+* cURL
+* A URL placed in a browser window, pointing at `localhost:3000`.
+
+You can also run the service within the `HarmonyAdapter`, starting within the
+root directory of the `maskfill` repository. When you do this you will need to
+set several environment variables, that Harmony expects. The first, `ENV`,
+tells Harmony not to try and stage the results.
 
 Additionally, if you want to inspect the output, you'll need to temporarily
 comment out the `rmtree` call in the `finally` block of the
@@ -238,7 +271,13 @@ indicating exactly the lines that have coverage, and those that don't.
 The unit tests can also be run within a Docker container:
 
 ```bash
+# Build the service image, which is a base image for the test image
+./bin/build-harmony-image
+
+# Build the test image
 ./bin/build-test
+
+# Run the tests in a container instance of the test image
 ./bin/run-test
 ```
 
