@@ -12,4 +12,4 @@ fi
 
 # Build the image
 #
-docker build -t ${image}:${tag} -f tests/Dockerfile .
+docker build -t ${image}:${tag} -f docker/tests.Dockerfile .

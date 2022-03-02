@@ -45,4 +45,4 @@ ENV CPL_ZIP_ENCODING=UTF-8 \
 ENV ENV=test
 
 # Configure a container to be executable via the `docker run` command.
-ENTRYPOINT ["/home/tests/run"]
+ENTRYPOINT ["/home/tests/run_tests.sh"]
