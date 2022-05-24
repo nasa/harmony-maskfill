@@ -15,6 +15,7 @@ from MaskFill import DEFAULT_FILL_VALUE, DEFAULT_MASK_GRID_CACHE, mask_fill
 
 
 EXTENSION_MIMETYPES = {'.h5': 'application/x-hdf5',
+                       '.hdf5': 'application/x-hdf5',
                        '.nc4': 'application/x-netcdf4',
                        '.tif': 'image/tiff',
                        '.tiff': 'image/tiff'}

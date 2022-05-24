@@ -4,13 +4,13 @@ from os import makedirs
 from os.path import basename, isfile, join, splitext
 from shutil import rmtree
 from unittest import TestCase
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 from MaskFill import (check_shapefile_geojson, debug_bool, DEFAULT_FILL_VALUE,
                       DEFAULT_MASK_GRID_CACHE, format_parameters,
                       get_log_file_path, get_sdps_logger,
-                      get_xml_error_response, maskfill_sdps,
-                      validate_input_parameters)
+                      get_xml_error_response, get_xml_success_response,
+                      maskfill_sdps, validate_input_parameters)
 from pymods.exceptions import (InsufficientProjectionInformation,
                                InvalidMetadata, InvalidParameterValue,
                                MissingCoordinateDataset, MissingParameterValue,
@@ -205,16 +205,6 @@ class TestMaskFill(TestCase):
                                                         fill_value,
                                                         self.logger))
 
-    def test_validate_input_parameters_invalid_fill_value_type(self):
-        """Validation should fail for a string fill value."""
-        expected_message = 'The default fill value must be a number'
-
-        with self.assertRaises(InvalidParameterValue) as context:
-            validate_input_parameters(self.input_h5_file, self.shape_file,
-                                      self.output_dir, 'not a number',
-                                      self.logger)
-            self.assertEqual(context.exception.message, expected_message)
-
     def test_get_xml_error_response(self):
         """Exceptions that are designed to be used in XML output should be
         directly placed in the output message.
@@ -282,6 +272,71 @@ class TestMaskFill(TestCase):
         for description, input_value, expected_value in test_args:
             with self.subTest(description):
                 self.assertEqual(debug_bool(input_value), expected_value)
+
+    @patch('MaskFill.get_input_parameters')
+    @patch('MaskFill.mask_fill')
+    def test_maskfill_sdps_converts_fill_value(self, mock_mask_fill,
+                                               mock_get_input_parameters):
+        """ Verifiy that the `maskfill_sdps` function converts an input fill
+            value from a string to a float.
+
+        """
+        mock_get_input_parameters.return_value = self.create_parameters_namespace({
+            'debug': False,
+            'fill_value': '123.4',
+            'identifier': 'test',
+            'input_file': self.input_h5_file,
+            'mask_grid_cache': DEFAULT_MASK_GRID_CACHE,
+            'output_dir': 'tests/output',
+            'shape_file': self.shape_file,
+        })
+
+        output_file_name = 'tests/output/SMAP_L4_SM_aup_input_mf.h5'
+        mock_mask_fill.return_value = output_file_name
+
+        expected_response = get_xml_success_response(self.input_h5_file,
+                                                     self.shape_file,
+                                                     output_file_name)
+
+        self.assertEqual(maskfill_sdps(), expected_response)
+
+        # Ensure the fill value sent to `mask_fill` is a float
+        mock_mask_fill.assert_called_once_with(self.input_h5_file,
+                                               self.shape_file,
+                                               'tests/output/test',
+                                               DEFAULT_MASK_GRID_CACHE,
+                                               123.4, ANY)
+
+    @patch('MaskFill.get_input_parameters')
+    @patch('MaskFill.mask_fill')
+    def test_maskfill_sdps_non_numeric_fill_value(self, mock_mask_fill,
+                                                  mock_get_input_parameters):
+        """ Verifiy that the `maskfill_sdps` function converts an input fill
+            value from a string to a float.
+
+        """
+        mock_get_input_parameters.return_value = self.create_parameters_namespace({
+            'debug': False,
+            'fill_value': 'not a number',
+            'identifier': 'test',
+            'input_file': self.input_h5_file,
+            'mask_grid_cache': DEFAULT_MASK_GRID_CACHE,
+            'output_dir': 'tests/output',
+            'shape_file': self.shape_file,
+        })
+
+        output_file_name = 'tests/output/SMAP_L4_SM_aup_input_mf.h5'
+        mock_mask_fill.return_value = output_file_name
+
+        expected_response = get_xml_error_response(
+            'tests/output/test',
+            InvalidParameterValue('Default fill value not a number')
+        )
+
+        self.assertEqual(maskfill_sdps(), expected_response)
+
+        # Ensure the assertion was raised prior to calling `mask_fill`.
+        mock_mask_fill.assert_not_called()
 
     @patch('MaskFill.get_input_parameters')
     def test_maskfill_sdps_exception(self, mock_get_input_parameters):

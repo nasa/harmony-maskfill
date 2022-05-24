@@ -57,6 +57,7 @@ DEFAULT_MASK_GRID_CACHE = 'ignore_and_delete'
 OUTPUT_EXCEPTIONS = (InsufficientProjectionInformation, InvalidMetadata,
                      InvalidParameterValue, MissingCoordinateDataset,
                      MissingParameterValue, NoMatchingData)
+VALID_INPUT_EXTENSIONS = ('.tif', '.h5', '.hdf5', '.nc4')
 
 
 def mask_fill(input_file: str, shape_file: str, output_dir: str,
@@ -79,10 +80,10 @@ def mask_fill(input_file: str, shape_file: str, output_dir: str,
             input_file, shape_file, output_dir, output_dir,
             mask_grid_cache, fill_value, logger
         )
-    elif input_extension == '.h5':
-        # HDF5 case
-        logger.info(f'Performing mask fill with HDF5 file {input_file} '
-                    f'and shapefile {shape_file}')
+    elif input_extension in ('.h5', '.hdf5', '.nc4'):
+        # HDF5 or NetCDF-4 case (HOSS produces NetCDF-4 files)
+        logger.info('Performing mask fill with HDF5/NetCDF-4 file '
+                    f'{input_file} and shapefile {shape_file}')
         output_file = H5MaskFill.produce_masked_hdf(
             input_file, shape_file, output_dir, output_dir,
             mask_grid_cache, fill_value, logger
@@ -248,25 +249,22 @@ def validate_input_parameters(input_file: str, shape_file: str,
                                     'mask fill utility')
 
     # Ensure the input file is a valid file type
-    if not os.path.splitext(input_file)[1].lower() in ('.tif', '.h5'):
-        raise InvalidParameterValue('The input data file must be a GeoTIFF or '
-                                    'HDF5 file type')
+    if not os.path.splitext(input_file)[1].lower() in VALID_INPUT_EXTENSIONS:
+        raise InvalidParameterValue('The input data file must be a GeoTIFF, '
+                                    'HDF5 or NetCDF-4 file type')
 
     # Ensure that all given paths exist
     for file_path in {input_file, shape_file, output_dir}:
         if not os.path.exists(file_path):
             raise MissingParameterValue(f'The path {file_path} does not exist')
 
-    # Ensure that fill_value is numerical
-    if not isinstance(fill_value, (float, int)):
-        raise InvalidParameterValue('The default fill value must be a number')
-
     logger.debug('All input parameters are valid')
 
 
 def format_parameters(parameters: Namespace) -> Dict:
     """ Removes any single quotes around the given parameters. But retains any
-        internal to a string parameter.
+        internal to a string parameter. This function will also convert the
+        input fill value from a string value to a float.
 
         Args:
             params (argparse.Namespace): The input parameters
@@ -381,6 +379,15 @@ def maskfill_sdps() -> str:
     logger = get_sdps_logger(output_dir, parameters['debug'])
 
     try:
+        # By default the fill value is a string that needs to be converted.
+        # This isn't done by the ArgumentParser so that any exception can be
+        # caught and mapped to a MaskFill-specific exception and error message.
+        if 'fill_value' in parameters:
+            try:
+                parameters['fill_value'] = float(parameters['fill_value'])
+            except ValueError:
+                raise InvalidParameterValue('Default fill value not a number')
+
         # If the shape file is raw GeoJSON, write it to a file, and use that.
         # This happens before other parameter validation, to ensure a shape
         # file exists

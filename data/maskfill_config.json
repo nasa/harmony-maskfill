@@ -44,7 +44,8 @@
         "VNP10": "VNP10",
         "VNP10A1": "VNP10A1",
         "VNP10A1F": "VNP10A1F",
-        "VNP30": "VNP30"
+        "VNP30": "VNP30",
+        "3IMERGHH": "GPM_3IMERGHH"
     },
     "corrected_fill_values": {
         "SPL3FT(A|P|P_E)": {
@@ -261,6 +262,12 @@
         ],
         "VNP30": [
             "IST_Data/Geolocation_Fields/L(at|ong)itude"
+        ],
+        "3IMERGHH": [
+            "/l(at|on)",
+            "/l(at|on)_bnds",
+            "/time",
+            "/time_bnds"
         ]
     }
 }

@@ -281,7 +281,6 @@ def apply_2D(data, process, *args):  # , name = ""  ??? - unused!
     # 2D Case
     if len(data.shape) == 2:
         return process(data, *args)
-        return data
 
     # For more than two dimensions, mask fill each dimension recursively
     for i in range(len(data)):
