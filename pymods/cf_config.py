@@ -94,9 +94,9 @@ class CFConfig(ABC):
         """
         shortname = None
         file_basename = os.path.basename(file_path)
-        prefix_mapping = self.full_config['collection_shortname_to_prefix_mapping']
+        prefix_mapping = self.full_config['collection_prefix_to_shortname_mapping']
 
-        for config_shortname, file_prefix in prefix_mapping.items():
+        for file_prefix, config_shortname in prefix_mapping.items():
             if (
                     file_basename.startswith(file_prefix)
                     and (shortname is None or len(config_shortname) > len(shortname))

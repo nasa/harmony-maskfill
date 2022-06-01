@@ -1,6 +1,10 @@
 from logging import (basicConfig as basic_log_config, getLogger,
                      Handler as LogHandler, INFO)
+from os.path import exists as file_exists, join as path_join
+from shutil import rmtree
+from tempfile import mkdtemp
 from unittest import TestCase
+from unittest.mock import patch
 
 from harmony.message import Message
 from harmony.util import config, HarmonyException
@@ -98,3 +102,52 @@ class TestHarmonyMaskFill(TestCase):
                     self.harmony_adapter.get_file_mimetype(file_name),
                     expected_mimetype
                 )
+
+    @patch('harmony_adapter.download')
+    def test_download_from_remote(self, mock_download):
+        """ Ensure that a specified resource is downloaded using the
+            `harmony-service-lib-py` via the `harmony.util.download` function.
+
+            This function has an optional parameter to specify the name of the
+            downloaded file. Harmony, by default will create a file with a UUID
+            for the basename. This UUID prevents the identification of the
+            collection to which the granule belongs, if the granule does not
+            have a shortname global attribute.
+
+        """
+        remote_resource = 'www.example.com/amazing_file.nc4'
+        local_basename = 'name_with_prefix.nc4'
+
+        def download_side_effect(url, directory, logger, access_token,
+                                 cfg) -> str:
+            """ This side effect will create a mock downloaded file. """
+            downloaded_file = path_join(directory, 'random.nc4')
+            with open(downloaded_file, 'w') as file_handler:
+                file_handler.write('content')
+
+            return downloaded_file
+
+        mock_download.side_effect = download_side_effect
+
+        with self.subTest('No local basename specified'):
+            test_dir = mkdtemp()
+            downloaded_file = self.harmony_adapter.download_from_remote(
+                remote_resource, test_dir
+            )
+
+            expected_file_name = path_join(test_dir, 'random.nc4')
+            self.assertEqual(downloaded_file, expected_file_name)
+            self.assertTrue(file_exists(expected_file_name))
+            rmtree(test_dir)
+
+        with self.subTest('Basename specified and used'):
+            test_dir = mkdtemp()
+            downloaded_file = self.harmony_adapter.download_from_remote(
+                remote_resource, test_dir, local_basename
+            )
+
+            expected_file_name = path_join(test_dir, local_basename)
+            self.assertEqual(downloaded_file, expected_file_name)
+            self.assertFalse(file_exists(path_join(test_dir, 'random.nc4')))
+            self.assertTrue(file_exists(expected_file_name))
+            rmtree(test_dir)
