@@ -102,7 +102,7 @@ class TestH5MaskFill(TestCase):
                            'unit': 'm'})
 
         # Pre-calculated ID, to use for dictionary key and file name:
-        mask_id = '363e68e915f63cc2a2dfa464028f9d393e86bc3c36c5c8e02c5badbd'
+        mask_id = 'a2a2c810953c6ad912a1d1f61bd3773ffb45b5e0108e2988c99ecf5f'
 
         saved_mask = np.ones((2, 3))
         cached_mask = np.ones((3, 4))
