@@ -6,8 +6,8 @@ from logging import Logger
 from typing import Any, Dict, List, Optional, Tuple, Union
 import re
 
-import affine
 import numpy as np
+from affine import Affine
 from h5py import Dataset, Reference
 from pyproj import CRS, Proj
 from pyproj.exceptions import CRSError
@@ -126,12 +126,21 @@ def get_lon_lat_datasets(h5_dataset: Dataset) -> Tuple[Dataset, Dataset]:
 
 
 def get_dimension_datasets(h5_dataset: Dataset) -> Optional[Tuple[Dataset, Dataset]]:
-    """ Finds the dimension scales datasets corresponding to the given HDF5 dataset.
+    """ Finds the dimension scales datasets corresponding to the horizontal
+        spatial dimensions of a given HDF5 dataset. This function assumes that
+        these will correspond to the last two array dimensions of the science
+        variable, e.g., (time, lat, lon) or (time, y, x).
+
+        Note: in this function "x" and "y" refer to the dimensions of the
+        array, not a projection coordinate. In some cases the x and y spatial
+        dimensions may not match the x and y dimensions of the numpy array.
+
         Args:
              h5_dataset (h5py._hl.dataset.Dataset): The HDF5 dataset
         Returns:
-            tuple: x coordinate dataset, y coordinate dataset;
+            tuple: x dimension dataset, y dimension dataset;
                    both datasets are of type h5py._hl.dataset.Dataset
+
     """
     h5_file = h5_dataset.file
     dim_list = get_decoded_attribute(h5_dataset, 'DIMENSION_LIST')
@@ -139,15 +148,69 @@ def get_dimension_datasets(h5_dataset: Dataset) -> Optional[Tuple[Dataset, Datas
     if dim_list is not None:
         for ref in dim_list:
             dim = h5_file[ref[0]]
-            if len(dim[:]) == h5_dataset.shape[0]:
-                y = dim
+            if dim.size == h5_dataset.shape[-2]:
+                y_dataset = dim
 
-            if len(dim[:]) == h5_dataset.shape[1]:
-                x = dim
+            if dim.size == h5_dataset.shape[-1]:
+                x_dataset = dim
 
-        return x, y
+        return x_dataset, y_dataset
     else:
         return None
+
+
+def is_x_y_flipped(dataset: Dataset) -> bool:
+    """ A helper function to check if the science dataset has rows that
+        correspond to y coordinates (including latitudes) and columns that
+        correspond to x coordinates (including longitudes). This is used for
+        datasets defining their coordinates via a `DIMENSION_LIST` attribute
+        and 1-D dimension datasets.
+
+        Note, Python array dimensions are [..., row, column].
+
+    """
+    dimensions = get_decoded_attribute(dataset, 'DIMENSION_LIST')
+
+    if dimensions is not None:
+        array_x_dimension, array_y_dimension = get_dimension_datasets(dataset)
+        is_flipped = (is_projection_y_dimension(array_x_dimension)
+                      and is_projection_x_dimension(array_y_dimension))
+    else:
+        is_flipped = False
+
+    return is_flipped
+
+
+def is_projection_x_dimension(dimension_dataset: Dataset) -> bool:
+    """ A helper function to identify if a 1-D dimension dataset conforms to
+        the CF-Conventions for a horizontal spatial dimension in the x
+        direction (e.g., either a longitude or a projection_x_coordinate).
+
+    """
+    longitude_units = ('degrees_east', 'degree_east', 'degrees_E', 'degree_E',
+                       'degreesE', 'degreeE')
+
+    return (
+        get_decoded_attribute(dimension_dataset, 'units') in longitude_units
+        or (get_decoded_attribute(dimension_dataset, 'standard_name')
+            == 'projection_x_coordinate')
+    )
+
+
+def is_projection_y_dimension(dimension_dataset: Dataset) -> bool:
+    """ A helper function to identify if a 1-D dimension dataset conforms to
+        the CF-Conventions for a horizontal spatial dimension in the y
+        direction (e.g., either a latitude or a projection_y_coordinate).
+
+    """
+    latitude_units = ('degrees_north', 'degree_north', 'degrees_N', 'degree_N',
+                      'degreesN', 'degreeN')
+
+    return (
+        get_decoded_attribute(dimension_dataset, 'units') in latitude_units
+        or (get_decoded_attribute(dimension_dataset, 'standard_name')
+            == 'projection_y_coordinate')
+    )
 
 
 def get_crs_from_grid_mapping(grid_mapping: Union[Dataset, Dict]) -> CRS:
@@ -200,7 +263,7 @@ def get_decoded_attribute(h5_dataset: Dataset, attribute_key: str,
 
 
 def get_transform(h5_dataset: Dataset, crs: CRS, cf_config: CFConfigH5,
-                  logger: Logger) -> affine.Affine:
+                  logger: Logger) -> Affine:
     """ Determines the transform from the index coordinates of the HDF5 dataset
         to projected coordinates (meters) in the coordinate reference frame of
         the HDF5 dataset.
@@ -235,7 +298,12 @@ def get_transform(h5_dataset: Dataset, crs: CRS, cf_config: CFConfigH5,
         x_0 -= cell_width / 2.0
         y_0 -= cell_height / 2.0
 
-    return affine.Affine(cell_width, 0, x_0, 0, cell_height, y_0)
+    if is_x_y_flipped(h5_dataset):
+        transform = Affine(0, cell_height, y_0, cell_width, 0, x_0)
+    else:
+        transform = Affine(cell_width, 0, x_0, 0, cell_height, y_0)
+
+    return transform
 
 
 def get_transform_information(h5_dataset: Dataset) -> str:

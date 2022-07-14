@@ -4,12 +4,13 @@ The `MaskFill` utility works with gridded data, applying a fill value in all pix
 outside of a provided shape. This utility is now available either on-premises
 via SPDS or as a Harmony service.
 
-The utility accepts HDF-5 files which follow CF conventions and GeoTIFFs.
+The utility accepts HDF-5 and NetCDF-4 files that follow CF conventions and
+GeoTIFFs.
 
 ## Installation:
 
 MaskFill was developed using the Anaconda distribution of Python
-(https://www.anaconda.com/download) and conda virtual environment.
+(<https://www.anaconda.com/download>) and conda virtual environment.
 This simplifies dependency management. Run these commands to create a MaskFill
 conda virtual environment and install all the needed packages:
 
@@ -117,9 +118,9 @@ The Bamboo build plan and deployment project for MaskFill are configured to
 deploy a new version to the Harmony SIT and Sandbox environments every time a
 pull request is merged into the `dev` branch. From that point, a release to SIT
 can be manually promoted to UAT, or even production via Bamboo at
-`ci.earthdata.nasa.gov`. Note, the long term access keys for each environment
-will need to be up to date for these deployments to be successful. If the
-deployments fail it is likely due to out-of-date AWS long term access
+<https://ci.earthdata.nasa.gov>. Note, the long term access keys for each
+environment will need to be up to date for these deployments to be successful.
+If the deployments fail it is likely due to out-of-date AWS long term access
 credentials.
 
 ## Running locally (SDPS method):
@@ -144,7 +145,7 @@ The best method to run Harmony locally is to have a local instance of Harmony
 running that is configured to use the MaskFill service. Requests can then be
 made as they would for any other environment (production, UAT, SIT) via:
 
-* [harmony-py](https://github.com/nasa/harmony-py)
+* [harmony-py](<https://github.com/nasa/harmony-py>)
 * cURL
 * A URL placed in a browser window, pointing at `localhost:3000`.
 
@@ -285,10 +286,15 @@ The terminal should display output from the test results, with the failures
 from `unittest`. Additionally, the XML test reports should be saved to the new
 `test-reports` directory. Test coverage report should also be displayed in the 
 terminal, and will also be saved to the 'coverage' directory in HTML format.
-Coverage reports are being generate for each build in Bamboo, and saved as artefacts.
-Following URL is an example coverage report in Bamboo:
+Coverage reports are being generate for each build in Bamboo, and saved as
+artefacts. The coverage report for a specific build can be found by:
 
-https://ci.earthdata.nasa.gov/artifact/HITC-MAS18/JOB1/build-16/Coverage-Report/maskfill/test-coverage/index.html
+* Navigating to <https://ci.earthdata.nasa.gov/browse/HITC-MAS>
+* Selecting the branch and build in the MaskFill build plan summary page.
+* Selecting the artefacts tab for that build, and then selecting the
+  "Coverage Report" artefact. The output will be in an HTML format that will
+  render an interactive coverage report in a browser tab, allowing for
+  identification of exact lines without test coverage.
 
 ## Gotchas:
 

@@ -1,7 +1,7 @@
 """ Data Services MaskFill service for Harmony. """
 from argparse import ArgumentParser
 from mimetypes import guess_type as guess_mimetype
-from shutil import rmtree
+from shutil import move as move_file, rmtree
 from tempfile import mkdtemp
 import os
 
@@ -15,6 +15,7 @@ from MaskFill import DEFAULT_FILL_VALUE, DEFAULT_MASK_GRID_CACHE, mask_fill
 
 
 EXTENSION_MIMETYPES = {'.h5': 'application/x-hdf5',
+                       '.hdf5': 'application/x-hdf5',
                        '.nc4': 'application/x-netcdf4',
                        '.tif': 'image/tiff',
                        '.tiff': 'image/tiff'}
@@ -42,7 +43,6 @@ class HarmonyAdapter(BaseHarmonyAdapter):
         """
         self.logger.info('Starting Data Services MaskFill Service')
         os.environ['HDF5_DISABLE_VERSION_CHECK'] = '1'
-        self.logger.info(f'Received message: {self.message}')
         self.validate_message()
         return super().invoke()
 
@@ -79,7 +79,9 @@ class HarmonyAdapter(BaseHarmonyAdapter):
             asset = next(item_asset for item_asset in item.assets.values()
                          if 'data' in (item_asset.roles or []))
 
-            input_filename = self.download_from_remote(asset.href, working_dir)
+            input_filename = self.download_from_remote(
+                asset.href, working_dir, os.path.basename(asset.href)
+            )
             self.logger.info('Granule data copied')
             self.validate_input_granule(input_filename)
 
@@ -124,17 +126,31 @@ class HarmonyAdapter(BaseHarmonyAdapter):
             rmtree(working_dir, ignore_errors=True)
 
     def download_from_remote(self, remote_resource_url: str,
-                             output_directory: str) -> str:
+                             output_directory: str,
+                             local_basename: str = None) -> str:
         """ A class method to wrap the Harmony utility function to download a
             file from a remote source. This method automatically uses the
             Logger, access token and configuration object from the instance of
             the HarmonyAdapter class.
 
+            If a file name is specified, then the downloaded file will be
+            renamed. Otherwise, Harmony will use a UUID as the basename for
+            any downloaded resource.
+
         """
         self.logger.info(f'Retrieving: {remote_resource_url}')
-        return download(remote_resource_url, output_directory,
-                        logger=self.logger,
-                        access_token=self.message.accessToken, cfg=self.config)
+
+        local_file = download(remote_resource_url, output_directory,
+                              logger=self.logger,
+                              access_token=self.message.accessToken,
+                              cfg=self.config)
+
+        if local_basename is not None:
+            full_local_name = os.path.join(output_directory, local_basename)
+            move_file(local_file, full_local_name)
+            local_file = full_local_name
+
+        return local_file
 
     def validate_message(self):
         """ Check the service was triggered by a valid message containing

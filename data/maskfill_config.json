@@ -25,26 +25,28 @@
             "group": "/"
         }
     ],
-    "collection_shortname_to_prefix_mapping": {
-        "SPL2SMAP_S": "SMAP_L2_SM_SP",
-        "SPL3FTP": "SMAP_L3_FT_P",
-        "SPL3FTP_E": "SMAP_L3_FT_P_E",
-        "SPL3FTA": "SMAP_L3_FT_A",
-        "SPL3SMA": "SMAP_L3_SM_A",
-        "SPL3SMAP": "SMAP_L3_SM_AP",
-        "SPL3SMP": "SMAP_L3_SM_P",
-        "SPL3SMP_E": "SMAP_L3_SM_P_E",
-        "SPL4CMDL": "SMAP_L4_C_mdl",
-        "SPL4SMAU": "SMAP_L4_SM_aup",
-        "SPL4SMGP": "SMAP_L4_SM_gph",
-        "SPL4SMLM": "SMAP_L4_SM_lmc",
+    "collection_prefix_to_shortname_mapping": {
+        "SMAP_L2_SM_SP": "SPL2SMAP_S",
+        "SMAP_L3_FT_P": "SPL3FTP",
+        "SMAP_L3_FT_P_E": "SPL3FTP_E",
+        "SMAP_L3_FT_A": "SPL3FTA",
+        "SMAP_L3_SM_A": "SPL3SMA",
+        "SMAP_L3_SM_AP": "SPL3SMAP",
+        "SMAP_L3_SM_P": "SPL3SMP",
+        "SMAP_L3_SM_P_E": "SPL3SMP_E",
+        "SMAP_L4_C_mdl": "SPL4CMDL",
+        "SMAP_L4_SM_aup": "SPL4SMAU",
+        "SMAP_L4_SM_gph": "SPL4SMGP",
+        "SMAP_L4_SM_lmc": "SPL4SMLM",
         "ATL16": "ATL16",
         "ATL17": "ATL17",
         "ATL20": "ATL20",
         "VNP10": "VNP10",
         "VNP10A1": "VNP10A1",
         "VNP10A1F": "VNP10A1F",
-        "VNP30": "VNP30"
+        "VNP30": "VNP30",
+        "GPM_3IMERGHH": "3IMERGHH",
+        "f16_ssmis_": "RSSMIF16D_"
     },
     "corrected_fill_values": {
         "SPL3FT(A|P|P_E)": {
@@ -68,6 +70,16 @@
         "SPL3SMP": {
             "/Soil_Moisture_Retrieval_Data_AM/latitude": -9999.0,
             "/Soil_Moisture_Retrieval_Data_AM/longitude": -9999.0
+        },
+        "RSSMIF16D": {
+            "/atmosphere_cloud_liquid_water_content": 255,
+            "/atmosphere_water_vapor_content": 255,
+            "/latitude": -9999.0,
+            "/longitude": -9999.0,
+            "/rainfall_rate": 255,
+            "/sst_dtime": 255,
+            "/time": 255,
+            "/wind_speed": 255
         }
     },
     "grid_mapping_supplements": {
@@ -261,6 +273,12 @@
         ],
         "VNP30": [
             "IST_Data/Geolocation_Fields/L(at|ong)itude"
+        ],
+        "3IMERGHH": [
+            "/l(at|on)",
+            "/l(at|on)_bnds",
+            "/time",
+            "/time_bnds"
         ]
     }
 }

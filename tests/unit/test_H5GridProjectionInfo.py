@@ -30,6 +30,9 @@ from pymods.H5GridProjectionInfo import (dataset_all_fill_value,
                                          get_projected_coordinate_extent,
                                          get_transform,
                                          get_transform_information,
+                                         is_projection_x_dimension,
+                                         is_projection_y_dimension,
+                                         is_x_y_flipped,
                                          has_geographic_dimensions,
                                          resolve_relative_dataset_path)
 
@@ -433,15 +436,25 @@ class TestH5GridProjectionInfo(TestCase):
     @patch('pymods.H5GridProjectionInfo.get_corner_points_from_lat_lon')
     def test_get_transform_dimensions(self, mock_get_corner_points_from_lat_lon,
                                       mock_get_cell_size_from_lat_lon):
-        """Ensure the correct Affine transformation matrix is formed for a
-        dataset that has a DIMENSION_LIST attribute. This should not call
-        `get_corner_points_from_lat_lon` or `get_cell_size_from_lat_lon_extents`.
+        """ Ensure the correct Affine transformation matrix is formed for a
+            dataset that has a DIMENSION_LIST attribute. This should not call
+            `get_corner_points_from_lat_lon` or
+            `get_cell_size_from_lat_lon_extents`.
 
-        The expected transformation:
+            The expected transformation (when array dimensions match the
+            coordinate dimensions, e.g., rows = y and columns = x):
 
-        [[a, b, c],      [[1, 0, 1.5],
-         [d, e, f],   =   [0, 3, 2.5],
-         [g, h, i]]       [0, 0, 1]]
+            [[a, b, c],      [[1, 0, 1.5],
+             [d, e, f],   =   [0, 3, 2.5],
+             [g, h, i]]       [0, 0, 1]]
+
+            The expected transformation when the array dimensions are flipped
+            with respect to the coordinate dimensions, e.g., rows = x and
+            columns = y.
+
+            [[a, b, c],      [[0, 1, 1.5],
+             [d, e, f],   =   [3, 0, 2.5],
+             [g, h, i]]       [0, 0, 1]]
 
         """
         crs = CRS(4326)
@@ -449,28 +462,53 @@ class TestH5GridProjectionInfo(TestCase):
         x_array = np.array([2, 3, 4, 5])
         y_array = np.array([4, 7, 10])
 
-        h5_file = h5py.File(self.test_h5_name, 'w')
-        data = h5_file.create_dataset('data', data=data_array)
-        x = h5_file.create_dataset('x', data=x_array)
-        y = h5_file.create_dataset('y', data=y_array)
-        data.attrs.create('DIMENSION_LIST', ((y.ref, ), (x.ref, )), dtype=h5py.ref_dtype)
+        with h5py.File(self.test_h5_name, 'w') as h5_file:
+            x = h5_file.create_dataset('x', data=x_array)
+            x.attrs.create('standard_name', 'projection_x_coordinate')
 
-        affine_transformation = get_transform(data, crs, self.cf_config,
-                                              self.logger)
+            y = h5_file.create_dataset('y', data=y_array)
+            y.attrs.create('standard_name', 'projection_y_coordinate')
 
-        self.assertEqual(affine_transformation.a, 1)
-        self.assertEqual(affine_transformation.b, 0)
-        self.assertEqual(affine_transformation.c, 1.5)
-        self.assertEqual(affine_transformation.d, 0)
-        self.assertEqual(affine_transformation.e, 3)
-        self.assertEqual(affine_transformation.f, 2.5)
-        self.assertEqual(affine_transformation.g, 0)
-        self.assertEqual(affine_transformation.h, 0)
-        self.assertEqual(affine_transformation.i, 1)
-        mock_get_corner_points_from_lat_lon.assert_not_called()
-        mock_get_cell_size_from_lat_lon.assert_not_called()
+            data = h5_file.create_dataset('data', data=data_array)
+            data.attrs.create('DIMENSION_LIST', ((y.ref, ), (x.ref, )),
+                              dtype=h5py.ref_dtype)
 
-        h5_file.close()
+            flipped_data = h5_file.create_dataset('flipped_data',
+                                                  data=np.ones((4, 3)))
+            flipped_data.attrs.create('DIMENSION_LIST', ((x.ref, ), (y.ref, )),
+                                      dtype=h5py.ref_dtype)
+
+            with self.subTest('Unflipped dataset'):
+                affine_transform = get_transform(data, crs, self.cf_config,
+                                                 self.logger)
+
+                self.assertEqual(affine_transform.a, 1)
+                self.assertEqual(affine_transform.b, 0)
+                self.assertEqual(affine_transform.c, 1.5)
+                self.assertEqual(affine_transform.d, 0)
+                self.assertEqual(affine_transform.e, 3)
+                self.assertEqual(affine_transform.f, 2.5)
+                self.assertEqual(affine_transform.g, 0)
+                self.assertEqual(affine_transform.h, 0)
+                self.assertEqual(affine_transform.i, 1)
+                mock_get_corner_points_from_lat_lon.assert_not_called()
+                mock_get_cell_size_from_lat_lon.assert_not_called()
+
+            with self.subTest('Flipped dataset'):
+                flipped_transform = get_transform(flipped_data, crs,
+                                                  self.cf_config, self.logger)
+
+                self.assertEqual(flipped_transform.a, 0)
+                self.assertEqual(flipped_transform.b, 1)
+                self.assertEqual(flipped_transform.c, 1.5)
+                self.assertEqual(flipped_transform.d, 3)
+                self.assertEqual(flipped_transform.e, 0)
+                self.assertEqual(flipped_transform.f, 2.5)
+                self.assertEqual(flipped_transform.g, 0)
+                self.assertEqual(flipped_transform.h, 0)
+                self.assertEqual(flipped_transform.i, 1)
+                mock_get_corner_points_from_lat_lon.assert_not_called()
+                mock_get_cell_size_from_lat_lon.assert_not_called()
 
     @patch('pymods.H5GridProjectionInfo.get_cell_size_from_dimensions')
     @patch('pymods.H5GridProjectionInfo.get_corner_points_from_dimensions')
@@ -707,6 +745,150 @@ class TestH5GridProjectionInfo(TestCase):
             dim_x_out, dim_y_out = get_dimension_datasets(dataset)
             self.assertEqual(dim_x_out, dim_x)
             self.assertEqual(dim_y_out, dim_y)
+
+    def test_is_x_y_flipped(self):
+        """ Ensure that a collection is correctly identified as being either
+            [..., y, x] or [..., x, y].
+
+            Note, Python array dimensions are [..., row, column], so will
+            appear flipped if the last two dimensions are ordered [..., x, y].
+
+        """
+        with h5py.File(self.test_h5_name, 'w') as h5_file:
+            dim_x = h5_file.create_dataset('/x', data=np.ones((2, )))
+            dim_x.attrs.create('standard_name', 'projection_x_coordinate')
+            dim_x.attrs.create('units', 'm')
+
+            dim_y = h5_file.create_dataset('/y', data=np.ones((3, )))
+            dim_y.attrs.create('standard_name', 'projection_y_coordinate')
+            dim_y.attrs.create('units', 'm')
+
+            dim_lon = h5_file.create_dataset('/lon', data=np.ones((4, )))
+            dim_lon.attrs.create('standard_name', 'longitude')
+            dim_lon.attrs.create('units', 'degrees_east')
+
+            dim_lat = h5_file.create_dataset('/lat', data=np.ones((5, )))
+            dim_lat.attrs.create('standard_name', 'latitude')
+            dim_lat.attrs.create('units', 'degrees_north')
+
+            flipped_xy_dataset = h5_file.create_dataset('flipped_data',
+                                                        data=np.ones((2, 3)))
+            flipped_xy_dataset.attrs.create('DIMENSION_LIST',
+                                            ((dim_x.ref, ), (dim_y.ref, )),
+                                            dtype=h5py.ref_dtype)
+
+            unflipped_xy_dataset = h5_file.create_dataset('unflipped_data',
+                                                          data=np.ones((3, 2)))
+            unflipped_xy_dataset.attrs.create('DIMENSION_LIST',
+                                              ((dim_y.ref, ), (dim_x.ref, )),
+                                              dtype=h5py.ref_dtype)
+
+            flipped_geo_dataset = h5_file.create_dataset('flipped_geo',
+                                                         data=np.ones((4, 5)))
+            flipped_geo_dataset.attrs.create('DIMENSION_LIST',
+                                             ((dim_lon.ref, ), (dim_lat.ref, )),
+                                             dtype=h5py.ref_dtype)
+            unflipped_geo_dataset = h5_file.create_dataset('unflipped_geo',
+                                                           data=np.ones((5, 4)))
+            unflipped_geo_dataset.attrs.create('DIMENSION_LIST',
+                                               ((dim_lat.ref, ), (dim_lon.ref, )),
+                                               dtype=h5py.ref_dtype)
+
+            with self.subTest('Flipped projected data returns True'):
+                self.assertTrue(is_x_y_flipped(flipped_xy_dataset))
+
+            with self.subTest('Unflipped projected data returns False'):
+                self.assertFalse(is_x_y_flipped(unflipped_xy_dataset))
+
+            with self.subTest('Flipped geographic data returns True'):
+                self.assertTrue(is_x_y_flipped(flipped_geo_dataset))
+
+            with self.subTest('Unflipped geographic data returns False'):
+                self.assertFalse(is_x_y_flipped(unflipped_geo_dataset))
+
+    def test_is_projection_x_dimension(self):
+        """ Ensure that an HDF-5 dataset is correctly determined as being an
+            x spatial dimension (either longitude or projected x). Other
+            dimension types should be identified as not being an x dimension.
+
+        """
+        with h5py.File(self.test_h5_name, 'w') as h5_file:
+            dim_x = h5_file.create_dataset('/x', data=np.ones((2, )))
+            dim_x.attrs.create('standard_name', 'projection_x_coordinate')
+            dim_x.attrs.create('units', 'm')
+
+            dim_y = h5_file.create_dataset('/y', data=np.ones((3, )))
+            dim_y.attrs.create('standard_name', 'projection_y_coordinate')
+            dim_y.attrs.create('units', 'm')
+
+            dim_lon = h5_file.create_dataset('/lon', data=np.ones((4, )))
+            dim_lon.attrs.create('standard_name', 'longitude')
+            dim_lon.attrs.create('units', 'degrees_east')
+
+            dim_lat = h5_file.create_dataset('/lat', data=np.ones((5, )))
+            dim_lat.attrs.create('standard_name', 'latitude')
+            dim_lat.attrs.create('units', 'degrees_north')
+
+            dim_time = h5_file.create_dataset('/time', data=np.ones((6, )))
+            dim_time.attrs.create('standard_name', 'time')
+            dim_time.attrs.create('units', 'seconds since 1980-01-01T00:00:00')
+
+            with self.subTest('Projected x dimension returns True'):
+                self.assertTrue(is_projection_x_dimension(dim_x))
+
+            with self.subTest('Longitude dimension returns True'):
+                self.assertTrue(is_projection_x_dimension(dim_lon))
+
+            with self.subTest('Projected y dimension returns False'):
+                self.assertFalse(is_projection_x_dimension(dim_y))
+
+            with self.subTest('Latitude dimension returns False'):
+                self.assertFalse(is_projection_x_dimension(dim_lat))
+
+            with self.subTest('Non-spatial dimension returns False'):
+                self.assertFalse(is_projection_x_dimension(dim_time))
+
+    def test_is_projection_y_dimension(self):
+        """ Ensure that an HDF-5 dataset is correctly determined as being a
+            y spatial dimension (either latitude or projected y). Other
+            dimension types should be identified as not being a y dimension.
+
+        """
+        with h5py.File(self.test_h5_name, 'w') as h5_file:
+            dim_x = h5_file.create_dataset('/x', data=np.ones((2, )))
+            dim_x.attrs.create('standard_name', 'projection_x_coordinate')
+            dim_x.attrs.create('units', 'm')
+
+            dim_y = h5_file.create_dataset('/y', data=np.ones((3, )))
+            dim_y.attrs.create('standard_name', 'projection_y_coordinate')
+            dim_y.attrs.create('units', 'm')
+
+            dim_lon = h5_file.create_dataset('/lon', data=np.ones((4, )))
+            dim_lon.attrs.create('standard_name', 'longitude')
+            dim_lon.attrs.create('units', 'degrees_east')
+
+            dim_lat = h5_file.create_dataset('/lat', data=np.ones((5, )))
+            dim_lat.attrs.create('standard_name', 'latitude')
+            dim_lat.attrs.create('units', 'degrees_north')
+
+            dim_time = h5_file.create_dataset('/time', data=np.ones((6, )))
+            dim_time.attrs.create('standard_name', 'time')
+            dim_time.attrs.create('units', 'seconds since 1980-01-01T00:00:00')
+
+            with self.subTest('Projected x dimension returns False'):
+                self.assertFalse(is_projection_y_dimension(dim_x))
+
+            with self.subTest('Longitude dimension returns False'):
+                self.assertFalse(is_projection_y_dimension(dim_lon))
+
+            with self.subTest('Projected y dimension returns True'):
+                self.assertTrue(is_projection_y_dimension(dim_y))
+
+            with self.subTest('Latitude dimension returns True'):
+                self.assertTrue(is_projection_y_dimension(dim_lat))
+
+            with self.subTest('Non-spatial dimension returns False'):
+                self.assertFalse(is_projection_y_dimension(dim_time))
 
     def test_get_dataset_attributes(self):
         """ Ensure a dictionary is returned, with all string values decoded

@@ -157,6 +157,40 @@ class TestHarmonyMaskFill(TestCase):
                                            location=self.staging_location,
                                            logger=maskfill_adapter.logger)
 
+    def test_harmony_adapter_netcdf4_input(self, mock_download, mock_stage):
+        """ Ensure MaskFill can run on a NetCDF-4 file (e.g., from HOSS). """
+        test_data = Message({
+            'accessToken': self.access_token,
+            'callback': self.callback,
+            'stagingLocation': self.staging_location,
+            'sources': [{'granules': [{
+                'bbox': self.bounding_box,
+                'temporal': self.temporal,
+                'url': 'tests/data/GPM_3IMERGHH_input.nc4'
+            }]}],
+            'subset': {'shape': {'href': self.shape_usa,
+                                 'type': 'application/geo+json'}},
+            'user': self.user,
+        })
+
+        masked_name = 'GPM_3IMERGHH_input_mf.nc4'
+        staged_name = 'GPM_3IMERGHH_input_subsetted.nc4'
+
+        maskfill_config = config(False)
+        maskfill_adapter = HarmonyAdapter(test_data, config=maskfill_config)
+        maskfill_adapter.invoke()
+
+        mock_download.asset_called_once_with(self.input_geotiff,
+                                             ANY,
+                                             logger=maskfill_adapter.logger,
+                                             access_token=self.access_token,
+                                             cfg=maskfill_config)
+        mock_stage.assert_called_once_with(StringEndsWith(masked_name),
+                                           StringEndsWith(staged_name),
+                                           'application/x-netcdf4',
+                                           location=self.staging_location,
+                                           logger=maskfill_adapter.logger)
+
     def test_validate_message_no_message(self, mock_download, mock_stage):
         """ Ensure that a `NoneType` message will raise an exception, during
             validation.

@@ -517,3 +517,28 @@ class TestMaskFill(TestCase):
                                                             output_file))
 
         self.compare_geotiff_files(template_output, output_file)
+
+    @patch('MaskFill.get_input_parameters')
+    def test_mask_fill_netcdf4_input(self, mock_get_input_parameters):
+        """ Ensure a NetCDF-4 file input (e.g., from HOSS) can be correctly
+            masked using an example GPM/IMERG granule.
+
+        """
+        input_file = 'tests/data/GPM_3IMERGHH_input.nc4'
+        shape_file = 'tests/data/USA.geo.json'
+        output_file = (f'{self.output_dir}/{self.identifier}/'
+                       'GPM_3IMERGHH_input_mf.nc4')
+        template_output = 'tests/data/GPM_3IMERGHH_output.nc4'
+
+        parameters = self.default_parameters.copy()
+        parameters['input_file'] = input_file
+        parameters['shape_file'] = shape_file
+
+        mock_get_input_parameters.return_value = self.create_parameters_namespace(parameters)
+        response = maskfill_sdps()
+
+        self.assertEqual(response, get_xml_success_response(input_file,
+                                                            shape_file,
+                                                            output_file))
+
+        self.compare_h5_files(template_output, output_file)
