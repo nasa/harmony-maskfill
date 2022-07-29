@@ -4,7 +4,7 @@
 
 """
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional
 import json
 import os
 import re
@@ -68,7 +68,7 @@ class CFConfig(ABC):
         config_file_path = os.sep.join([maskfill_directory, 'data',
                                         'maskfill_config.json'])
 
-        with open(config_file_path) as file_handler:
+        with open(config_file_path, encoding='utf-8') as file_handler:
             config = json.load(file_handler)
 
         return config

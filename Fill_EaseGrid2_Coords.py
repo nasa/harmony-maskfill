@@ -14,10 +14,7 @@ import shutil
 import numpy as np
 
 from pymods import MaskFillUtil
-from pymods.Ease2Grid import \
-    Ease2Grid, \
-    Ease2GridResolution, \
-    Ease2GridType
+from pymods.Ease2Grid import Ease2Grid, Ease2GridResolution, Ease2GridType
 
 lat_array, long_array = [[], []], [[], []]  # (2) 2D ([x, y]) grids
 
@@ -46,12 +43,12 @@ def fill_ease2grid_coords(h5_dataset):
     if 'Polar' in h5_dataset.parent.name:
         if 'latitude' in h5_dataset.name:
             data = h5_dataset[:]
-            corrected_data = MaskFillUtil.apply_2D(data, get_latitude)
+            corrected_data = MaskFillUtil.apply_2d(data, get_latitude)
             h5_dataset.write_direct(corrected_data)
 
         elif 'longitude' in h5_dataset.name:
             data = h5_dataset[:]
-            corrected_data = MaskFillUtil.apply_2D(data, get_longitude)
+            corrected_data = MaskFillUtil.apply_2d(data, get_longitude)
             h5_dataset.write_direct(corrected_data)
 
 

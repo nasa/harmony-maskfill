@@ -291,6 +291,9 @@ class TestH5GridProjectionInfo(TestCase):
                                                          self.cf_config,
                                                          self.logger)
 
+            self.assertEqual(context_manager.exception.message,
+                             '/lon_filled or /lat_filled have no valid data.')
+
         h5_file.close()
 
     def test_get_projected_coordinate_extent(self):
@@ -352,11 +355,15 @@ class TestH5GridProjectionInfo(TestCase):
         with self.subTest('x - only single column of data'):
             valid_data = np.where((lon_array > 10) & (lon_array < 20))
 
-            with self.assertRaises(InsufficientDataError):
+            with self.assertRaises(InsufficientDataError) as context_manager:
                 x_min, x_max = get_projected_coordinate_extent(projection,
                                                                lat_array,
                                                                lon_array,
                                                                1, valid_data)
+
+            self.assertEqual(context_manager.exception.message,
+                             ('Only a single, unmasked column of data. Unable '
+                              'to calculate x pixel size.'))
 
         with self.subTest('y - only single row of data'):
             valid_data = np.where((lat_array < 25) & (lat_array > 15))
@@ -365,6 +372,10 @@ class TestH5GridProjectionInfo(TestCase):
                                                                lat_array,
                                                                lon_array,
                                                                0, valid_data)
+
+            self.assertEqual(context_manager.exception.message,
+                             ('Only a single, unmasked row of data. Unable '
+                              'to calculate y pixel size.'))
 
     def test_get_cell_size_from_dimensions(self):
         """Given an input dataset, check the returned cell_width and cell_height."""
@@ -614,6 +625,10 @@ class TestH5GridProjectionInfo(TestCase):
                     lon_out, lat_out = get_lon_lat_datasets(dataset)
                     self.assertTrue(missing_coords in context.exception.message)
 
+                self.assertEqual(context.exception.message,
+                                 (f'Cannot find "{missing_coords}" in '
+                                  f'"{self.test_h5_name}".'))
+
     def test_get_hdf_crs(self):
         """Ensure that a `pyproj.CRS` object is returned, where possible. The
             order of projection information should be: DIMENSION_LIST,
@@ -638,7 +653,7 @@ class TestH5GridProjectionInfo(TestCase):
         grid_mapping.attrs.update(global_grid_mapping_cf)
 
         with self.subTest('No projection information or configuration, raises exception'):
-            with self.assertRaises(InsufficientProjectionInformation):
+            with self.assertRaises(InsufficientProjectionInformation) as context:
                 with patch.object(CFConfigH5,
                                   'get_dataset_grid_mapping_attributes',
                                   return_value=None):
@@ -646,6 +661,10 @@ class TestH5GridProjectionInfo(TestCase):
                     cf_config = CFConfigH5('tests/data/SMAP_L3_FT_P_corners_input.h5')
                     crs = get_hdf_crs(config_dataset, cf_config,
                                       self.logger)
+
+            self.assertEqual(context.exception.message,
+                             ('Cannot find projection information for dataset:'
+                              ' /Freeze_Thaw_Retrieval_polar/latitude.'))
 
         with self.subTest('No information, uses configured defaults.'):
             crs = get_hdf_crs(config_dataset, self.cf_config, self.logger)
@@ -935,9 +954,14 @@ class TestH5GridProjectionInfo(TestCase):
                 self.assertEqual(grid_mapping_name, expected_name)
 
         with self.subTest('Reference not in file, raises exception'):
-            with self.assertRaises(InvalidMetadata):
+            with self.assertRaises(InvalidMetadata) as context_manager:
                 science_dataset.attrs.create('grid_mapping', 'crs_2')
                 get_grid_mapping_name(science_dataset)
+
+            self.assertEqual(context_manager.exception.message,
+                             ('Invalid metadata in /group/data: '
+                              'grid_mapping or coordinate="crs_2": '
+                              'Variable reference not in file'))
 
     def test_resolve_relative_dataset_path(self):
         """ Ensure a relative path can be qualified to a full path using the
@@ -967,13 +991,15 @@ class TestH5GridProjectionInfo(TestCase):
 
                 self.assertEqual(resolved_path, expected_path)
 
-        test_args = [['Incorrect nesting', '../../../grid_mapping'],
-                     ['Missing reference', 'non_existant_variable']]
+        test_args = [['Relative path has incorrect nesting', '../../../grid_mapping'],
+                     ['Variable reference not in file', 'non_existant_variable']]
 
         for description, relative_path in test_args:
             with self.subTest('Incorrect reference nesting'):
-                with self.assertRaises(InvalidMetadata):
+                with self.assertRaises(InvalidMetadata) as context_manager:
                     resolve_relative_dataset_path(dataset, relative_path)
+
+                self.assertTrue(context_manager.exception.message.endswith(description))
 
     def test_get_crs_from_grid_mapping(self):
         """ Ensure that this function can handle:

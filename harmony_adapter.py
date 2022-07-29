@@ -12,6 +12,7 @@ from harmony.util import (download, generate_output_filename, HarmonyException,
                           stage)
 
 from MaskFill import DEFAULT_FILL_VALUE, DEFAULT_MASK_GRID_CACHE, mask_fill
+from pymods.MaskFillUtil import create_bounding_box_shape_file
 
 
 EXTENSION_MIMETYPES = {'.h5': 'application/x-hdf5',
@@ -31,7 +32,6 @@ class HarmonyAdapter(BaseHarmonyAdapter):
         method is then used to call the `process_item` method of this class.
 
     """
-
     def invoke(self):
         """ Adds validation to default process_item-based invocation
 
@@ -86,10 +86,16 @@ class HarmonyAdapter(BaseHarmonyAdapter):
             self.validate_input_granule(input_filename)
 
             # Get the shape file data
-            shape_filename = self.download_from_remote(
-                self.message.subset.shape.href, working_dir
-            )
-            self.logger.info('Shapefile data copied')
+            if self.message_has_valid_shape_file():
+                shape_filename = self.download_from_remote(
+                    self.message.subset.shape.process('href'), working_dir
+                )
+                self.logger.info('Shape file downloaded')
+            else:
+                shape_filename = create_bounding_box_shape_file(
+                    self.message.subset.process('bbox'), working_dir
+                )
+                self.logger.info('Shape file constructed from bounding box.')
 
             # Call MaskFill utility
             working_filename = mask_fill(input_filename, shape_filename,
@@ -177,15 +183,53 @@ class HarmonyAdapter(BaseHarmonyAdapter):
         if not isinstance(self.message.granules, list):
             raise HarmonyException('Invalid granule list')
 
-        # Check shape file is present, and is a GeoJSON resource
+        # Ensure that either a GeoJSON shape file or a bounding box is
+        # specified in the Harmony message.
         if (
-                not hasattr(self.message.subset, 'shape')
-                or self.message.subset.shape.href is None
+            not self.message_has_valid_shape_file()
+            and not self.message_has_valid_bounding_box()
         ):
-            raise HarmonyException('Shape file must be specified for masking.')
+            raise HarmonyException('MaskFill requires a shape file or bounding'
+                                   ' box that describes a mask.')
 
-        if self.message.subset.shape.type != 'application/geo+json':
-            raise HarmonyException('Shape file must be GeoJSON format.')
+    def message_has_valid_shape_file(self):
+        """ A method that confirms if the Harmony message specifies a GeoJSON
+            shape file. If either the URL is omitted or the MIME type of the
+            shape file is not GeoJSON an exception will be raised.
+
+        """
+        if getattr(self.message.subset, 'shape', None) is not None:
+            if self.message.subset.shape.href is None:
+                raise HarmonyException('Shape file must specify resource URL.')
+            elif self.message.subset.shape.type != 'application/geo+json':
+                raise HarmonyException('Shape file must be GeoJSON format.')
+            else:
+                has_valid_shape = True
+        else:
+            has_valid_shape = False
+
+        return has_valid_shape
+
+    def message_has_valid_bounding_box(self):
+        """ A method that confirms a message defines a bounding box for spatial
+            subsetting. This will be used if a shape file is not defined in the
+            input Harmony message. If a bounding box is defined with incorrect
+            input (e.g., the wrong number of elements) then an exception will
+            be raised.
+
+        """
+        if getattr(self.message.subset, 'bbox', None) is not None:
+            if (
+                isinstance(self.message.subset.bbox, list)
+                and len(self.message.subset.bbox) == 4
+            ):
+                has_valid_bbox = True
+            else:
+                raise HarmonyException('Bounding box must be 4-element list.')
+        else:
+            has_valid_bbox = False
+
+        return has_valid_bbox
 
     def validate_input_granule(self, input_filename):
         """ Check that the MIME type of the given file name is one of the

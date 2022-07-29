@@ -31,7 +31,7 @@ from pymods.H5GridProjectionInfo import (dataset_all_fill_value, get_fill_value,
                                          get_hdf_crs, get_transform)
 from pymods.MaskFillCaching import (cache_h5_mask_arrays,
                                     get_mask_array_path_from_id)
-from pymods.MaskFillUtil import apply_2D, get_h5_mask_array_id, process_h5_file
+from pymods.MaskFillUtil import apply_2d, get_h5_mask_array_id, process_h5_file
 
 
 def produce_masked_hdf(hdf_path: str, shape_path: str, output_dir: str,
@@ -90,7 +90,7 @@ def mask_fill(h5_dataset: h5py.Dataset, shape_path: str, cache_dir: str,
               saved_mask_arrays: Dict[str, np.ndarray],
               cf_config: CFConfigH5, exclusions_set: Set[str], logger: Logger):
     """ Replaces the data in the HDF5 dataset with a mask filled version of the
-        data. This function is applied to each dataset via the apply_2D
+        data. This function is applied to each dataset via the apply_2d
         mechanism.
 
         Args:
@@ -139,7 +139,7 @@ def mask_fill(h5_dataset: h5py.Dataset, shape_path: str, cache_dir: str,
     if mask_grid_cache != 'maskgrid_only':
         fill_value = get_fill_value(h5_dataset, cf_config, logger,
                                     default_fill_value)
-        mask_filled_data = apply_2D(h5_dataset[:],
+        mask_filled_data = apply_2d(h5_dataset[:],
                                     MaskFillUtil.mask_fill_array,
                                     mask_array, fill_value)
 

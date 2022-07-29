@@ -112,7 +112,8 @@ class TestMaskFill(TestCase):
 
         with self.assertRaises(MissingParameterValue) as context:
             check_shapefile_geojson(None, self.output_dir)
-            self.assertEqual(context.exception.message, expected_message)
+
+        self.assertEqual(context.exception.message, expected_message)
 
     def test_validate_input_parameters_all_valid(self):
         """ No exception is raised when all parameters are valid. If this is
@@ -141,7 +142,8 @@ class TestMaskFill(TestCase):
 
     def test_validate_input_parameters_invalid_extension(self):
         """Ensure invalid input file extensions are detected."""
-        expected_message = 'The input data file must be a GeoTIFF or HDF5 file type'
+        expected_message = ('The input data file must be a GeoTIFF, HDF5 '
+                            'or NetCDF-4 file type')
 
         input_file = f'{self.output_dir}/input.json'
         with open(input_file, 'w'):
@@ -151,7 +153,8 @@ class TestMaskFill(TestCase):
             validate_input_parameters(input_file, self.shape_file,
                                       self.output_dir, DEFAULT_FILL_VALUE,
                                       self.logger)
-            self.assertEqual(context.exception.message, expected_message)
+
+        self.assertEqual(context.exception.message, expected_message)
 
     def test_validate_input_parameters_no_input_file(self):
         """Validation should fail for either None or non-existant file."""
@@ -162,7 +165,8 @@ class TestMaskFill(TestCase):
             validate_input_parameters(input_file, self.shape_file,
                                       self.output_dir, DEFAULT_FILL_VALUE,
                                       self.logger)
-            self.assertEqual(context.exception.message, expected_message)
+
+        self.assertEqual(context.exception.message, expected_message)
 
     def test_validate_input_parameters_bad_input_file(self):
         """Validation should fail for either None or non-existant file."""
@@ -173,7 +177,8 @@ class TestMaskFill(TestCase):
             validate_input_parameters(input_file, self.shape_file,
                                       self.output_dir, DEFAULT_FILL_VALUE,
                                       self.logger)
-            self.assertEqual(context.exception.message, expected_message)
+
+        self.assertEqual(context.exception.message, expected_message)
 
     def test_validate_input_parameters_bad_shape_file(self):
         """Validation should fail if the shape file doesn't exist."""
@@ -183,7 +188,8 @@ class TestMaskFill(TestCase):
             validate_input_parameters(self.input_h5_file, 'not_a_real_file',
                                       self.output_dir, DEFAULT_FILL_VALUE,
                                       self.logger)
-            self.assertEqual(context.exception.message, expected_message)
+
+        self.assertEqual(context.exception.message, expected_message)
 
     def test_validate_input_parameters_bad_output_dir(self):
         """Validation should fail if the output directory doesn't exist."""
@@ -194,7 +200,8 @@ class TestMaskFill(TestCase):
             validate_input_parameters(self.input_h5_file, self.shape_file,
                                       bad_directory, DEFAULT_FILL_VALUE,
                                       self.logger)
-            self.assertEqual(context.exception.message, expected_message)
+
+        self.assertEqual(context.exception.message, expected_message)
 
     def test_validate_input_parameters_valid_fill_value_type(self):
         """Validation should only pass for floats or integers."""

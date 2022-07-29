@@ -672,6 +672,6 @@ def resolve_relative_dataset_path(h5_dataset: Dataset,
 
     if resolved_path not in h5_dataset.file:
         raise InvalidMetadata(h5_dataset.name, 'grid_mapping or coordinate',
-                              relative_path, 'Variable reference not in file ')
+                              relative_path, 'Variable reference not in file')
 
     return resolved_path
