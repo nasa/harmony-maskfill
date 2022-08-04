@@ -205,24 +205,24 @@
             "/Soil_Moisture_Retrieval_Data_3km/EASE_(column|row)_index(:?_apm)?_3km"
         ],
         "SPL3FTP": [
-            "/Freeze_Thaw_Retrieval_Data_(Global|Polar)/l(at|ong)itude.Bands_(:?0)?[12]",
-            "/Freeze_Thaw_Retrieval_Data_(Global|Polar)/EASE_(column|row)_index.Bands_(:?0)?[12]"
+            "/Freeze_Thaw_Retrieval_Data_(Global|Polar)/l(at|ong)itude(:?.Bands_(:?0)?[12])?",
+            "/Freeze_Thaw_Retrieval_Data_(Global|Polar)/EASE_(column|row)_index(:?.Bands_(:?0)?[12])?"
         ],
         "SPL3FTP_E": [
-            "/Freeze_Thaw_Retrieval_Data_(Global|Polar)/l(at|ong)itude.Bands_(:?0)?[12]",
-            "/Freeze_Thaw_Retrieval_Data_(Global|Polar)/EASE_(column|row)_index.Bands_(:?0)?[12]"
+            "/Freeze_Thaw_Retrieval_Data_(Global|Polar)/l(at|ong)itude(:?.Bands_(:?0)?[12])?",
+            "/Freeze_Thaw_Retrieval_Data_(Global|Polar)/EASE_(column|row)_index(:?.Bands_(:?0)?[12])?"
         ],
         "SPL3FTA": [
-            "/Freeze_Thaw_Retrieval_Data/l(at|ong)itude.Bands_(:?0)?[12]",
-            "/Freeze_Thaw_Retrieval_Data/EASE_(column|row)_index.Bands_(:?0)?[12]"
+            "/Freeze_Thaw_Retrieval_Data/l(at|ong)itude(:?.Bands_(:?0)?[12])?",
+            "/Freeze_Thaw_Retrieval_Data/EASE_(column|row)_index(:?.Bands_(:?0)?[12])?"
         ],
         "SPL3SMA": [
-            "/Freeze_Thaw_Retrieval_Data/l(at|ong)itude.Bands_(:?0)?[12]",
-            "/Freeze_Thaw_Retrieval_Data/EASE_(column|row)_index.Bands_(:?0)?[12]"
+            "/Freeze_Thaw_Retrieval_Data/l(at|ong)itude(:?.Bands_(:?0)?[12])?",
+            "/Freeze_Thaw_Retrieval_Data/EASE_(column|row)_index(:?.Bands_(:?0)?[12])?"
         ],
         "SPL3SMAP": [
-            "/Freeze_Thaw_Retrieval_Data/l(at|ong)itude.Bands_(:?0)?[12]",
-            "/Freeze_Thaw_Retrieval_Data/EASE_(column|row)_index.Bands_(:?0)?[12]"
+            "/Freeze_Thaw_Retrieval_Data/l(at|ong)itude(:?.Bands_(:?0)?[12])?",
+            "/Freeze_Thaw_Retrieval_Data/EASE_(column|row)_index(:?.Bands_(:?0)?[12])?"
         ],
         "SPL3SMP": [
             "/Soil_Moisture_Retrieval_Data_AM/l(at|ong)itude(:?_centroid)?",
