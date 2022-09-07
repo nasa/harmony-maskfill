@@ -46,7 +46,9 @@
         "VNP10A1F": "VNP10A1F",
         "VNP30": "VNP30",
         "GPM_3IMERGHH": "3IMERGHH",
-        "f16_ssmis_": "RSSMIF16D_"
+        "f16_ssmis_": "RSSMIF16D",
+        "ABoVE_ForestDisturbance_Agents": "ABoVE_ForestDisturbance_Agents_1924",
+        "NorthSlope_NEE_TVPRM": "NorthSlope_NEE_TVPRM_1920"
     },
     "corrected_fill_values": {
         "SPL3FT(A|P|P_E)": {
@@ -279,6 +281,13 @@
             "/l(at|on)_bnds",
             "/time",
             "/time_bnds"
+        ],
+        "NorthSlope_NEE_TVPRM_1920": [
+            "/l(at|on)",
+            "/time_bnds"
+        ],
+        "ABoVE_ForestDisturbance_Agents_1924": [
+            "/l(at|on)"
         ]
     }
 }
