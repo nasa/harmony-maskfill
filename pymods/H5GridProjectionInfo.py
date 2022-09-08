@@ -255,11 +255,26 @@ def get_decoded_attribute(h5_dataset: Dataset, attribute_key: str,
     """ Ensure that any Byte type attributes are decoded to a string. Otherwise
         return the metadata attribute as stored in the H5 file.
 
+        With some OPeNDAP output, `h5py` will consider single floating point
+        values to be 1-element arrays of floating point values. If a `numpy`
+        array is detected with only one value (that is not itself an object),
+        that metadata attribute is determined to be just the element itself,
+        not an array. `numpy` arrays with `dtype='object'` are left as arrays
+        as these are most commonly `h5py.References` and these are typically
+        stored as arrays.
+
     """
     attribute_value = h5_dataset.attrs.get(attribute_key, default)
-    return (attribute_value.decode()
-            if isinstance(attribute_value, (bytes, np.bytes_))
-            else attribute_value)
+
+    if isinstance(attribute_value, (bytes, np.bytes_)):
+        attribute_value = attribute_value.decode()
+    elif (
+        isinstance(attribute_value, np.ndarray) and attribute_value.size == 1
+        and not attribute_value.dtype == 'object'
+    ):
+        attribute_value = attribute_value[0]
+
+    return attribute_value
 
 
 def get_transform(h5_dataset: Dataset, crs: CRS, cf_config: CFConfigH5,

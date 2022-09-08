@@ -1044,19 +1044,25 @@ class TestH5GridProjectionInfo(TestCase):
             otherwise the type of the retrieved metadata attribute should match
             the type as contained in the HDF-5 file.
 
+            If the attribute is a single-element array, then the output should
+            be only the element, not an array.
+
         """
         string_value = 'this is a string'
         decoded_bytes = 'bytes'
         bytes_value = bytes(decoded_bytes, 'utf-8')
         numerical_value = 123.456
         np_bytes_value = np.bytes_(decoded_bytes, 'utf-8')
+        single_element_array = np.array([numerical_value])
+        multi_element_array = np.array([numerical_value, numerical_value])
 
         test_args = [
             ['String attribute', 'string_value', string_value],
             ['Bytes attribute decoded', 'bytes_value', decoded_bytes],
             ['np.bytes_ attribute decoded', 'np_bytes_value', decoded_bytes],
             ['Numerical attribute', 'numerical_value', numerical_value],
-            ['Absent attribute defaults to None', 'Missing', None]
+            ['Absent attribute defaults to None', 'Missing', None],
+            ['Single element array', 'single_element_array', numerical_value]
         ]
 
         default_test_args = [
@@ -1070,6 +1076,8 @@ class TestH5GridProjectionInfo(TestCase):
             attributes.create('bytes_value', bytes_value)
             attributes.create('numerical_value', numerical_value)
             attributes.create('np_bytes_value', np_bytes_value)
+            attributes.create('single_element_array', single_element_array)
+            attributes.create('multi_element_array', multi_element_array)
 
             for description, attribute_key, expected_value in test_args:
                 with self.subTest(description):
@@ -1084,3 +1092,8 @@ class TestH5GridProjectionInfo(TestCase):
                         get_decoded_attribute(h5_file, key, default),
                         expected_value
                     )
+
+            np.testing.assert_array_equal(
+                get_decoded_attribute(h5_file, 'multi_element_array'),
+                multi_element_array
+            )
