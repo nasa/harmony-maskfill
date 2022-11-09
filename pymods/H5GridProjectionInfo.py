@@ -65,14 +65,11 @@ def has_geographic_dimensions(h5_dataset: Dataset) -> bool:
         the dimensions to determine if they are geographic.
 
     """
-    dimensions = get_dimension_datasets(h5_dataset)
+    units_list = [get_decoded_attribute(dimension, 'units', default='')
+                  for dimension
+                  in get_dimension_datasets(h5_dataset) or ()]
 
-    if dimensions is not None:
-        units = get_decoded_attribute(dimensions[0], 'units', default='')
-    else:
-        units = ''
-
-    return 'degrees' in units
+    return any('degrees' in units for units in units_list)
 
 
 def get_grid_mapping_name(h5_dataset: Dataset) -> Optional[str]:
@@ -143,20 +140,28 @@ def get_dimension_datasets(h5_dataset: Dataset) -> Optional[Tuple[Dataset, Datas
 
     """
     h5_file = h5_dataset.file
-    dim_list = get_decoded_attribute(h5_dataset, 'DIMENSION_LIST')
+    dimension_list = get_decoded_attribute(h5_dataset, 'DIMENSION_LIST',
+                                           np.array([]))
 
-    if dim_list is not None:
-        for ref in dim_list:
-            dim = h5_file[ref[0]]
-            if dim.size == h5_dataset.shape[-2]:
-                y_dataset = dim
+    # The following iterators begin at the end of the DIMENSION_LIST, because
+    # spatial dimensions are mostly likely at the end of that list (e.g.:
+    # (time, lat, lon). This attempts to avoid spurious matches to other
+    # dimensions (e.g., time) that happen to have the same number of elements.
+    x_dataset = next((h5_file[dimension[0]]
+                      for dimension in np.flip(dimension_list)
+                      if h5_file[dimension[0]].size == h5_dataset.shape[-1]),
+                     None)
 
-            if dim.size == h5_dataset.shape[-1]:
-                x_dataset = dim
+    y_dataset = next((h5_file[dimension[0]]
+                      for dimension in np.flip(dimension_list)
+                      if h5_file[dimension[0]].size == h5_dataset.shape[-2]
+                      and h5_file[dimension[0]] != x_dataset),
+                     None)
 
-        return x_dataset, y_dataset
-    else:
+    if x_dataset is None or y_dataset is None:
         return None
+    else:
+        return x_dataset, y_dataset
 
 
 def is_x_y_flipped(dataset: Dataset) -> bool:

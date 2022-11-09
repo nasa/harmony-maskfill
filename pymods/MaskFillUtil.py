@@ -331,7 +331,7 @@ def get_resolved_dataframe(shape_file_path: str, transform: Affine, crs: CRS,
     """
     latitudes, longitudes = get_grid_lat_lons(transform, crs, out_shape)
     geographic_resolution = get_geographic_resolution(longitudes, latitudes)
-    initial_gpd = gpd.read_file(shape_file_path).explode()
+    initial_gpd = gpd.read_file(shape_file_path).explode(index_parts=True)
     return get_resolved_shape(initial_gpd, geographic_resolution)
 
 

@@ -690,16 +690,61 @@ class TestH5GridProjectionInfo(TestCase):
 
         h5_file.close()
 
-    def test_has_geographic_dimensions(self):
+    def test_has_geographic_dimensions_true(self):
         """ Ensure if a variable can be correctly determined as geographically
-            gridded based on its dimensions.
+            gridded based on its dimensions. This should be true for 2-D
+            variables with only geographic dimensions as well as 3-D variables
+            that have a non-geographic dimension first, e.g.: (time, lat, lon).
 
         """
         dimension_data = np.linspace(0, 10, num=11)
         science_data = np.ones((11, 11))
         h5_file = h5py.File(self.test_h5_name, 'w')
-        geo_dimension = h5_file.create_dataset('geo_dim', data=dimension_data)
-        geo_dimension.attrs['units'] = 'degrees_east'
+        lon_dimension = h5_file.create_dataset('lon', data=dimension_data)
+        lon_dimension.attrs['units'] = 'degrees_east'
+        lat_dimension = h5_file.create_dataset('lat', data=dimension_data)
+        lat_dimension.attrs['units'] = 'degrees_north'
+
+        temporal_dimension = h5_file.create_dataset('temporal_dim',
+                                                    data=np.ones((1, )))
+        temporal_dimension.attrs['unit'] = 'seconds since 2020-01-01T00:00:00'
+
+        geo_dataset = h5_file.create_dataset('var_with_geo_dims',
+                                             data=science_data)
+
+        temporal_geo_dataset = h5_file.create_dataset('var_with_time_and_geo',
+                                                      data=np.ones((1, 11, 11)))
+
+        geo_dataset.attrs.create(
+            'DIMENSION_LIST', ((lat_dimension.ref, ), (lon_dimension.ref, )),
+            dtype=h5py.ref_dtype
+        )
+        temporal_geo_dataset.attrs.create(
+            'DIMENSION_LIST', ((temporal_dimension.ref, ),
+                               (lat_dimension.ref, ), (lon_dimension.ref, )),
+            dtype=h5py.ref_dtype
+        )
+
+        test_args = [['2-D geographic variable', geo_dataset],
+                     ['3-D geographic variable', temporal_geo_dataset]]
+
+        for description, test_dataset in test_args:
+            with self.subTest('Geographic dimensions'):
+                self.assertTrue(has_geographic_dimensions(test_dataset))
+
+        h5_file.close()
+
+    def test_has_geographic_dimensions_false(self):
+        """ Ensure a non-geographically gridded variable can be correctly
+            determined as such based on its dimensions. Such variables could be
+            projection gridded, not list dimensions at all, or have dimensions
+            with no units.
+
+        """
+        dimension_data = np.linspace(0, 10, num=11)
+        science_data = np.ones((11, 11))
+        h5_file = h5py.File(self.test_h5_name, 'w')
+
         non_geo_dimension = h5_file.create_dataset('non_geo_dim',
                                                    data=dimension_data)
         non_geo_dimension.attrs['unit'] = 'm'
@@ -708,26 +753,18 @@ class TestH5GridProjectionInfo(TestCase):
 
         no_dim_dataset = h5_file.create_dataset('var_no_dims',
                                                 data=science_data)
-        geo_dataset = h5_file.create_dataset('var_with_geo_dims',
-                                             data=science_data)
+
         non_geo_dataset = h5_file.create_dataset('var_with_non_geo_dims',
                                                  data=science_data)
         no_units_dataset = h5_file.create_dataset('var_with_unitless_dims',
                                                   data=science_data)
 
-        geo_dataset.attrs.create(
-            'DIMENSION_LIST', ((geo_dimension.ref, ), (geo_dimension.ref, )),
-            dtype=h5py.ref_dtype
-        )
         non_geo_dataset.attrs.create('DIMENSION_LIST',
                                      ((non_geo_dimension.ref, ), ),
                                      dtype=h5py.ref_dtype)
         no_units_dataset.attrs.create('DIMENSION_LIST',
                                       ((no_unit_dimension.ref, ), ),
                                       dtype=h5py.ref_dtype)
-
-        with self.subTest('Geographic dimensions'):
-            self.assertTrue(has_geographic_dimensions(geo_dataset))
 
         test_args = [['No dimensions present', no_dim_dataset],
                      ['Non-geographic dimensions', non_geo_dataset],
@@ -740,7 +777,7 @@ class TestH5GridProjectionInfo(TestCase):
         h5_file.close()
 
     def test_get_dimension_datasets(self):
-        """If a dataset has a DIMENSION_LIST attribute, the listed references
+        """ If a dataset has a DIMENSION_LIST attribute, the listed references
             should be extracted and returned. Otherwise, the function should
             return None.
 
@@ -764,6 +801,47 @@ class TestH5GridProjectionInfo(TestCase):
             dim_x_out, dim_y_out = get_dimension_datasets(dataset)
             self.assertEqual(dim_x_out, dim_x)
             self.assertEqual(dim_y_out, dim_y)
+
+        h5_file.close()
+
+    def test_get_dimension_datasets_square_array(self):
+        """ Ensure that if a square array is supplied, the correct dimensions
+            are retrieved, rather than the same dimension twice. This function
+            assumes standard Python index ordering of (row, column), meaning
+            the x dimension will be assumed to be last.
+
+        """
+        dim_x_name = '/x'
+        dim_y_name = '/y'
+
+        h5_file = h5py.File(self.test_h5_name, 'w')
+        dim_x = h5_file.create_dataset(dim_x_name, data=np.ones((3, )))
+        dim_y = h5_file.create_dataset(dim_y_name, data=np.ones((3, )))
+        dim_time = h5_file.create_dataset('/time', data=np.ones((1, )))
+
+        flat_dataset = h5_file.create_dataset('flat_data',
+                                              data=np.ones((3, 3)))
+        flat_dataset.attrs.create('DIMENSION_LIST',
+                                  ((dim_y.ref, ), (dim_x.ref, )),
+                                  dtype=h5py.ref_dtype)
+
+        banded_dataset = h5_file.create_dataset('banded_data',
+                                                data=np.ones((1, 3, 3)))
+        banded_dataset.attrs.create('DIMENSION_LIST',
+                                    ((dim_time.ref, ), (dim_y.ref, ),
+                                     (dim_x.ref, )), dtype=h5py.ref_dtype)
+
+        with self.subTest('Flat, len(x) = len(y) variable'):
+            dim_x_out, dim_y_out = get_dimension_datasets(flat_dataset)
+            self.assertEqual(dim_x_out, dim_x)
+            self.assertEqual(dim_y_out, dim_y)
+
+        with self.subTest('Banded, len(x) = len(y) variable'):
+            dim_x_out, dim_y_out = get_dimension_datasets(banded_dataset)
+            self.assertEqual(dim_x_out, dim_x)
+            self.assertEqual(dim_y_out, dim_y)
+
+        h5_file.close()
 
     def test_is_x_y_flipped(self):
         """ Ensure that a collection is correctly identified as being either
