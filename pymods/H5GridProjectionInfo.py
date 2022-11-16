@@ -65,14 +65,11 @@ def has_geographic_dimensions(h5_dataset: Dataset) -> bool:
         the dimensions to determine if they are geographic.
 
     """
-    dimensions = get_dimension_datasets(h5_dataset)
+    units_list = [get_decoded_attribute(dimension, 'units', default='')
+                  for dimension
+                  in get_dimension_datasets(h5_dataset) or ()]
 
-    if dimensions is not None:
-        units = get_decoded_attribute(dimensions[0], 'units', default='')
-    else:
-        units = ''
-
-    return 'degrees' in units
+    return any('degrees' in units for units in units_list)
 
 
 def get_grid_mapping_name(h5_dataset: Dataset) -> Optional[str]:
@@ -129,11 +126,11 @@ def get_dimension_datasets(h5_dataset: Dataset) -> Optional[Tuple[Dataset, Datas
     """ Finds the dimension scales datasets corresponding to the horizontal
         spatial dimensions of a given HDF5 dataset. This function assumes that
         these will correspond to the last two array dimensions of the science
-        variable, e.g., (time, lat, lon) or (time, y, x).
-
-        Note: in this function "x" and "y" refer to the dimensions of the
-        array, not a projection coordinate. In some cases the x and y spatial
-        dimensions may not match the x and y dimensions of the numpy array.
+        variable, e.g., (time, lat, lon) or (time, y, x). However, the ordering
+        of the horizontal spatial dimensions may not match the ordering of the
+        numpy array axes (e.g., (time, lat, lon) or (time, lon, lat) are both
+        cases that can be handled). numpy array indices generally are:
+        [..., row, column].
 
         Args:
              h5_dataset (h5py._hl.dataset.Dataset): The HDF5 dataset
@@ -143,20 +140,28 @@ def get_dimension_datasets(h5_dataset: Dataset) -> Optional[Tuple[Dataset, Datas
 
     """
     h5_file = h5_dataset.file
-    dim_list = get_decoded_attribute(h5_dataset, 'DIMENSION_LIST')
+    dimension_list = get_decoded_attribute(h5_dataset, 'DIMENSION_LIST',
+                                           np.array([]))
 
-    if dim_list is not None:
-        for ref in dim_list:
-            dim = h5_file[ref[0]]
-            if dim.size == h5_dataset.shape[-2]:
-                y_dataset = dim
+    # The following iterators begin at the end of the DIMENSION_LIST, because
+    # spatial dimensions are mostly likely at the end of that list (e.g.:
+    # (time, lat, lon). This attempts to avoid spurious matches to other
+    # dimensions (e.g., time) that happen to have the same number of elements.
+    column_dimension = next((h5_file[dimension[0]]
+                             for dimension in np.flip(dimension_list)
+                             if h5_file[dimension[0]].size == h5_dataset.shape[-1]),
+                            None)
 
-            if dim.size == h5_dataset.shape[-1]:
-                x_dataset = dim
+    row_dimension = next((h5_file[dimension[0]]
+                          for dimension in np.flip(dimension_list)
+                          if h5_file[dimension[0]].size == h5_dataset.shape[-2]
+                          and h5_file[dimension[0]] != column_dimension),
+                         None)
 
-        return x_dataset, y_dataset
-    else:
+    if column_dimension is None or row_dimension is None:
         return None
+    else:
+        return column_dimension, row_dimension
 
 
 def is_x_y_flipped(dataset: Dataset) -> bool:
@@ -172,9 +177,9 @@ def is_x_y_flipped(dataset: Dataset) -> bool:
     dimensions = get_decoded_attribute(dataset, 'DIMENSION_LIST')
 
     if dimensions is not None:
-        array_x_dimension, array_y_dimension = get_dimension_datasets(dataset)
-        is_flipped = (is_projection_y_dimension(array_x_dimension)
-                      and is_projection_x_dimension(array_y_dimension))
+        column_dimension, row_dimension = get_dimension_datasets(dataset)
+        is_flipped = (is_projection_y_dimension(column_dimension)
+                      and is_projection_x_dimension(row_dimension))
     else:
         is_flipped = False
 
@@ -354,8 +359,9 @@ def get_cell_size_from_dimensions(h5_dataset: Dataset) -> Tuple[int, int]:
         Returns:
             tuple: cell width, cell height
     """
-    x, y = get_dimension_arrays(h5_dataset)
-    cell_width, cell_height = x[1] - x[0], y[1] - y[0]
+    column_dimension, row_dimension = get_dimension_arrays(h5_dataset)
+    cell_width = column_dimension[1] - column_dimension[0]
+    cell_height = row_dimension[1] - row_dimension[0]
     return cell_width, cell_height
 
 
@@ -382,15 +388,18 @@ def get_cell_size_from_lat_lon_extents(h5_dataset: Dataset, x_0: float,
 
 def get_corner_points_from_dimensions(h5_dataset: Dataset) -> CornerPoints:
     """ Finds the min and max locations in both coordinate axes of the dataset.
+
         Args:
              h5_dataset (h5py.Dataset): The HDF5 dataset
         Returns:
             tuple: x min, x max, y min, y max
     """
-    x, y = get_dimension_arrays(h5_dataset)
+    column_dimension, row_dimension = get_dimension_arrays(h5_dataset)
     cell_width, cell_height = get_cell_size_from_dimensions(h5_dataset)
-    x_0, x_n = x[0] - cell_width / 2.0, x[-1] + cell_width / 2.0
-    y_0, y_m = y[0] - cell_height / 2.0, y[-1] + cell_height / 2.0
+    x_0 = column_dimension[0] - cell_width / 2.0
+    x_n = column_dimension[-1] + cell_width / 2.0
+    y_0 = row_dimension[0] - cell_height / 2.0
+    y_m = row_dimension[-1] + cell_height / 2.0
     return x_0, x_n, y_0, y_m
 
 
@@ -532,10 +541,10 @@ def get_dimension_arrays(h5_dataset: Dataset) \
         Args:
              h5_dataset (h5py._hl.dataset.Dataset): The HDF5 dataset
         Returns:
-            tuple: The x coordinate array and the y coordinate array
+            tuple: The column coordinate array and the row coordinate array
     """
-    x, y = get_dimension_datasets(h5_dataset)
-    return x[:], y[:]
+    column_dimension, row_dimension = get_dimension_datasets(h5_dataset)
+    return column_dimension[:], row_dimension[:]
 
 
 def get_lon_lat_arrays(h5_dataset: Dataset) \

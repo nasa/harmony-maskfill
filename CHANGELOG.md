@@ -1,0 +1,60 @@
+## v0.1.3
+### 2022-11-10
+
+This version of MaskFill contains a bug fix to ensure that if the input array
+dimensions for x and y are equal, the same single dimension will not be
+retrieved for both. In this case, it is assumed that dimensions adhere to the
+standard Python indexing system of (row, column).
+
+## v0.1.2
+### 2022-09-07
+
+This version of MaskFill updates the configuration file to make the service
+compatible with ABoVE collections. These collections will invoke MaskFill via
+the HOSS Projection-Gridded service chain, when spatial subsetting is required.
+
+## v0.1.1
+### 2022-08-03
+
+This version of MaskFill updates the configuration file to ensure the service
+can recognise coordinate variables for SPL3FTP granules that contain their
+native 3-D bands, instead of flattened output.
+
+## v0.1.0
+### 2022-07-29
+
+This version of MaskFill allows the inbound Harmony message to specify a
+bounding box. Within the service, this bounding box will be converted to a
+polygon and points will be placed along the edges of that polygon as determined
+by the minimum geographic resolution of the spatial grid. This feature is of
+use for projection-gridded collections, and allows them to be spatially
+subsetted with a bounding box, via a combination of the Harmony OPeNDAP
+SubSetter (HOSS) and MaskFill.
+
+## v0.0.4
+### 2022-07-12
+
+This version of MaskFill updates a number of dependencies primarily resulting
+from a Snyk vulnerability reported within the version of GDAL previously being
+used by the service. This also updates the on-premises environment to
+"MaskFill_0.0.2".
+
+## v0.0.3
+### 2022-05-30
+
+This version of MaskFill updates the configuration file to include settings for
+RSSMIF16D, ensuring the correct fill values will be applied to each variable.
+
+## v0.0.2
+### 2022-05-23
+
+This version of MaskFill updates the types of input file that can be processed
+to include NetCDF-4 outputs. NetCDF-4 files will be processed by the HDF-5
+branch of the code and are the expected output format from the Harmony OPeNDAP
+SubSetter (HOSS).
+
+## v0.0.1
+### 2022-01-06
+
+This version of MaskFill adds semantic version number tagging to the Harmony
+service Docker image.
