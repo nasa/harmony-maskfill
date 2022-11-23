@@ -1,1 +1,43 @@
-{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Polygon","coordinates":[[[65,27,100],[64,36,100],[66,37,100],[67,36,100],[65,27,100]]]},"properties":{"name":"SPL4CMDL_shape_1029"}}]}
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            65,
+                            27,
+                            100
+                        ],
+                        [
+                            64,
+                            36,
+                            100
+                        ],
+                        [
+                            66,
+                            37,
+                            100
+                        ],
+                        [
+                            67,
+                            36,
+                            100
+                        ],
+                        [
+                            65,
+                            27,
+                            100
+                        ]
+                    ]
+                ]
+            },
+            "properties": {
+                "name": "SPL4CMDL_shape_1029"
+            }
+        }
+    ]
+}

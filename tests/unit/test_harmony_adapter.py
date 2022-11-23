@@ -151,3 +151,93 @@ class TestHarmonyMaskFill(TestCase):
             self.assertFalse(file_exists(path_join(test_dir, 'random.nc4')))
             self.assertTrue(file_exists(expected_file_name))
             rmtree(test_dir)
+
+    def test_message_has_valid_shape_file(self):
+        """ Ensure that an input message is correctly parsed to determine it
+            contains a fully defined shape file.
+
+        """
+        with self.subTest('Valid shape file definition'):
+            message = Message({
+                'subset': {'shape': {'href': 'www.example.com/shape.geo.json',
+                                     'type': 'application/geo+json'}}
+            })
+            harmony_adapter = HarmonyAdapter(message, config=config(False))
+            self.assertTrue(harmony_adapter.message_has_valid_shape_file())
+
+        with self.subTest('Undefined Message.subset.shape.href'):
+            message = Message({
+                'subset': {'shape': {'type': 'application/geo+json'}}
+            })
+            harmony_adapter = HarmonyAdapter(message, config=config(False))
+
+            with self.assertRaises(HarmonyException) as context_manager:
+                harmony_adapter.message_has_valid_shape_file()
+
+            self.assertEqual(str(context_manager.exception),
+                             'Shape file must specify resource URL.')
+
+        with self.subTest('Missing shape file MIME type'):
+            message = Message({
+                'subset': {'shape': {'href': 'www.example.com/shape.geo.json'}}
+            })
+            harmony_adapter = HarmonyAdapter(message, config=config(False))
+
+            with self.assertRaises(HarmonyException) as context_manager:
+                harmony_adapter.message_has_valid_shape_file()
+
+            self.assertEqual(context_manager.exception.message,
+                             'Shape file must be GeoJSON format.')
+
+        with self.subTest('Incorrect MIME type'):
+            message = Message({
+                'subset': {'shape': {'href': 'www.example.com/shape.geo.json',
+                                     'type': 'application/other'}}
+            })
+            harmony_adapter = HarmonyAdapter(message, config=config(False))
+
+            with self.assertRaises(HarmonyException) as context_manager:
+                harmony_adapter.message_has_valid_shape_file()
+
+            self.assertEqual(context_manager.exception.message,
+                             'Shape file must be GeoJSON format.')
+
+        with self.subTest('Absent shape file'):
+            message = Message({'subset': {'bbox': [10, 20, 30, 40]}})
+            harmony_adapter = HarmonyAdapter(message, config=config(False))
+            self.assertFalse(harmony_adapter.message_has_valid_shape_file())
+
+    def test_message_has_valid_bounding_box(self):
+        """ Ensure that an input message is correctly parsed to determine if it
+            contains a valid bounding box.
+
+        """
+        with self.subTest('Valid bounding box'):
+            message = Message({'subset': {'bbox': [10, 20, 30, 40]}})
+            harmony_adapter = HarmonyAdapter(message, config=config(False))
+            self.assertTrue(harmony_adapter.message_has_valid_bounding_box())
+
+        with self.subTest('No bounding box'):
+            message = Message({'subset': {'shape': {}}})
+            harmony_adapter = HarmonyAdapter(message, config=config(False))
+            self.assertFalse(harmony_adapter.message_has_valid_bounding_box())
+
+        with self.subTest('Non-list bounding box'):
+            message = Message({'subset': {'bbox': 10}})
+            harmony_adapter = HarmonyAdapter(message, config=config(False))
+
+            with self.assertRaises(HarmonyException) as context_manager:
+                harmony_adapter.message_has_valid_bounding_box()
+
+            self.assertEqual(context_manager.exception.message,
+                             'Bounding box must be 4-element list.')
+
+        with self.subTest('Bounding box has the wrong number of elements'):
+            message = Message({'subset': {'bbox': [10, 20, 30]}})
+            harmony_adapter = HarmonyAdapter(message, config=config(False))
+
+            with self.assertRaises(HarmonyException) as context_manager:
+                harmony_adapter.message_has_valid_bounding_box()
+
+            self.assertEqual(context_manager.exception.message,
+                             'Bounding box must be 4-element list.')

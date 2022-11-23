@@ -291,6 +291,9 @@ class TestH5GridProjectionInfo(TestCase):
                                                          self.cf_config,
                                                          self.logger)
 
+            self.assertEqual(context_manager.exception.message,
+                             '/lon_filled or /lat_filled have no valid data.')
+
         h5_file.close()
 
     def test_get_projected_coordinate_extent(self):
@@ -352,11 +355,15 @@ class TestH5GridProjectionInfo(TestCase):
         with self.subTest('x - only single column of data'):
             valid_data = np.where((lon_array > 10) & (lon_array < 20))
 
-            with self.assertRaises(InsufficientDataError):
+            with self.assertRaises(InsufficientDataError) as context_manager:
                 x_min, x_max = get_projected_coordinate_extent(projection,
                                                                lat_array,
                                                                lon_array,
                                                                1, valid_data)
+
+            self.assertEqual(context_manager.exception.message,
+                             ('Only a single, unmasked column of data. Unable '
+                              'to calculate x pixel size.'))
 
         with self.subTest('y - only single row of data'):
             valid_data = np.where((lat_array < 25) & (lat_array > 15))
@@ -365,6 +372,10 @@ class TestH5GridProjectionInfo(TestCase):
                                                                lat_array,
                                                                lon_array,
                                                                0, valid_data)
+
+            self.assertEqual(context_manager.exception.message,
+                             ('Only a single, unmasked row of data. Unable '
+                              'to calculate y pixel size.'))
 
     def test_get_cell_size_from_dimensions(self):
         """Given an input dataset, check the returned cell_width and cell_height."""
@@ -614,6 +625,10 @@ class TestH5GridProjectionInfo(TestCase):
                     lon_out, lat_out = get_lon_lat_datasets(dataset)
                     self.assertTrue(missing_coords in context.exception.message)
 
+                self.assertEqual(context.exception.message,
+                                 (f'Cannot find "{missing_coords}" in '
+                                  f'"{self.test_h5_name}".'))
+
     def test_get_hdf_crs(self):
         """Ensure that a `pyproj.CRS` object is returned, where possible. The
             order of projection information should be: DIMENSION_LIST,
@@ -638,7 +653,7 @@ class TestH5GridProjectionInfo(TestCase):
         grid_mapping.attrs.update(global_grid_mapping_cf)
 
         with self.subTest('No projection information or configuration, raises exception'):
-            with self.assertRaises(InsufficientProjectionInformation):
+            with self.assertRaises(InsufficientProjectionInformation) as context:
                 with patch.object(CFConfigH5,
                                   'get_dataset_grid_mapping_attributes',
                                   return_value=None):
@@ -646,6 +661,10 @@ class TestH5GridProjectionInfo(TestCase):
                     cf_config = CFConfigH5('tests/data/SMAP_L3_FT_P_corners_input.h5')
                     crs = get_hdf_crs(config_dataset, cf_config,
                                       self.logger)
+
+            self.assertEqual(context.exception.message,
+                             ('Cannot find projection information for dataset:'
+                              ' /Freeze_Thaw_Retrieval_polar/latitude.'))
 
         with self.subTest('No information, uses configured defaults.'):
             crs = get_hdf_crs(config_dataset, self.cf_config, self.logger)
@@ -671,16 +690,61 @@ class TestH5GridProjectionInfo(TestCase):
 
         h5_file.close()
 
-    def test_has_geographic_dimensions(self):
+    def test_has_geographic_dimensions_true(self):
         """ Ensure if a variable can be correctly determined as geographically
-            gridded based on its dimensions.
+            gridded based on its dimensions. This should be true for 2-D
+            variables with only geographic dimensions as well as 3-D variables
+            that have a non-geographic dimension first, e.g.: (time, lat, lon).
 
         """
         dimension_data = np.linspace(0, 10, num=11)
         science_data = np.ones((11, 11))
         h5_file = h5py.File(self.test_h5_name, 'w')
-        geo_dimension = h5_file.create_dataset('geo_dim', data=dimension_data)
-        geo_dimension.attrs['units'] = 'degrees_east'
+        lon_dimension = h5_file.create_dataset('lon', data=dimension_data)
+        lon_dimension.attrs['units'] = 'degrees_east'
+        lat_dimension = h5_file.create_dataset('lat', data=dimension_data)
+        lat_dimension.attrs['units'] = 'degrees_north'
+
+        temporal_dimension = h5_file.create_dataset('temporal_dim',
+                                                    data=np.ones((1, )))
+        temporal_dimension.attrs['unit'] = 'seconds since 2020-01-01T00:00:00'
+
+        geo_dataset = h5_file.create_dataset('var_with_geo_dims',
+                                             data=science_data)
+
+        temporal_geo_dataset = h5_file.create_dataset('var_with_time_and_geo',
+                                                      data=np.ones((1, 11, 11)))
+
+        geo_dataset.attrs.create(
+            'DIMENSION_LIST', ((lat_dimension.ref, ), (lon_dimension.ref, )),
+            dtype=h5py.ref_dtype
+        )
+        temporal_geo_dataset.attrs.create(
+            'DIMENSION_LIST', ((temporal_dimension.ref, ),
+                               (lat_dimension.ref, ), (lon_dimension.ref, )),
+            dtype=h5py.ref_dtype
+        )
+
+        test_args = [['2-D geographic variable', geo_dataset],
+                     ['3-D geographic variable', temporal_geo_dataset]]
+
+        for description, test_dataset in test_args:
+            with self.subTest('Geographic dimensions'):
+                self.assertTrue(has_geographic_dimensions(test_dataset))
+
+        h5_file.close()
+
+    def test_has_geographic_dimensions_false(self):
+        """ Ensure a non-geographically gridded variable can be correctly
+            determined as such based on its dimensions. Such variables could be
+            projection gridded, not list dimensions at all, or have dimensions
+            with no units.
+
+        """
+        dimension_data = np.linspace(0, 10, num=11)
+        science_data = np.ones((11, 11))
+        h5_file = h5py.File(self.test_h5_name, 'w')
+
         non_geo_dimension = h5_file.create_dataset('non_geo_dim',
                                                    data=dimension_data)
         non_geo_dimension.attrs['unit'] = 'm'
@@ -689,26 +753,18 @@ class TestH5GridProjectionInfo(TestCase):
 
         no_dim_dataset = h5_file.create_dataset('var_no_dims',
                                                 data=science_data)
-        geo_dataset = h5_file.create_dataset('var_with_geo_dims',
-                                             data=science_data)
+
         non_geo_dataset = h5_file.create_dataset('var_with_non_geo_dims',
                                                  data=science_data)
         no_units_dataset = h5_file.create_dataset('var_with_unitless_dims',
                                                   data=science_data)
 
-        geo_dataset.attrs.create(
-            'DIMENSION_LIST', ((geo_dimension.ref, ), (geo_dimension.ref, )),
-            dtype=h5py.ref_dtype
-        )
         non_geo_dataset.attrs.create('DIMENSION_LIST',
                                      ((non_geo_dimension.ref, ), ),
                                      dtype=h5py.ref_dtype)
         no_units_dataset.attrs.create('DIMENSION_LIST',
                                       ((no_unit_dimension.ref, ), ),
                                       dtype=h5py.ref_dtype)
-
-        with self.subTest('Geographic dimensions'):
-            self.assertTrue(has_geographic_dimensions(geo_dataset))
 
         test_args = [['No dimensions present', no_dim_dataset],
                      ['Non-geographic dimensions', non_geo_dataset],
@@ -721,7 +777,7 @@ class TestH5GridProjectionInfo(TestCase):
         h5_file.close()
 
     def test_get_dimension_datasets(self):
-        """If a dataset has a DIMENSION_LIST attribute, the listed references
+        """ If a dataset has a DIMENSION_LIST attribute, the listed references
             should be extracted and returned. Otherwise, the function should
             return None.
 
@@ -745,6 +801,47 @@ class TestH5GridProjectionInfo(TestCase):
             dim_x_out, dim_y_out = get_dimension_datasets(dataset)
             self.assertEqual(dim_x_out, dim_x)
             self.assertEqual(dim_y_out, dim_y)
+
+        h5_file.close()
+
+    def test_get_dimension_datasets_square_array(self):
+        """ Ensure that if a square array is supplied, the correct dimensions
+            are retrieved, rather than the same dimension twice. This function
+            assumes standard Python index ordering of (row, column), meaning
+            the x dimension will be assumed to be last.
+
+        """
+        dim_x_name = '/x'
+        dim_y_name = '/y'
+
+        h5_file = h5py.File(self.test_h5_name, 'w')
+        dim_x = h5_file.create_dataset(dim_x_name, data=np.ones((3, )))
+        dim_y = h5_file.create_dataset(dim_y_name, data=np.ones((3, )))
+        dim_time = h5_file.create_dataset('/time', data=np.ones((1, )))
+
+        flat_dataset = h5_file.create_dataset('flat_data',
+                                              data=np.ones((3, 3)))
+        flat_dataset.attrs.create('DIMENSION_LIST',
+                                  ((dim_y.ref, ), (dim_x.ref, )),
+                                  dtype=h5py.ref_dtype)
+
+        banded_dataset = h5_file.create_dataset('banded_data',
+                                                data=np.ones((1, 3, 3)))
+        banded_dataset.attrs.create('DIMENSION_LIST',
+                                    ((dim_time.ref, ), (dim_y.ref, ),
+                                     (dim_x.ref, )), dtype=h5py.ref_dtype)
+
+        with self.subTest('Flat, len(x) = len(y) variable'):
+            dim_x_out, dim_y_out = get_dimension_datasets(flat_dataset)
+            self.assertEqual(dim_x_out, dim_x)
+            self.assertEqual(dim_y_out, dim_y)
+
+        with self.subTest('Banded, len(x) = len(y) variable'):
+            dim_x_out, dim_y_out = get_dimension_datasets(banded_dataset)
+            self.assertEqual(dim_x_out, dim_x)
+            self.assertEqual(dim_y_out, dim_y)
+
+        h5_file.close()
 
     def test_is_x_y_flipped(self):
         """ Ensure that a collection is correctly identified as being either
@@ -935,9 +1032,14 @@ class TestH5GridProjectionInfo(TestCase):
                 self.assertEqual(grid_mapping_name, expected_name)
 
         with self.subTest('Reference not in file, raises exception'):
-            with self.assertRaises(InvalidMetadata):
+            with self.assertRaises(InvalidMetadata) as context_manager:
                 science_dataset.attrs.create('grid_mapping', 'crs_2')
                 get_grid_mapping_name(science_dataset)
+
+            self.assertEqual(context_manager.exception.message,
+                             ('Invalid metadata in /group/data: '
+                              'grid_mapping or coordinate="crs_2": '
+                              'Variable reference not in file'))
 
     def test_resolve_relative_dataset_path(self):
         """ Ensure a relative path can be qualified to a full path using the
@@ -967,13 +1069,15 @@ class TestH5GridProjectionInfo(TestCase):
 
                 self.assertEqual(resolved_path, expected_path)
 
-        test_args = [['Incorrect nesting', '../../../grid_mapping'],
-                     ['Missing reference', 'non_existant_variable']]
+        test_args = [['Relative path has incorrect nesting', '../../../grid_mapping'],
+                     ['Variable reference not in file', 'non_existant_variable']]
 
         for description, relative_path in test_args:
             with self.subTest('Incorrect reference nesting'):
-                with self.assertRaises(InvalidMetadata):
+                with self.assertRaises(InvalidMetadata) as context_manager:
                     resolve_relative_dataset_path(dataset, relative_path)
+
+                self.assertTrue(context_manager.exception.message.endswith(description))
 
     def test_get_crs_from_grid_mapping(self):
         """ Ensure that this function can handle:
@@ -1018,19 +1122,25 @@ class TestH5GridProjectionInfo(TestCase):
             otherwise the type of the retrieved metadata attribute should match
             the type as contained in the HDF-5 file.
 
+            If the attribute is a single-element array, then the output should
+            be only the element, not an array.
+
         """
         string_value = 'this is a string'
         decoded_bytes = 'bytes'
         bytes_value = bytes(decoded_bytes, 'utf-8')
         numerical_value = 123.456
         np_bytes_value = np.bytes_(decoded_bytes, 'utf-8')
+        single_element_array = np.array([numerical_value])
+        multi_element_array = np.array([numerical_value, numerical_value])
 
         test_args = [
             ['String attribute', 'string_value', string_value],
             ['Bytes attribute decoded', 'bytes_value', decoded_bytes],
             ['np.bytes_ attribute decoded', 'np_bytes_value', decoded_bytes],
             ['Numerical attribute', 'numerical_value', numerical_value],
-            ['Absent attribute defaults to None', 'Missing', None]
+            ['Absent attribute defaults to None', 'Missing', None],
+            ['Single element array', 'single_element_array', numerical_value]
         ]
 
         default_test_args = [
@@ -1044,6 +1154,8 @@ class TestH5GridProjectionInfo(TestCase):
             attributes.create('bytes_value', bytes_value)
             attributes.create('numerical_value', numerical_value)
             attributes.create('np_bytes_value', np_bytes_value)
+            attributes.create('single_element_array', single_element_array)
+            attributes.create('multi_element_array', multi_element_array)
 
             for description, attribute_key, expected_value in test_args:
                 with self.subTest(description):
@@ -1058,3 +1170,8 @@ class TestH5GridProjectionInfo(TestCase):
                         get_decoded_attribute(h5_file, key, default),
                         expected_value
                     )
+
+            np.testing.assert_array_equal(
+                get_decoded_attribute(h5_file, 'multi_element_array'),
+                multi_element_array
+            )

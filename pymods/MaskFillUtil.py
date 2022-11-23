@@ -1,8 +1,11 @@
 """ Utility functions to support MaskFill processing """
-from logging import Logger
-from typing import Tuple, Union
+from collections import namedtuple
+from os.path import join as path_join
+from typing import Dict, List, Tuple, Union
+from uuid import uuid4
 from warnings import catch_warnings, simplefilter
 import hashlib
+import json
 import os
 
 from affine import Affine
@@ -11,13 +14,16 @@ from h5py import Dataset, File as H5File, Group
 from osgeo import gdal
 from pyproj import Transformer, CRS
 from rasterio.features import rasterize
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, shape
 import geopandas as gpd
 import numpy as np
 import rasterio
 
 from pymods import H5GridProjectionInfo
-from pymods.cf_config import CFConfigH5
+
+
+BBox = namedtuple('BBox', ['west', 'south', 'east', 'north'])
+Coordinates = Tuple[float]
 
 
 def get_mask_array(shape_path: str, crs: CRS, out_shape: Tuple[int, int],
@@ -78,29 +84,21 @@ def get_bounded_shape(shape_path: str, crs: CRS, out_shape: Tuple[int, int],
     else:
         # Transform all indices in the data array to geographic coordinates
         # and get min/max lat/lon values
-        y_vals, x_vals = np.indices(out_shape)
-        indices = [x_vals.flatten(), y_vals.flatten()]
-
-        # Decompose the affine transform
-        transform_matrix = np.array(transform).reshape(3, 3)
-        A, b = transform_matrix[:2, :2], transform_matrix[:2, 2:]
-        crs_coors = np.matmul(A, indices) + b  # coordinates in the original CRS
-
-        to_geo_trans = Transformer.from_crs(crs, 4326)
-        y_geo, x_geo = to_geo_trans.transform(crs_coors[0, :], crs_coors[1, :])
-
-        x_geo = x_geo[np.isfinite(x_geo)]
-        y_geo = y_geo[np.isfinite(y_geo)]
-
-        minx, maxx = np.min(x_geo), np.max(x_geo)
-        miny, maxy = np.min(y_geo), np.max(y_geo)
+        latitudes, longitudes = get_grid_lat_lons(transform, crs, out_shape)
+        minx, maxx = np.nanmin(longitudes), np.nanmax(longitudes)
+        miny, maxy = np.nanmin(latitudes), np.nanmax(latitudes)
 
     # Create bounding box in geographic coordinates
     bbox = [(minx, miny), (maxx, miny), (maxx, maxy), (minx, maxy)]
     bbox_gdf = GeoDataFrame(geometry=GeoSeries(Polygon(bbox), crs='EPSG:4326'))
 
+    if crs.is_geographic:
+        shape_gdf = gpd.read_file(shape_path)
+    else:
+        shape_gdf = get_resolved_dataframe(shape_path, transform, crs,
+                                           out_shape)
+
     # Intersect shapes with bounding box
-    shape_gdf = gpd.read_file(shape_path)
     bounded_shape_gdf = gpd.overlay(shape_gdf, bbox_gdf, how='intersection')
     return bounded_shape_gdf
 
@@ -253,7 +251,7 @@ def process_h5_file(file_path, process, *args):
     """
 
     def process_children(obj, process, *args):
-        for name, child in obj.items():
+        for child in obj.values():
             # Process the children of a group
             if isinstance(child, Group):
                 process_children(child, process, *args)
@@ -265,7 +263,7 @@ def process_h5_file(file_path, process, *args):
         process_children(file, process, *args)
 
 
-def apply_2D(data, process, *args):  # , name = ""  ??? - unused!
+def apply_2d(data, process, *args):  # , name = ""  ??? - unused!
     """ Recursively applies a 2D process to datasets with two or more dimensions,
         Always applies the process to the last 2 dimensions of the dataset,
         iterating through any lower dimensions and processing up through n-2 dimensions.
@@ -284,6 +282,168 @@ def apply_2D(data, process, *args):  # , name = ""  ??? - unused!
 
     # For more than two dimensions, mask fill each dimension recursively
     for i in range(len(data)):
-        data[i] = apply_2D(data[i], process, *args)
+        data[i] = apply_2d(data[i], process, *args)
 
     return data
+
+
+def create_bounding_box_shape_file(bounding_box: List[float],
+                                   working_directory: str) -> str:
+    """ Take a bounding box in the format of [W, S, E, N] and create a GeoJSON
+        polygon. Then write that polygon to a temporary file. Return the
+        location of that temporary file.
+
+        The coordinates list should be in an anticlockwise order, beginning and
+        ending at the same point.
+
+    """
+    bounding_box = BBox(*bounding_box)
+    coordinates = [[[bounding_box.west, bounding_box.south],
+                    [bounding_box.east, bounding_box.south],
+                    [bounding_box.east, bounding_box.north],
+                    [bounding_box.west, bounding_box.north],
+                    [bounding_box.west, bounding_box.south]]]
+
+    bbox_geojson = {'type': 'FeatureCollection',
+                    'features': [{'type': 'Feature',
+                                  'geometry': {'type': 'Polygon',
+                                               'coordinates': coordinates},
+                                  'properties': {'name': 'Harmony bbox'}}]}
+    shape_file_path = path_join(working_directory, f'{uuid4()}.geo.json')
+
+    with open(shape_file_path, 'w', encoding='utf-8') as file_handler:
+        json.dump(bbox_geojson, file_handler, indent=4)
+
+    return shape_file_path
+
+
+def get_resolved_dataframe(shape_file_path: str, transform: Affine, crs: CRS,
+                           out_shape: Tuple[int, int]) -> gpd.GeoDataFrame:
+    """ When data are projected, first derive the longitude and latitude
+        values for all points on the grid. From this determine the smallest
+        separation between diagonally adjacent points. Use this as the
+        resolution of the grid in geographic space. Finally, take the input
+        GeoJSON shape file and ensure that all polygon edges have points at
+        the geographic resolution of the grid. The `explode` method is used
+        on the input `geopandas.GeoDataFrame` to split MultiPolygon features
+        into separate Polygons.
+
+    """
+    latitudes, longitudes = get_grid_lat_lons(transform, crs, out_shape)
+    geographic_resolution = get_geographic_resolution(longitudes, latitudes)
+    initial_gpd = gpd.read_file(shape_file_path).explode(index_parts=True)
+    return get_resolved_shape(initial_gpd, geographic_resolution)
+
+
+def get_geographic_resolution(longitudes: np.ndarray,
+                              latitudes: np.ndarray) -> float:
+    """ Calculate the distance between diagonally adjacent cells in both
+        longitude and latitude. Combined those differences in quadrature to
+        obtain Euclidean distances. Return the minimum of these Euclidean
+        distances. Over the typical distances being considered, differences
+        between the Euclidean and geodesic distance between points should be
+        minimal, with Euclidean distances being slightly shorter.
+
+    """
+    lon_square_diffs = np.square(np.subtract(longitudes[1:, 1:],
+                                             longitudes[:-1, :-1]))
+    lat_square_diffs = np.square(np.subtract(latitudes[1:, 1:],
+                                             latitudes[:-1, :-1]))
+    return np.nanmin(np.sqrt(np.add(lon_square_diffs, lat_square_diffs)))
+
+
+def get_grid_lat_lons(transform: Affine, crs: CRS,
+                      out_shape: Tuple[int, int]) -> Tuple[np.ndarray]:
+    """ Use the components of the Affine transformation matrix to perform an
+        inverse transformation from array indices to projected x and y
+        coordinates for all points on the input data grid. Then transform those
+        points to longitudes and latitudes.
+
+    """
+    projected_y, projected_x = np.indices(out_shape)
+    projected_x = np.add(np.multiply(transform.a, projected_x), transform.c)
+    projected_y = np.add(np.multiply(transform.e, projected_y), transform.f)
+    to_geo_transformer = Transformer.from_crs(crs, 4326)
+    return to_geo_transformer.transform(projected_x, projected_y)
+
+
+def get_resolved_shape(geo_dataframe: gpd.GeoDataFrame,
+                       resolution: float) -> gpd.GeoDataFrame:
+    """ Iterate through all features in the `geopandas.GeoDataFrame`. At this
+        point, the features will all be Polygons as MultiPolygons will have
+        been split in `get_resolved_dataframe`. `get_resolved_polygon` will
+        return a new Polygon for each input shape, with each exterior and
+        interior edge being resolved at the requested resolution.
+
+        Finally return a new `geopandas.GeoDataFrame` at with points at the
+        specified resolution.
+
+    """
+    polygons = [get_resolved_polygon(feature, resolution)
+                for feature in geo_dataframe.iterfeatures()]
+
+    return gpd.GeoDataFrame(crs='epsg:4326', geometry=polygons)
+
+
+def get_resolved_polygon(feature: Dict, resolution: float) -> Polygon:
+    """ Populate points around the exterior and interior rings of the supplied
+        geopandas feature. These additional points will be at the resolution of
+        the gridded data. Return a `shapely.geometry.Polygon` object to be used
+        to create the final `geopandas.GeoDataFrame` that will define the
+        `numpy` mask object.
+
+    """
+    feature_shape = shape(feature['geometry'])
+
+    exterior_ring = get_resolved_ring(list(feature_shape.exterior.coords),
+                                      resolution)
+
+    interior_rings = [get_resolved_ring(list(interior.coords), resolution)
+                      for interior in feature_shape.interiors]
+
+    return Polygon(exterior_ring, holes=interior_rings)
+
+
+def get_resolved_ring(ring_points: List[Coordinates],
+                      resolution: float) -> List[Coordinates]:
+    """ Iterate through all pairs of consecutive points and ensure that, if
+        those points are further apart than the resolution of the input data,
+        additional points are placed along that edge at regular intervals. Each
+        line segment will have regular spacing, and will remain anchored at the
+        original start and end of the line segment. This means the spacing of
+        the points will have an upper bound of the supplied resolution, but may
+        be a shorter distance to account for non-integer multiples of the
+        resolution along the line.
+
+        To avoid duplication of points, the last point of each line segment is
+        not retained, as this will match the first point of the next line
+        segment. `shapely` will close the output ring, meaning the first point
+        does not have to be repeated in this list.
+
+    """
+    new_points = [get_resolved_line(point_one,
+                                    ring_points[point_one_index + 1],
+                                    resolution)[:-1]
+                  for point_one_index, point_one
+                  in enumerate(ring_points[:-1])]
+
+    return [point for segment_points in new_points for point in segment_points]
+
+
+def get_resolved_line(point_one: Coordinates, point_two: Coordinates,
+                      resolution: float) -> List[Coordinates]:
+    """ A function that takes two consecutive points from either an exterior
+        or interior ring of a `shapely.geometry.Polygon` object and places
+        equally spaced points along that line determined by the supplied
+        geographic resolution. That resolution will be determined by the
+        gridded input data.
+
+        The resulting points will be appended to the rest of the ring,
+        ensuring the ring has points at a resolution of the gridded data.
+
+    """
+    length = np.linalg.norm(np.array(point_two[:2]) - np.array(point_one[:2]))
+    n_points = np.ceil(length / resolution) + 1
+    new_x = np.linspace(point_one[0], point_two[0], int(n_points))
+    new_y = np.linspace(point_one[1], point_two[1], int(n_points))
+    return list(zip(new_x, new_y))

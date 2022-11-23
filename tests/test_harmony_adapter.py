@@ -3,13 +3,13 @@ from logging import (basicConfig as basic_log_config, getLogger,
 from os import sep
 from os.path import basename
 from shutil import copy
-from unittest import TestCase
 from unittest.mock import ANY, patch
 
 from harmony.message import Message
 from harmony.util import config, HarmonyException
 
 from harmony_adapter import HarmonyAdapter
+from tests.utilities import MaskFillTestCase
 
 
 class StringEndsWith:
@@ -54,7 +54,7 @@ def download_side_effect(file_path, working_dir, **kwargs):
 
 @patch('harmony_adapter.stage', return_value='https://example.com/data')
 @patch('harmony_adapter.download', side_effect=download_side_effect)
-class TestHarmonyMaskFill(TestCase):
+class TestHarmonyMaskFill(MaskFillTestCase):
     """ A test class that will run the full MaskFill service using the
         `HarmonyAdapter` class.
 
@@ -65,6 +65,7 @@ class TestHarmonyMaskFill(TestCase):
             between tests.
 
         """
+        super().setUpClass()
         cls.access_token = 'fake_token'
         cls.bounding_box = [-180, -90, 180, 90]
         cls.callback = 'https://example.com/callback'
@@ -88,16 +89,23 @@ class TestHarmonyMaskFill(TestCase):
                          handlers=[cls.log_handler], level=INFO)
 
     def setUp(self):
+        super().setUp()
         self.log_handler.reset()
 
     def tearDown(self):
+        super().tearDown()
         self.log_handler.reset()
 
-    def test_harmony_adapter_hdf5(self, mock_download, mock_stage):
+    @patch('harmony_adapter.mkdtemp')
+    @patch('harmony_adapter.rmtree')
+    def test_harmony_adapter_hdf5(self, mock_rmtree, mock_mkdtemp,
+                                  mock_download, mock_stage):
         """ Successful MaskFill run using the HarmonyAdapter and an HDF-5
             granule.
 
         """
+        mock_mkdtemp.return_value = self.output_dir
+
         test_data = Message({
             'accessToken': self.access_token,
             'callback': self.callback,
@@ -114,6 +122,15 @@ class TestHarmonyMaskFill(TestCase):
         maskfill_adapter = HarmonyAdapter(test_data, config=maskfill_config)
         maskfill_adapter.invoke()
 
+        # Compare the output file to a template output file.
+        expected_output_file = 'tests/data/SMAP_L4_SM_aup_output.h5'
+        actual_output_file = self.create_output_file_name(self.input_hdf5,
+                                                          use_identifier=False)
+
+        self.compare_h5_files(actual_output_file, expected_output_file)
+
+        # Check the functions to download the input data and stage the output
+        # were called as expected.
         mock_download.asset_called_once_with(self.input_hdf5,
                                              ANY,
                                              logger=maskfill_adapter.logger,
@@ -125,11 +142,18 @@ class TestHarmonyMaskFill(TestCase):
                                            location=self.staging_location,
                                            logger=maskfill_adapter.logger)
 
-    def test_harmony_adapter_geotiff(self, mock_download, mock_stage):
+        mock_rmtree.assert_called_once_with(self.output_dir, ignore_errors=True)
+
+    @patch('harmony_adapter.mkdtemp')
+    @patch('harmony_adapter.rmtree')
+    def test_harmony_adapter_geotiff(self, mock_rmtree, mock_mkdtemp,
+                                     mock_download, mock_stage):
         """ Successful MaskFill run using the HarmonyAdapter and a GeoTIFF
             granule.
 
         """
+        mock_mkdtemp.return_value = self.output_dir
+
         test_data = Message({
             'accessToken': self.access_token,
             'callback': self.callback,
@@ -146,6 +170,15 @@ class TestHarmonyMaskFill(TestCase):
         maskfill_adapter = HarmonyAdapter(test_data, config=maskfill_config)
         maskfill_adapter.invoke()
 
+        # Compare the output file to a template output file.
+        expected_output_file = 'tests/data/SMAP_L4_SM_aup_output.tif'
+        actual_output_file = self.create_output_file_name(self.input_geotiff,
+                                                          use_identifier=False)
+
+        self.compare_geotiff_files(actual_output_file, expected_output_file)
+
+        # Check the functions to download the input data and stage the output
+        # were called as expected.
         mock_download.asset_called_once_with(self.input_geotiff,
                                              ANY,
                                              logger=maskfill_adapter.logger,
@@ -157,8 +190,17 @@ class TestHarmonyMaskFill(TestCase):
                                            location=self.staging_location,
                                            logger=maskfill_adapter.logger)
 
-    def test_harmony_adapter_netcdf4_input(self, mock_download, mock_stage):
+        mock_rmtree.assert_called_once_with(self.output_dir, ignore_errors=True)
+
+    @patch('harmony_adapter.mkdtemp')
+    @patch('harmony_adapter.rmtree')
+    def test_harmony_adapter_netcdf4_input(self, mock_rmtree, mock_mkdtemp,
+                                           mock_download, mock_stage):
         """ Ensure MaskFill can run on a NetCDF-4 file (e.g., from HOSS). """
+        mock_mkdtemp.return_value = self.output_dir
+
+        input_file_name = 'tests/data/GPM_3IMERGHH_input.nc4'
+
         test_data = Message({
             'accessToken': self.access_token,
             'callback': self.callback,
@@ -166,7 +208,7 @@ class TestHarmonyMaskFill(TestCase):
             'sources': [{'granules': [{
                 'bbox': self.bounding_box,
                 'temporal': self.temporal,
-                'url': 'tests/data/GPM_3IMERGHH_input.nc4'
+                'url': input_file_name
             }]}],
             'subset': {'shape': {'href': self.shape_usa,
                                  'type': 'application/geo+json'}},
@@ -180,6 +222,13 @@ class TestHarmonyMaskFill(TestCase):
         maskfill_adapter = HarmonyAdapter(test_data, config=maskfill_config)
         maskfill_adapter.invoke()
 
+        # Compare the output file to a template output file.
+        expected_output_file = 'tests/data/GPM_3IMERGHH_output.nc4'
+        actual_output_file = self.create_output_file_name(input_file_name,
+                                                          use_identifier=False)
+
+        self.compare_geotiff_files(actual_output_file, expected_output_file)
+
         mock_download.asset_called_once_with(self.input_geotiff,
                                              ANY,
                                              logger=maskfill_adapter.logger,
@@ -190,6 +239,61 @@ class TestHarmonyMaskFill(TestCase):
                                            'application/x-netcdf4',
                                            location=self.staging_location,
                                            logger=maskfill_adapter.logger)
+
+        mock_rmtree.assert_called_once_with(self.output_dir, ignore_errors=True)
+
+    @patch('harmony_adapter.mkdtemp')
+    @patch('harmony_adapter.rmtree')
+    def test_harmony_adapter_bbox_request(self, mock_rmtree, mock_mkdtemp,
+                                          mock_download, mock_stage):
+        """ Ensure MaskFill can handle a bounding box request for a
+            non-geographic collection. The bounding box should encompass
+            Norway, Sweden and Finland.
+
+        """
+        mock_mkdtemp.return_value = self.output_dir
+        input_file_name = 'tests/data/SMAP_L3_FT_P_polar_3d_input.h5'
+        masked_name = 'SMAP_L3_FT_P_polar_3d_input_mf.h5'
+        staged_name = 'SMAP_L3_FT_P_polar_3d_input_subsetted.h5'
+
+        test_data = Message({
+            'accessToken': self.access_token,
+            'callback': self.callback,
+            'stagingLocation': self.staging_location,
+            'sources': [{'granules': [{
+                'bbox': self.bounding_box,
+                'temporal': self.temporal,
+                'url': input_file_name
+            }]}],
+            'subset': {'bbox': [0, 54, 44, 72]},
+            'user': self.user,
+        })
+
+        maskfill_config = config(False)
+        maskfill_adapter = HarmonyAdapter(test_data, config=maskfill_config)
+        maskfill_adapter.invoke()
+
+        # Compare the output file to a template output file.
+        expected_output_file = 'tests/data/SMAP_L3_FT_P_polar_bbox_output.h5'
+        actual_output_file = self.create_output_file_name(input_file_name,
+                                                          use_identifier=False)
+
+        self.compare_h5_files(actual_output_file, expected_output_file)
+
+        # Check the functions to download the input data and stage the output
+        # were called as expected.
+        mock_download.asset_called_once_with(input_file_name,
+                                             ANY,
+                                             logger=maskfill_adapter.logger,
+                                             access_token=self.access_token,
+                                             cfg=maskfill_config)
+        mock_stage.assert_called_once_with(StringEndsWith(masked_name),
+                                           StringEndsWith(staged_name),
+                                           'application/x-hdf5',
+                                           location=self.staging_location,
+                                           logger=maskfill_adapter.logger)
+
+        mock_rmtree.assert_called_once_with(self.output_dir, ignore_errors=True)
 
     def test_validate_message_no_message(self, mock_download, mock_stage):
         """ Ensure that a `NoneType` message will raise an exception, during
@@ -255,7 +359,8 @@ class TestHarmonyMaskFill(TestCase):
             mock_download.assert_not_called()
             mock_stage.assert_not_called()
             self.assertEqual(context.exception.message,
-                             'Shape file must be specified for masking.')
+                             'MaskFill requires a shape file or bounding box '
+                             'that describes a mask.')
 
         with self.subTest('NoneType Message.subset.shape.href'):
             message_text = base_message_text.copy()
@@ -268,7 +373,7 @@ class TestHarmonyMaskFill(TestCase):
 
             mock_stage.assert_not_called()
             self.assertEqual(context.exception.message,
-                             'Shape file must be specified for masking.')
+                             'Shape file must specify resource URL.')
 
         with self.subTest('Incorrect shapefile MIME type'):
             message_text = base_message_text.copy()

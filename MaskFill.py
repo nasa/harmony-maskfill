@@ -213,7 +213,7 @@ def check_shapefile_geojson(shape_file: str, output_dir: str) -> str:
     if re.search(r'{.+}', shape_file):
         # We have a native geojson string passed in
         unique_filename = f'{output_dir}/shape_{str(uuid.uuid4())}.geojson'
-        with open(unique_filename, 'w') as new_shape_file:
+        with open(unique_filename, 'w', encoding='utf-8') as new_shape_file:
             new_shape_file.write(shape_file)
 
         shape_file_name = unique_filename

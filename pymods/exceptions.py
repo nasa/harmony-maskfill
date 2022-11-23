@@ -69,9 +69,9 @@ class InvalidMetadata(CustomError):
 
 
 class MissingCoordinateDataset(CustomError):
-    """Exception raised when a science dataset refers to a coordinate dataset,
-    within its `coordinates` attribute, that is not present in the granule. This
-    Exception is used in output error messages.
+    """ Exception raised when a science dataset refers to a coordinate dataset,
+        within its `coordinates` attribute, that is not present in the granule.
+        This Exception is used in output error messages.
 
     """
     def __init__(self, file_name, dataset):
