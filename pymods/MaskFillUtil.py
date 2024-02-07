@@ -1,7 +1,7 @@
 """ Utility functions to support MaskFill processing """
 from collections import namedtuple
 from os.path import join as path_join
-from typing import Dict, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import uuid4
 from warnings import catch_warnings, simplefilter
 import hashlib
@@ -18,8 +18,6 @@ from shapely.geometry import Polygon, shape
 import geopandas as gpd
 import numpy as np
 import rasterio
-
-from pymods import H5GridProjectionInfo
 
 
 BBox = namedtuple('BBox', ['west', 'south', 'east', 'north'])
@@ -162,10 +160,58 @@ def get_h5_mask_array_id(h5_dataset: Dataset, crs: CRS,
                 a combined input string of the shape file path, dataset shape,
                 dataset projection and Affine transformation.
     """
-    transform_info = H5GridProjectionInfo.get_transform_information(h5_dataset)
+    transform_info = get_transform_information(h5_dataset)
     dataset_shape = h5_dataset[:].shape
 
     return create_mask_array_id(crs, transform_info, dataset_shape, shape_path)
+
+
+def get_transform_information(h5_dataset: Dataset) -> str:
+    """ Determine the attributes of an HDF-5 dataset that will be used to
+        determine the Affine transformation between pixel indices and
+        projected coordinates. This function doesn't actually derive the
+        tranform itself, in an effort to minimise computationally intensive
+        operations.
+
+    """
+    dimension_list = get_decoded_attribute(h5_dataset, 'DIMENSION_LIST')
+
+    if dimension_list is not None:
+        h5_file = h5_dataset.file
+        dimension_names = ', '.join([h5_file[reference[0]].name
+                                     for reference in dimension_list])
+        output_string = f'DIMENSION_LIST: {dimension_names}'
+    else:
+        output_string = f'coords: {get_decoded_attribute(h5_dataset, "coordinates")}'
+
+    return output_string
+
+
+def get_decoded_attribute(h5_dataset: Dataset, attribute_key: str,
+                          default: Optional[Any] = None) -> Any:
+    """ Ensure that any Byte type attributes are decoded to a string. Otherwise
+        return the metadata attribute as stored in the H5 file.
+
+        With some OPeNDAP output, `h5py` will consider single floating point
+        values to be 1-element arrays of floating point values. If a `numpy`
+        array is detected with only one value (that is not itself an object),
+        that metadata attribute is determined to be just the element itself,
+        not an array. `numpy` arrays with `dtype='object'` are left as arrays
+        as these are most commonly `h5py.References` and these are typically
+        stored as arrays.
+
+    """
+    attribute_value = h5_dataset.attrs.get(attribute_key, default)
+
+    if isinstance(attribute_value, (bytes, np.bytes_)):
+        attribute_value = attribute_value.decode()
+    elif (
+        isinstance(attribute_value, np.ndarray) and attribute_value.size == 1
+        and not attribute_value.dtype == 'object'
+    ):
+        attribute_value = attribute_value[0]
+
+    return attribute_value
 
 
 def get_geotiff_mask_array_id(geotiff_path: str, shape_path: str) -> str:
@@ -447,3 +493,31 @@ def get_resolved_line(point_one: Coordinates, point_two: Coordinates,
     new_x = np.linspace(point_one[0], point_two[0], int(n_points))
     new_y = np.linspace(point_one[1], point_two[1], int(n_points))
     return list(zip(new_x, new_y))
+
+
+def get_default_fill_for_data_type(variable_type: Union[str, None]) -> Any:
+    """ Retrieve a default value for filling as defined in the
+        DEFAULT_FILL_VALUES dictionary. This will only be used if there is no
+        _FillValue (HDF-5/NetCDF-4) or NoData (GeoTIFF) in-file metadata, no
+        configuration file setting for fill value, or no user-supplied default
+        fill value (SDPS implementation only).
+
+        If the type is not recognised, the returned default value will be
+        -9999.0
+
+    """
+    default_fill_values = {
+        'float16': -9999.0,
+        'float32': -9999.0,
+        'float64': -9999.0,
+        'float128': -9999.0,
+        'int8': 127,
+        'int16': 32767,
+        'int32': 2147483647,
+        'str32': '',
+        'uint8': 254,
+        'uint16': 65534,
+        'uint32': 4294967294,
+        'uint64': 18446744073709551614
+    }
+    return default_fill_values.get(variable_type, -9999.0)

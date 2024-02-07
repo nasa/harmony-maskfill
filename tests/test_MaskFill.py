@@ -5,8 +5,8 @@ from numpy import array, array_equal, where
 from osgeo import gdal
 import h5py
 
-from MaskFill import (DEFAULT_FILL_VALUE, DEFAULT_MASK_GRID_CACHE,
-                      maskfill_sdps, get_xml_success_response)
+from MaskFill import (DEFAULT_MASK_GRID_CACHE, maskfill_sdps,
+                      get_xml_success_response)
 
 from tests.utilities import MaskFillTestCase
 
@@ -39,7 +39,7 @@ class TestMaskFill(MaskFillTestCase):
         self.output_comparison_h5 = self.create_output_file_name(self.input_comparison_h5)
 
         self.default_parameters = {'debug': 'false',
-                                   'fill_value': DEFAULT_FILL_VALUE,
+                                   'fill_value': -9999.0,
                                    'identifier': self.identifier,
                                    'input_file': self.input_h5_file,
                                    'mask_grid_cache': DEFAULT_MASK_GRID_CACHE,
@@ -184,6 +184,111 @@ class TestMaskFill(MaskFillTestCase):
 
         # Finally, check all pixel values are identical (slowest check)
         self.assertTrue(array_equal(h5_array, geo_array))
+
+    @patch('MaskFill.get_input_parameters')
+    def test_mask_fill_h5_default_fill(self, mock_get_input_parameters):
+        """ Ensure MaskFill can process a file that has no in-file fill value
+            metadata, relying instead on default fill values that are selected
+            based on the data type of each variable in the HDF-5 file.
+
+        """
+        input_file_path = 'tests/data/SMAP_L3_FT_P_fill_input.h5'
+        output_file_path = self.create_output_file_name(input_file_path)
+
+        default_fill_parameters = self.default_parameters.copy()
+        default_fill_parameters['input_file'] = input_file_path
+        default_fill_parameters['fill_value'] = None
+
+        mock_get_input_parameters.return_value = self.create_parameters_namespace(
+            default_fill_parameters
+        )
+        response = maskfill_sdps()
+
+        self.assertEqual(
+            response,
+            get_xml_success_response(
+                input_file_path,
+                self.shape_file,
+                output_file_path
+            )
+        )
+
+        self.compare_h5_files(
+            'tests/data/SMAP_L3_FT_P_fill_output.h5',
+            output_file_path
+        )
+
+    @patch('MaskFill.get_input_parameters')
+    def test_mask_fill_geo_float_default(self, mock_get_input_parameters):
+        """A full test of the `mask_fill` utility using a GeoTIFF input file,
+        patching the reading of input parameters. This specific test ensure
+        that when an input GeoTIFF has floating point data and a missing nodata
+        value, and the user does not specify a default fill value, a fill value
+        is used determined by the data type. For this test, it should be
+        -9999.0.
+
+        """
+        input_file_path = 'tests/data/SMAP_L3_FT_P_fill_float_input.tif'
+        output_file_path = self.create_output_file_name(input_file_path)
+
+        float_default_fill_parameters = self.default_parameters.copy()
+        float_default_fill_parameters['input_file'] = input_file_path
+        float_default_fill_parameters['fill_value'] = None
+
+        mock_get_input_parameters.return_value = self.create_parameters_namespace(
+            float_default_fill_parameters
+        )
+        response = maskfill_sdps()
+
+        self.assertEqual(
+            response,
+            get_xml_success_response(
+                input_file_path,
+                self.shape_file,
+                output_file_path
+            )
+        )
+
+        self.compare_geotiff_files(
+            'tests/data/SMAP_L3_FT_P_fill_float_output.tif',
+            output_file_path
+        )
+
+    @patch('MaskFill.get_input_parameters')
+    def test_mask_fill_geo_uint_default(self, mock_get_input_parameters):
+        """A full test of the `mask_fill` utility using a GeoTIFF input file,
+        patching the reading of input parameters. This specific test ensure
+        that when an input GeoTIFF has unsigned integer data and a missing
+        nodata value, and the user does not specify a default fill value, a
+        fill value is used determined by the data type. For this test, it
+        should be 254.
+
+        """
+        input_file_path = 'tests/data/SMAP_L3_FT_P_fill_uint_input.tif'
+        output_file_path = self.create_output_file_name(input_file_path)
+
+        uint_default_fill_parameters = self.default_parameters.copy()
+        uint_default_fill_parameters['input_file'] = input_file_path
+        uint_default_fill_parameters['fill_value'] = None
+
+        mock_get_input_parameters.return_value = self.create_parameters_namespace(
+            uint_default_fill_parameters
+        )
+        response = maskfill_sdps()
+
+        self.assertEqual(
+            response,
+            get_xml_success_response(
+                input_file_path,
+                self.shape_file,
+                output_file_path
+            )
+        )
+
+        self.compare_geotiff_files(
+            'tests/data/SMAP_L3_FT_P_fill_uint_output.tif',
+            output_file_path
+        )
 
     @patch('MaskFill.get_input_parameters')
     def test_mask_fill_south_pole(self, mock_get_input_parameters):

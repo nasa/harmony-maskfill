@@ -9,7 +9,7 @@ from harmony.message import Message
 from harmony.util import config, HarmonyException
 
 from harmony_adapter import HarmonyAdapter
-from tests.utilities import MaskFillTestCase
+from tests.utilities import create_input_stac, MaskFillTestCase
 
 
 class StringEndsWith:
@@ -110,16 +110,28 @@ class TestHarmonyMaskFill(MaskFillTestCase):
             'accessToken': self.access_token,
             'callback': self.callback,
             'stagingLocation': self.staging_location,
-            'sources': [{'granules': [{'bbox': self.bounding_box,
-                                       'temporal': self.temporal,
-                                       'url': self.input_hdf5}]}],
-            'subset': {'shape': {'href': self.shape_usa,
-                                 'type': 'application/geo+json'}},
+            'sources': [{
+                'granules': [{
+                    'bbox': self.bounding_box,
+                    'temporal': self.temporal
+                }]
+            }],
+            'subset': {
+                'shape': {
+                    'href': self.shape_usa,
+                    'type': 'application/geo+json'
+                }
+            },
             'user': self.user,
         })
+        input_stac = create_input_stac(self.input_hdf5, 'application/x-hdf5')
 
         maskfill_config = config(False)
-        maskfill_adapter = HarmonyAdapter(test_data, config=maskfill_config)
+        maskfill_adapter = HarmonyAdapter(
+            test_data,
+            config=maskfill_config,
+            catalog=input_stac
+        )
         maskfill_adapter.invoke()
 
         # Compare the output file to a template output file.
@@ -158,16 +170,26 @@ class TestHarmonyMaskFill(MaskFillTestCase):
             'accessToken': self.access_token,
             'callback': self.callback,
             'stagingLocation': self.staging_location,
-            'sources': [{'granules': [{'bbox': self.bounding_box,
-                                       'temporal': self.temporal,
-                                       'url': self.input_geotiff}]}],
-            'subset': {'shape': {'href': self.shape_usa,
-                                 'type': 'application/geo+json'}},
+            'sources': [{
+                'granules': [{
+                    'bbox': self.bounding_box,
+                    'temporal': self.temporal
+                }]
+            }],
+            'subset': {
+                'shape': {
+                    'href': self.shape_usa,
+                    'type': 'application/geo+json'
+                }
+            },
             'user': self.user,
         })
 
+        input_stac = create_input_stac(self.input_geotiff, 'image/tiff')
+
         maskfill_config = config(False)
-        maskfill_adapter = HarmonyAdapter(test_data, config=maskfill_config)
+        maskfill_adapter = HarmonyAdapter(test_data, config=maskfill_config,
+                                          catalog=input_stac)
         maskfill_adapter.invoke()
 
         # Compare the output file to a template output file.
@@ -205,13 +227,18 @@ class TestHarmonyMaskFill(MaskFillTestCase):
             'accessToken': self.access_token,
             'callback': self.callback,
             'stagingLocation': self.staging_location,
-            'sources': [{'granules': [{
-                'bbox': self.bounding_box,
-                'temporal': self.temporal,
-                'url': input_file_name
-            }]}],
-            'subset': {'shape': {'href': self.shape_usa,
-                                 'type': 'application/geo+json'}},
+            'sources': [{
+                'granules': [{
+                    'bbox': self.bounding_box,
+                    'temporal': self.temporal,
+                }]
+            }],
+            'subset': {
+                'shape': {
+                    'href': self.shape_usa,
+                    'type': 'application/geo+json'
+                }
+            },
             'user': self.user,
         })
 
@@ -219,7 +246,9 @@ class TestHarmonyMaskFill(MaskFillTestCase):
         staged_name = 'GPM_3IMERGHH_input_subsetted.nc4'
 
         maskfill_config = config(False)
-        maskfill_adapter = HarmonyAdapter(test_data, config=maskfill_config)
+        input_stac = create_input_stac(input_file_name, 'application/netcdf-4')
+        maskfill_adapter = HarmonyAdapter(test_data, config=maskfill_config,
+                                          catalog=input_stac)
         maskfill_adapter.invoke()
 
         # Compare the output file to a template output file.
@@ -260,17 +289,20 @@ class TestHarmonyMaskFill(MaskFillTestCase):
             'accessToken': self.access_token,
             'callback': self.callback,
             'stagingLocation': self.staging_location,
-            'sources': [{'granules': [{
-                'bbox': self.bounding_box,
-                'temporal': self.temporal,
-                'url': input_file_name
-            }]}],
+            'sources': [{
+                'granules': [{
+                    'bbox': self.bounding_box,
+                    'temporal': self.temporal,
+                }]
+            }],
             'subset': {'bbox': [0, 54, 44, 72]},
             'user': self.user,
         })
 
         maskfill_config = config(False)
-        maskfill_adapter = HarmonyAdapter(test_data, config=maskfill_config)
+        input_stac = create_input_stac(input_file_name, 'application/x-hdf5')
+        maskfill_adapter = HarmonyAdapter(test_data, config=maskfill_config,
+                                          catalog=input_stac)
         maskfill_adapter.invoke()
 
         # Compare the output file to a template output file.
@@ -292,6 +324,227 @@ class TestHarmonyMaskFill(MaskFillTestCase):
                                            'application/x-hdf5',
                                            location=self.staging_location,
                                            logger=maskfill_adapter.logger)
+
+        mock_rmtree.assert_called_once_with(self.output_dir, ignore_errors=True)
+
+    @patch('harmony_adapter.mkdtemp')
+    @patch('harmony_adapter.rmtree')
+    def test_harmony_adapter_h5_default_fill(self, mock_rmtree, mock_mkdtemp,
+                                             mock_download, mock_stage):
+        """ Ensure MaskFill can process a file that has no in-file fill value
+            metadata, relying instead on default fill values that are selected
+            based on the data type of each variable in the HDF-5 file.
+
+        """
+        mock_mkdtemp.return_value = self.output_dir
+        input_file_name = 'tests/data/SMAP_L3_FT_P_fill_input.h5'
+        masked_name = 'SMAP_L3_FT_P_fill_input_mf.h5'
+        staged_name = 'SMAP_L3_FT_P_fill_input_subsetted.h5'
+
+        test_data = Message({
+            'accessToken': self.access_token,
+            'callback': self.callback,
+            'stagingLocation': self.staging_location,
+            'sources': [{
+                'granules': [{
+                    'bbox': self.bounding_box,
+                    'temporal': self.temporal,
+                }]
+            }],
+            'subset': {
+                'shape': {
+                    'href': self.shape_usa,
+                    'type': 'application/geo+json'
+                }
+            },
+            'user': self.user,
+        })
+
+        maskfill_config = config(False)
+        input_stac = create_input_stac(input_file_name, 'application/x-hdf5')
+        maskfill_adapter = HarmonyAdapter(test_data, config=maskfill_config,
+                                          catalog=input_stac)
+        maskfill_adapter.invoke()
+
+        # Compare the output file to a template output file.
+        expected_output_file = 'tests/data/SMAP_L3_FT_P_fill_output.h5'
+        actual_output_file = self.create_output_file_name(input_file_name,
+                                                          use_identifier=False)
+
+        self.compare_h5_files(actual_output_file, expected_output_file)
+
+        # Check the functions to download the input data and stage the output
+        # were called as expected.
+        mock_download.asset_called_once_with(input_file_name,
+                                             ANY,
+                                             logger=maskfill_adapter.logger,
+                                             access_token=self.access_token,
+                                             cfg=maskfill_config)
+        mock_stage.assert_called_once_with(StringEndsWith(masked_name),
+                                           StringEndsWith(staged_name),
+                                           'application/x-hdf5',
+                                           location=self.staging_location,
+                                           logger=maskfill_adapter.logger)
+
+        mock_rmtree.assert_called_once_with(self.output_dir, ignore_errors=True)
+
+    @patch('harmony_adapter.mkdtemp')
+    @patch('harmony_adapter.rmtree')
+    def test_harmony_adapter_geotiff_float_default_fill(
+        self,
+        mock_rmtree,
+        mock_mkdtemp,
+        mock_download,
+        mock_stage
+    ):
+        """ Ensure MaskFill can process a file that has no in-file fill value
+            metadata, relying instead on default fill values that are selected
+            based on the data type of the band in the GeoTIFF file.
+
+            This example tests floating point data, which has a default fill
+            value of -9999.0.
+
+        """
+        mock_mkdtemp.return_value = self.output_dir
+
+        test_data = Message({
+            'accessToken': self.access_token,
+            'callback': self.callback,
+            'stagingLocation': self.staging_location,
+            'sources': [{
+                'granules': [{
+                    'bbox': self.bounding_box,
+                    'temporal': self.temporal,
+                }]
+            }],
+            'subset': {
+                'shape': {
+                    'href': self.shape_usa,
+                    'type': 'application/geo+json'
+                }
+            },
+            'user': self.user,
+        })
+
+        maskfill_config = config(False)
+
+        input_file_name = 'tests/data/SMAP_L3_FT_P_fill_float_input.tif'
+        masked_name = 'SMAP_L3_FT_P_fill_float_input_mf.tif'
+        staged_name = 'SMAP_L3_FT_P_fill_float_input_subsetted.tif'
+
+        input_stac = create_input_stac(input_file_name, 'image/tiff')
+        maskfill_adapter = HarmonyAdapter(
+            test_data,
+            config=maskfill_config,
+            catalog=input_stac
+        )
+        maskfill_adapter.invoke()
+
+        # Compare the output file to a template output file.
+        expected_output_file = 'tests/data/SMAP_L3_FT_P_fill_float_output.tif'
+        actual_output_file = self.create_output_file_name(
+            input_file_name,
+            use_identifier=False
+        )
+
+        self.compare_geotiff_files(actual_output_file, expected_output_file)
+
+        # Check the functions to download the input data and stage the output
+        # were called as expected.
+        mock_download.asset_called_once_with(
+            input_file_name,
+            ANY,
+            logger=maskfill_adapter.logger,
+            access_token=self.access_token,
+            cfg=maskfill_config
+        )
+        mock_stage.assert_called_once_with(
+            StringEndsWith(masked_name),
+            StringEndsWith(staged_name),
+            'image/tiff',
+            location=self.staging_location,
+            logger=maskfill_adapter.logger
+        )
+
+        mock_rmtree.assert_called_once_with(self.output_dir, ignore_errors=True)
+
+    @patch('harmony_adapter.mkdtemp')
+    @patch('harmony_adapter.rmtree')
+    def test_harmony_adapter_geotiff_uint_default_fill(
+        self,
+        mock_rmtree,
+        mock_mkdtemp,
+        mock_download,
+        mock_stage
+    ):
+        """ Ensure MaskFill can process a file that has no in-file fill value
+            metadata, relying instead on default fill values that are selected
+            based on the data type of the band in the GeoTIFF file.
+
+            This example tests unsigned integer data, which has a default fill
+            value of 254.
+
+        """
+        mock_mkdtemp.return_value = self.output_dir
+
+        test_data = Message({
+            'accessToken': self.access_token,
+            'callback': self.callback,
+            'stagingLocation': self.staging_location,
+            'sources': [{
+                'granules': [{
+                    'bbox': self.bounding_box,
+                    'temporal': self.temporal,
+                }]
+            }],
+            'subset': {
+                'shape': {
+                    'href': self.shape_usa,
+                    'type': 'application/geo+json'
+                }
+            },
+            'user': self.user,
+        })
+
+        maskfill_config = config(False)
+
+        input_file_name = 'tests/data/SMAP_L3_FT_P_fill_uint_input.tif'
+        masked_name = 'SMAP_L3_FT_P_fill_uint_input_mf.tif'
+        staged_name = 'SMAP_L3_FT_P_fill_uint_input_subsetted.tif'
+
+        input_stac = create_input_stac(input_file_name, 'image/tiff')
+        maskfill_adapter = HarmonyAdapter(
+            test_data,
+            config=maskfill_config,
+            catalog=input_stac
+        )
+        maskfill_adapter.invoke()
+
+        # Compare the output file to a template output file.
+        expected_output_file = 'tests/data/SMAP_L3_FT_P_fill_uint_output.tif'
+        actual_output_file = self.create_output_file_name(
+            input_file_name,
+            use_identifier=False
+        )
+
+        self.compare_geotiff_files(actual_output_file, expected_output_file)
+
+        # Check the functions to download the input data and stage the output
+        # were called as expected.
+        mock_download.asset_called_once_with(
+            input_file_name,
+            ANY,
+            logger=maskfill_adapter.logger,
+            access_token=self.access_token,
+            cfg=maskfill_config
+        )
+        mock_stage.assert_called_once_with(
+            StringEndsWith(masked_name),
+            StringEndsWith(staged_name),
+            'image/tiff',
+            location=self.staging_location,
+            logger=maskfill_adapter.logger
+        )
 
         mock_rmtree.assert_called_once_with(self.output_dir, ignore_errors=True)
 
@@ -318,8 +571,12 @@ class TestHarmonyMaskFill(MaskFillTestCase):
             'accessToken': self.access_token,
             'callback': self.callback,
             'stagingLocation': self.staging_location,
-            'subset': {'shape': {'href': self.shape_usa,
-                                 'type': self.input_hdf5}},
+            'subset': {
+                'shape': {
+                    'href': self.shape_usa,
+                    'type': self.input_hdf5
+                }
+            },
             'user': self.user,
         })
 
@@ -342,9 +599,13 @@ class TestHarmonyMaskFill(MaskFillTestCase):
         base_message_text = {
             'accessToken': self.access_token,
             'callback': self.callback,
-            'sources': [{'granules': [{'bbox': self.bounding_box,
-                                       'temporal': self.temporal,
-                                       'url': self.input_geotiff}]}],
+            'sources': [{
+                'granules': [{
+                    'bbox': self.bounding_box,
+                    'temporal': self.temporal,
+                    'url': self.input_geotiff
+                }]
+            }],
             'stagingLocation': self.staging_location,
             'user': self.user
         }

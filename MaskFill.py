@@ -52,7 +52,6 @@ import GeotiffMaskFill
 import H5MaskFill
 
 
-DEFAULT_FILL_VALUE = -9999
 DEFAULT_MASK_GRID_CACHE = 'ignore_and_delete'
 OUTPUT_EXCEPTIONS = (InsufficientProjectionInformation, InvalidMetadata,
                      InvalidParameterValue, MissingCoordinateDataset,
@@ -159,6 +158,10 @@ def get_input_parameters() -> Namespace:
     """ Gets the input parameters using an `argparse.ArgumentParser`.
         If no input is given for certain parameters, a default value is stored.
 
+        Note: Given that a single default fill value may not be applicable to
+        all data types, it might be preferable to remove the DEFAULT_FILL
+        parameter entirely.
+
         Returns:
             `argparse.Namespace`: An object containing all of the input
             parameters values
@@ -189,7 +192,7 @@ def get_input_parameters() -> Namespace:
     )
     parser.add_argument(
         '--DEFAULT_FILL', dest='fill_value', help='Fill value for mask fill',
-        default=DEFAULT_FILL_VALUE
+        default=None
     )
     parser.add_argument(
         '--DEBUG', default=False, dest='debug', type=debug_bool,
@@ -227,7 +230,8 @@ def check_shapefile_geojson(shape_file: str, output_dir: str) -> str:
 
 
 def validate_input_parameters(input_file: str, shape_file: str,
-                              output_dir: str, fill_value: Union[float, int],
+                              output_dir: str,
+                              fill_value: Union[float, int, None],
                               logger: logging.Logger) -> str:
     """ Ensures that all required input parameters exist, and that all given
         parameters are valid. If not, raises an `InvalidParameterValue`
@@ -382,7 +386,7 @@ def maskfill_sdps() -> str:
         # By default the fill value is a string that needs to be converted.
         # This isn't done by the ArgumentParser so that any exception can be
         # caught and mapped to a MaskFill-specific exception and error message.
-        if 'fill_value' in parameters:
+        if 'fill_value' in parameters and parameters['fill_value'] is not None:
             try:
                 parameters['fill_value'] = float(parameters['fill_value'])
             except ValueError:

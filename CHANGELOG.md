@@ -1,3 +1,13 @@
+## v0.1.4
+### 2024-02-05
+
+This version of MaskFill contains a bug fix to ensure that if there is no
+configuration file, in-file metadata, or user-specified fill value, the default
+fill value applied will vary based on the variable data type. Prior to this
+change a global default of -9999.0 was applied. However, this is not an
+appropriate value for some integer types, where -9999.0 will be cast to the
+correct data type and become an incorrect value (e.g., 241 instead of 254).
+
 ## v0.1.3
 ### 2022-11-10
 
