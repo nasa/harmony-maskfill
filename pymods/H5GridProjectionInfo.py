@@ -16,6 +16,9 @@ from pymods.cf_config import CFConfigH5
 from pymods.exceptions import (InsufficientDataError,
                                InsufficientProjectionInformation,
                                InvalidMetadata, MissingCoordinateDataset)
+from pymods.MaskFillUtil import (get_decoded_attribute,
+                                 get_default_fill_for_data_type,
+                                 get_transform_information)
 
 
 CornerPoints = Tuple[float, float, float, float]
@@ -255,33 +258,6 @@ def get_dataset_attributes(h5_dataset: Dataset) -> Dict:
             in h5_dataset.attrs}
 
 
-def get_decoded_attribute(h5_dataset: Dataset, attribute_key: str,
-                          default: Optional[Any] = None) -> Any:
-    """ Ensure that any Byte type attributes are decoded to a string. Otherwise
-        return the metadata attribute as stored in the H5 file.
-
-        With some OPeNDAP output, `h5py` will consider single floating point
-        values to be 1-element arrays of floating point values. If a `numpy`
-        array is detected with only one value (that is not itself an object),
-        that metadata attribute is determined to be just the element itself,
-        not an array. `numpy` arrays with `dtype='object'` are left as arrays
-        as these are most commonly `h5py.References` and these are typically
-        stored as arrays.
-
-    """
-    attribute_value = h5_dataset.attrs.get(attribute_key, default)
-
-    if isinstance(attribute_value, (bytes, np.bytes_)):
-        attribute_value = attribute_value.decode()
-    elif (
-        isinstance(attribute_value, np.ndarray) and attribute_value.size == 1
-        and not attribute_value.dtype == 'object'
-    ):
-        attribute_value = attribute_value[0]
-
-    return attribute_value
-
-
 def get_transform(h5_dataset: Dataset, crs: CRS, cf_config: CFConfigH5,
                   logger: Logger) -> Affine:
     """ Determines the transform from the index coordinates of the HDF5 dataset
@@ -324,27 +300,6 @@ def get_transform(h5_dataset: Dataset, crs: CRS, cf_config: CFConfigH5,
         transform = Affine(cell_width, 0, x_0, 0, cell_height, y_0)
 
     return transform
-
-
-def get_transform_information(h5_dataset: Dataset) -> str:
-    """ Determine the attributes of an HDF-5 dataset that will be used to
-        determine the Affine transformation between pixel indices and
-        projected coordinates. This function doesn't actually derive the
-        tranform itself, in an effort to minimise computationally intensive
-        operations.
-
-    """
-    dimension_list = get_decoded_attribute(h5_dataset, 'DIMENSION_LIST')
-
-    if dimension_list is not None:
-        h5_file = h5_dataset.file
-        dimension_names = ', '.join([h5_file[reference[0]].name
-                                     for reference in dimension_list])
-        output_string = f'DIMENSION_LIST: {dimension_names}'
-    else:
-        output_string = f'coords: {get_decoded_attribute(h5_dataset, "coordinates")}'
-
-    return output_string
 
 
 def get_cell_size_from_dimensions(h5_dataset: Dataset) -> Tuple[int, int]:
@@ -570,11 +525,13 @@ def get_fill_value(h5_dataset: Dataset, cf_config: CFConfigH5, logger: Logger,
         If the HDF5 dataset has no fill value, returns the given default fill value.
 
         Note: It is not possible to  access the fill value for some longitude and
-        latitude datasets via h5_dataset.attrs['_FillValue']. However, in these
-        instances, the fill value can be accessed via the Dataset.fillvalue
-        class attribute. Accessing via Dataset.attrs is preferable, where
-        possible, as it handles some datatypes, such as UBYTE, better than the
-        fillvalue class attribute.
+        latitude datasets via h5_dataset.attrs['_FillValue'].
+
+        The Dataset.fillvalue attribute is not used as `h5py` will always try
+        to populate this, even if a `Dataset` has no fill value. In these cases
+        `h5py` will try to use inbuilt defaults based on the datatype that do
+        not match up with values typically used in collections processed by
+        MaskFill. For example, 0.0 for some float-type Datasets.
 
         Args:
             h5_dataset (h5py.Dataset): The given HDF5 dataset
@@ -594,12 +551,14 @@ def get_fill_value(h5_dataset: Dataset, cf_config: CFConfigH5, logger: Logger,
 
     if fill_value_attribute is not None:
         return fill_value_attribute
-    elif h5_dataset.fillvalue != b'':
-        return h5_dataset.fillvalue
-    else:
+    elif default_fill_value is not None:
         logger.info(f'The dataset {h5_dataset.name} does not have a fill value, '
                     f'so the default fill value {default_fill_value} will be used')
         return default_fill_value
+    else:
+        logger.info('No default fill value specified, using default for '
+                    f'variable data type: {h5_dataset.dtype.name}.')
+        return get_default_fill_for_data_type(h5_dataset.dtype.name)
 
 
 def dataset_all_fill_value(dataset: Dataset, cf_config: CFConfigH5,

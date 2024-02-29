@@ -16,12 +16,15 @@ from pyproj import CRS
 from shapely.geometry import Polygon, shape
 
 from pymods.MaskFillUtil import (create_bounding_box_shape_file,
-                                 get_bounded_shape, get_geographic_resolution,
-                                 get_geotiff_crs, get_geotiff_info,
-                                 get_grid_lat_lons, get_h5_mask_array_id,
-                                 get_resolved_dataframe, get_resolved_line,
-                                 get_resolved_polygon, get_resolved_ring,
-                                 get_resolved_shape, should_ignore_pyproj_bounds)
+                                 get_bounded_shape, get_decoded_attribute,
+                                 get_default_fill_for_data_type,
+                                 get_geographic_resolution, get_geotiff_crs,
+                                 get_geotiff_info, get_grid_lat_lons,
+                                 get_h5_mask_array_id, get_resolved_dataframe,
+                                 get_resolved_line, get_resolved_polygon,
+                                 get_resolved_ring, get_resolved_shape,
+                                 get_transform_information,
+                                 should_ignore_pyproj_bounds)
 
 
 class TestMaskFillUtil(TestCase):
@@ -250,6 +253,29 @@ class TestMaskFillUtil(TestCase):
         assert_array_equal(actual_lon, expected_lon)
         assert_array_equal(actual_lat, expected_lat)
 
+    def test_get_transform_information(self):
+        """ Ensure the correct string representation of the supporting dataset
+            information is returned for a science dataset with either a
+            DIMENSION_LIST attribute or a coordinate attribute.
+
+        """
+        with self.subTest('DIMENSION_LIST present'):
+            h5_file = h5py.File('tests/data/SMAP_L4_SM_aup_input.h5', 'r')
+            dataset = h5_file['/Analysis_Data/sm_profile_analysis']
+            transform = get_transform_information(dataset)
+            self.assertEqual(transform, 'DIMENSION_LIST: /y, /x')
+            h5_file.close()
+
+        with self.subTest('DIMENSION_LIST absent'):
+            h5_file = h5py.File('tests/data/SMAP_L3_FT_P_corners_input.h5', 'r')
+            group = '/Freeze_Thaw_Retrieval_Data_Global'
+            dataset = h5_file[f'{group}/altitude_dem.Bands_01']
+            expected_result = (f'coords: {group}/latitude.Bands_01 '
+                               f'{group}/longitude.Bands_01')
+            transform = get_transform_information(dataset)
+            self.assertEqual(transform, expected_result)
+            h5_file.close()
+
     def test_get_resolved_line(self):
         """ Ensure that a line, defined by its two end-points, will be
             converted so that there are evenly spaced points separated by,
@@ -447,3 +473,94 @@ class TestMaskFillUtil(TestCase):
         expected_resolution = 7.071
         self.assertAlmostEqual(get_geographic_resolution(latitudes, longitudes),
                                expected_resolution, places=3)
+
+    def test_get_decoded_attribute(self):
+        """ Ensure attributes will be retrieved with the correct type. If the
+            extracted type is a bytes object, it should be decoded to a string,
+            otherwise the type of the retrieved metadata attribute should match
+            the type as contained in the HDF-5 file.
+
+            If the attribute is a single-element array, then the output should
+            be only the element, not an array.
+
+        """
+        string_value = 'this is a string'
+        decoded_bytes = 'bytes'
+        bytes_value = bytes(decoded_bytes, 'utf-8')
+        numerical_value = 123.456
+        np_bytes_value = np.bytes_(decoded_bytes, 'utf-8')
+        single_element_array = np.array([numerical_value])
+        multi_element_array = np.array([numerical_value, numerical_value])
+
+        test_args = [
+            ['String attribute', 'string_value', string_value],
+            ['Bytes attribute decoded', 'bytes_value', decoded_bytes],
+            ['np.bytes_ attribute decoded', 'np_bytes_value', decoded_bytes],
+            ['Numerical attribute', 'numerical_value', numerical_value],
+            ['Absent attribute defaults to None', 'Missing', None],
+            ['Single element array', 'single_element_array', numerical_value]
+        ]
+
+        default_test_args = [
+            ['Default not used when value present', 'string_value', 'default', string_value],
+            ['Default value used', 'missing', 'default', 'default'],
+            ['Bytes default is decoded', 'missing', bytes_value, decoded_bytes],
+        ]
+        with h5py.File('test.h5', 'w', driver='core', backing_store=False) as h5_file:
+            attributes = h5py.AttributeManager(parent=h5_file)
+            attributes.create('string_value', string_value)
+            attributes.create('bytes_value', bytes_value)
+            attributes.create('numerical_value', numerical_value)
+            attributes.create('np_bytes_value', np_bytes_value)
+            attributes.create('single_element_array', single_element_array)
+            attributes.create('multi_element_array', multi_element_array)
+
+            for description, attribute_key, expected_value in test_args:
+                with self.subTest(description):
+                    self.assertEqual(
+                        get_decoded_attribute(h5_file, attribute_key),
+                        expected_value
+                    )
+
+            for description, key, default, expected_value in default_test_args:
+                with self.subTest(description):
+                    self.assertEqual(
+                        get_decoded_attribute(h5_file, key, default),
+                        expected_value
+                    )
+
+            np.testing.assert_array_equal(
+                get_decoded_attribute(h5_file, 'multi_element_array'),
+                multi_element_array
+            )
+
+    def test_get_default_fill_for_data_type(self):
+        """ Ensure that the correct default fill value is retrieved based on
+            the `numpy.dtype.name` supplied to the function. If there is an
+            unrecognised input type, then -9999.0 should be returned.
+
+            These tests are written out separately as parameterising them felt
+            a bit too close to the actual code for independent testing.
+
+        """
+        with self.subTest('float64 returns -9999.0'):
+            self.assertEqual(
+                get_default_fill_for_data_type('float64'),
+                -9999.0
+            )
+
+        with self.subTest('uint8 returns 254'):
+            self.assertEqual(
+                get_default_fill_for_data_type('uint8'),
+                254
+            )
+        with self.subTest('None returns -9999.0'):
+            self.assertEqual(
+                get_default_fill_for_data_type(None),
+                -9999.0
+            )
+        with self.subTest('Unrecognised type returns -9999.0'):
+            self.assertEqual(
+                get_default_fill_for_data_type('random_type_string'),
+                -9999.0
+            )

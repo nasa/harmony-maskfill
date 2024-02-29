@@ -6,7 +6,7 @@ from shutil import rmtree
 from unittest import TestCase
 from unittest.mock import ANY, patch
 
-from MaskFill import (check_shapefile_geojson, debug_bool, DEFAULT_FILL_VALUE,
+from MaskFill import (check_shapefile_geojson, debug_bool,
                       DEFAULT_MASK_GRID_CACHE, format_parameters,
                       get_log_file_path, get_sdps_logger,
                       get_xml_error_response, get_xml_success_response,
@@ -123,7 +123,7 @@ class TestMaskFill(TestCase):
         self.assertIsNone(validate_input_parameters(self.input_h5_file,
                                                     self.shape_file,
                                                     self.output_dir,
-                                                    DEFAULT_FILL_VALUE,
+                                                    None,
                                                     self.logger))
 
     def test_validate_input_parameters_valid_extensions(self):
@@ -137,7 +137,7 @@ class TestMaskFill(TestCase):
                 self.assertIsNone(validate_input_parameters(input_file,
                                                             self.shape_file,
                                                             self.output_dir,
-                                                            DEFAULT_FILL_VALUE,
+                                                            None,
                                                             self.logger))
 
     def test_validate_input_parameters_invalid_extension(self):
@@ -151,8 +151,7 @@ class TestMaskFill(TestCase):
 
         with self.assertRaises(InvalidParameterValue) as context:
             validate_input_parameters(input_file, self.shape_file,
-                                      self.output_dir, DEFAULT_FILL_VALUE,
-                                      self.logger)
+                                      self.output_dir, None, self.logger)
 
         self.assertEqual(context.exception.message, expected_message)
 
@@ -163,8 +162,7 @@ class TestMaskFill(TestCase):
         input_file = None
         with self.assertRaises(MissingParameterValue) as context:
             validate_input_parameters(input_file, self.shape_file,
-                                      self.output_dir, DEFAULT_FILL_VALUE,
-                                      self.logger)
+                                      self.output_dir, None, self.logger)
 
         self.assertEqual(context.exception.message, expected_message)
 
@@ -175,8 +173,7 @@ class TestMaskFill(TestCase):
 
         with self.assertRaises(MissingParameterValue) as context:
             validate_input_parameters(input_file, self.shape_file,
-                                      self.output_dir, DEFAULT_FILL_VALUE,
-                                      self.logger)
+                                      self.output_dir, None, self.logger)
 
         self.assertEqual(context.exception.message, expected_message)
 
@@ -186,8 +183,7 @@ class TestMaskFill(TestCase):
 
         with self.assertRaises(MissingParameterValue) as context:
             validate_input_parameters(self.input_h5_file, 'not_a_real_file',
-                                      self.output_dir, DEFAULT_FILL_VALUE,
-                                      self.logger)
+                                      self.output_dir, None, self.logger)
 
         self.assertEqual(context.exception.message, expected_message)
 
@@ -198,8 +194,7 @@ class TestMaskFill(TestCase):
 
         with self.assertRaises(MissingParameterValue) as context:
             validate_input_parameters(self.input_h5_file, self.shape_file,
-                                      bad_directory, DEFAULT_FILL_VALUE,
-                                      self.logger)
+                                      bad_directory, None, self.logger)
 
         self.assertEqual(context.exception.message, expected_message)
 
@@ -354,7 +349,7 @@ class TestMaskFill(TestCase):
         """
         mock_get_input_parameters.return_value = self.create_parameters_namespace({
             'debug': False,
-            'fill_value': DEFAULT_FILL_VALUE,
+            'fill_value': None,
             'identifier': 'test',
             'input_file': 'tests/data/SMAP_L4_SM_aup_input.h5',
             'mask_grid_cache': DEFAULT_MASK_GRID_CACHE,

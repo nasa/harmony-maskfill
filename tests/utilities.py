@@ -2,14 +2,39 @@
     classes.
 
 """
+from datetime import datetime
 from os.path import basename, isdir, join, splitext
 from shutil import rmtree
 from tempfile import mkdtemp
 from unittest import TestCase
 
+from harmony.util import bbox_to_geometry
 from numpy import array, array_equal, ndarray
 from osgeo import gdal
+from pystac import Asset as StacAsset, Catalog as StacCatalog, Item as StacItem
 import h5py
+
+
+def create_input_stac(granule_url: str, media_type: str) -> StacCatalog:
+    """ A helper function to create a STAC catalog to be used as input when
+        invoking the MaskFill HarmonyAdapter.
+
+        The geometry and datetime are set to arbitrary values are these are
+        not used in the tests.
+
+    """
+    catalog = StacCatalog(id='input catalog', description='test input')
+    item = StacItem(
+        id='input granule', bbox=[-180, -90, 180, 90],
+        geometry=bbox_to_geometry([-180, -90, 180, 90]),
+        datetime=datetime(2020, 1, 1), properties=None
+    )
+    item.add_asset(
+        'input data',
+        StacAsset(granule_url, media_type=media_type, roles=['data'])
+    )
+    catalog.add_item(item)
+    return catalog
 
 
 class MaskFillTestCase(TestCase):

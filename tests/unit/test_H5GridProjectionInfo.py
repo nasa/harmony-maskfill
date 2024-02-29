@@ -21,7 +21,6 @@ from pymods.H5GridProjectionInfo import (dataset_all_fill_value,
                                          get_corner_points_from_lat_lon,
                                          get_crs_from_grid_mapping,
                                          get_dataset_attributes,
-                                         get_decoded_attribute,
                                          get_dimension_datasets,
                                          get_fill_value,
                                          get_grid_mapping_name,
@@ -29,7 +28,6 @@ from pymods.H5GridProjectionInfo import (dataset_all_fill_value,
                                          get_lon_lat_datasets,
                                          get_projected_coordinate_extent,
                                          get_transform,
-                                         get_transform_information,
                                          is_projection_x_dimension,
                                          is_projection_y_dimension,
                                          is_x_y_flipped,
@@ -144,49 +142,83 @@ class TestH5GridProjectionInfo(TestCase):
         the default value supplied to the function should be returned instead.
 
         """
-        bad_dataset_name = list(self.cf_config.fill_values.keys())[0]
-        bad_dataset_value = self.cf_config.fill_values[bad_dataset_name]
+        config_dataset_name = list(self.cf_config.fill_values.keys())[0]
+        config_dataset_fill = self.cf_config.fill_values[config_dataset_name]
 
         data_array = np.ones((3, 2))
         default_fill_value = 1.0
         fill_value_attr = 2.0
         fill_value_class = 3.0
 
+        # Create test file:
         h5_file = h5py.File(self.test_h5_name, 'w')
 
+        # Add test dataset that matches a configuration file rule:
+        dataset_with_config = h5_file.create_dataset(
+            config_dataset_name,
+            data=data_array,
+            fillvalue=fill_value_class
+        )
+        dataset_with_config.attrs['_FillValue'] = fill_value_attr
+
+        # Add test dataset with a fill value:
+        dataset_with_fill = h5_file.create_dataset(
+            'with_fill',
+            data=data_array,
+            fillvalue=fill_value_class
+        )
+        dataset_with_fill.attrs['_FillValue'] = fill_value_attr
+
+        # Add test dataset without a fill value:
+        dataset_without_fill = h5_file.create_dataset(
+            'without_fill',
+            data=data_array
+        )
+
         with self.subTest('Override default value for specific named datasets'):
-            dataset = h5_file.create_dataset(bad_dataset_name,
-                                             data=data_array,
-                                             fillvalue=fill_value_class)
-            dataset.attrs['_FillValue'] = fill_value_attr
-            self.assertEqual(get_fill_value(dataset, self.cf_config,
-                                            self.logger, default_fill_value),
-                             bad_dataset_value)
+            self.assertEqual(
+                get_fill_value(
+                    dataset_with_config,
+                    self.cf_config,
+                    self.logger,
+                    default_fill_value
+                ),
+                config_dataset_fill
+            )
 
         with self.subTest('_FillValue attribute should take precedence.'):
-            dataset = h5_file.create_dataset('attribute',
-                                             data=data_array,
-                                             fillvalue=fill_value_class)
-            dataset.attrs['_FillValue'] = fill_value_attr
-            self.assertEqual(get_fill_value(dataset, self.cf_config,
-                                            self.logger, default_fill_value),
-                             fill_value_attr)
+            self.assertEqual(
+                get_fill_value(
+                    dataset_with_fill,
+                    self.cf_config,
+                    self.logger,
+                    default_fill_value
+                ),
+                fill_value_attr
+            )
 
-        with self.subTest('Without _FillValue, fall back on the fillvalue class attribute'):
-            dataset = h5_file.create_dataset('class_attribute',
-                                             data=data_array,
-                                             fillvalue=fill_value_class)
-            self.assertEqual(get_fill_value(dataset, self.cf_config,
-                                            self.logger, default_fill_value),
-                             fill_value_class)
+        with self.subTest('No config or in-file fill value, user-specified default'):
+            self.assertEqual(
+                get_fill_value(
+                    dataset_without_fill,
+                    self.cf_config,
+                    self.logger,
+                    default_fill_value
+                ),
+                default_fill_value
+            )
 
-        with self.subTest('Return default when nothing is set.'):
-            string_data = np.chararray((3, 3))
-            string_data[:] = 'abc'
-            dataset = h5_file.create_dataset('default', data=string_data)
-            self.assertEqual(get_fill_value(dataset, self.cf_config,
-                                            self.logger, default_fill_value),
-                             default_fill_value)
+        with self.subTest('Last option: use variable-type default fill value.'):
+            dataset = h5_file.create_dataset('type_default', data=data_array)
+            self.assertEqual(
+                get_fill_value(
+                    dataset_without_fill,
+                    self.cf_config,
+                    self.logger,
+                    None
+                ),
+                -9999.0
+            )
 
         h5_file.close()
 
@@ -223,8 +255,11 @@ class TestH5GridProjectionInfo(TestCase):
         y_upper_right = 2782987.269831839
 
         h5_file = h5py.File(self.test_h5_name, 'w')
-        data = h5_file.create_dataset('data', data=data_array, fillvalue=fill_value)
-        data_3d = h5_file.create_dataset('data_3d', data=data_array_3d, fillvalue=fill_value)
+        data = h5_file.create_dataset('data', data=data_array)
+        data.attrs.create('_FillValue', fill_value)
+
+        data_3d = h5_file.create_dataset('data_3d', data=data_array_3d)
+        data_3d.attrs.create('_FillValue', fill_value)
 
         test_args = [['Neither_corner_filled', False, False, False],
                      ['Lower_leftcorner_filled', True, False, False],
@@ -260,8 +295,11 @@ class TestH5GridProjectionInfo(TestCase):
 
                 lat_name = f'/lat_{description}'
                 lon_name = f'/lon_{description}'
-                h5_file.create_dataset(lat_name, data=lat_copy, fillvalue=fill_value)
-                h5_file.create_dataset(lon_name, data=lon_copy, fillvalue=fill_value)
+                lat_dataset = h5_file.create_dataset(lat_name, data=lat_copy)
+                lat_dataset.attrs.create('_FillValue', fill_value)
+
+                lon_dataset = h5_file.create_dataset(lon_name, data=lon_copy)
+                lon_dataset.attrs.create('_FillValue', fill_value)
 
                 dataset.attrs['coordinates'] = f'{lat_name} {lon_name}'.encode('utf-8')
 
@@ -282,8 +320,10 @@ class TestH5GridProjectionInfo(TestCase):
 
                 lat_name = '/lat_filled'
                 lon_name = '/lon_filled'
-                h5_file.create_dataset(lat_name, data=lat_copy, fillvalue=fill_value)
-                h5_file.create_dataset(lon_name, data=lon_copy, fillvalue=fill_value)
+                lat_dataset = h5_file.create_dataset(lat_name, data=lat_copy)
+                lat_dataset.attrs.create('_FillValue', fill_value)
+                lon_dataset = h5_file.create_dataset(lon_name, data=lon_copy)
+                lon_dataset.attrs.create('_FillValue', fill_value)
 
                 data.attrs['coordinates'] = f'{lat_name} {lon_name}'.encode('utf-8')
 
@@ -567,29 +607,6 @@ class TestH5GridProjectionInfo(TestCase):
         mock_get_cell_size_from_dimensions.assert_not_called()
 
         h5_file.close()
-
-    def test_get_transform_information(self):
-        """ Ensure the correct string representation of the supporting dataset
-            information is returned for a science dataset with either a
-            DIMENSION_LIST attribute or a coordinate attribute.
-
-        """
-        with self.subTest('DIMENSION_LIST present'):
-            h5_file = h5py.File('tests/data/SMAP_L4_SM_aup_input.h5', 'r')
-            dataset = h5_file['/Analysis_Data/sm_profile_analysis']
-            transform = get_transform_information(dataset)
-            self.assertEqual(transform, 'DIMENSION_LIST: /y, /x')
-            h5_file.close()
-
-        with self.subTest('DIMENSION_LIST absent'):
-            h5_file = h5py.File('tests/data/SMAP_L3_FT_P_corners_input.h5', 'r')
-            group = '/Freeze_Thaw_Retrieval_Data_Global'
-            dataset = h5_file[f'{group}/altitude_dem.Bands_01']
-            expected_result = (f'coords: {group}/latitude.Bands_01 '
-                               f'{group}/longitude.Bands_01')
-            transform = get_transform_information(dataset)
-            self.assertEqual(transform, expected_result)
-            h5_file.close()
 
     def test_get_lon_lat_datasets(self):
         """Ensure the coordinate datasets specified in the 'coordinates'
@@ -1115,63 +1132,3 @@ class TestH5GridProjectionInfo(TestCase):
 
                 self.assertEqual(get_crs_from_grid_mapping(input_object).to_epsg(),
                                  expected_epsg_code)
-
-    def test_get_decoded_attribute(self):
-        """ Ensure attributes will be retrieved with the correct type. If the
-            extracted type is a bytes object, it should be decoded to a string,
-            otherwise the type of the retrieved metadata attribute should match
-            the type as contained in the HDF-5 file.
-
-            If the attribute is a single-element array, then the output should
-            be only the element, not an array.
-
-        """
-        string_value = 'this is a string'
-        decoded_bytes = 'bytes'
-        bytes_value = bytes(decoded_bytes, 'utf-8')
-        numerical_value = 123.456
-        np_bytes_value = np.bytes_(decoded_bytes, 'utf-8')
-        single_element_array = np.array([numerical_value])
-        multi_element_array = np.array([numerical_value, numerical_value])
-
-        test_args = [
-            ['String attribute', 'string_value', string_value],
-            ['Bytes attribute decoded', 'bytes_value', decoded_bytes],
-            ['np.bytes_ attribute decoded', 'np_bytes_value', decoded_bytes],
-            ['Numerical attribute', 'numerical_value', numerical_value],
-            ['Absent attribute defaults to None', 'Missing', None],
-            ['Single element array', 'single_element_array', numerical_value]
-        ]
-
-        default_test_args = [
-            ['Default not used when value present', 'string_value', 'default', string_value],
-            ['Default value used', 'missing', 'default', 'default'],
-            ['Bytes default is decoded', 'missing', bytes_value, decoded_bytes],
-        ]
-        with h5py.File('test.h5', 'w', driver='core', backing_store=False) as h5_file:
-            attributes = h5py.AttributeManager(parent=h5_file)
-            attributes.create('string_value', string_value)
-            attributes.create('bytes_value', bytes_value)
-            attributes.create('numerical_value', numerical_value)
-            attributes.create('np_bytes_value', np_bytes_value)
-            attributes.create('single_element_array', single_element_array)
-            attributes.create('multi_element_array', multi_element_array)
-
-            for description, attribute_key, expected_value in test_args:
-                with self.subTest(description):
-                    self.assertEqual(
-                        get_decoded_attribute(h5_file, attribute_key),
-                        expected_value
-                    )
-
-            for description, key, default, expected_value in default_test_args:
-                with self.subTest(description):
-                    self.assertEqual(
-                        get_decoded_attribute(h5_file, key, default),
-                        expected_value
-                    )
-
-            np.testing.assert_array_equal(
-                get_decoded_attribute(h5_file, 'multi_element_array'),
-                multi_element_array
-            )

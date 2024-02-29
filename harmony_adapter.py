@@ -11,7 +11,7 @@ from harmony.message import Source as MessageSource
 from harmony.util import (download, generate_output_filename, HarmonyException,
                           stage)
 
-from MaskFill import DEFAULT_FILL_VALUE, DEFAULT_MASK_GRID_CACHE, mask_fill
+from MaskFill import DEFAULT_MASK_GRID_CACHE, mask_fill
 from pymods.MaskFillUtil import create_bounding_box_shape_file
 
 
@@ -100,7 +100,7 @@ class HarmonyAdapter(BaseHarmonyAdapter):
             # Call MaskFill utility
             working_filename = mask_fill(input_filename, shape_filename,
                                          working_dir, DEFAULT_MASK_GRID_CACHE,
-                                         DEFAULT_FILL_VALUE, self.logger)
+                                         None, self.logger)
 
             # Stage the output file with a conventional filename
             output_filename = generate_output_filename(asset.href,

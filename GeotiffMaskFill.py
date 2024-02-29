@@ -2,7 +2,7 @@
 from logging import Logger
 from os.path import basename
 from shutil import copyfile
-from typing import List
+from typing import List, Union
 import re
 
 from osgeo import gdal
@@ -14,7 +14,7 @@ from pymods import MaskFillUtil
 from pymods.cf_config import CFConfigGeotiff
 from pymods.MaskFillCaching import (cache_geotiff_mask_array,
                                     get_geotiff_cached_mask_array)
-from pymods.MaskFillUtil import get_geotiff_crs
+from pymods.MaskFillUtil import get_default_fill_for_data_type, get_geotiff_crs
 
 
 def produce_masked_geotiff(geotiff_path: str, shape_path: str, output_dir: str,
@@ -137,7 +137,8 @@ def create_mask_array(geotiff_path: str, shape_path: str) -> np.ndarray:
                                        raster.transform)
 
 
-def get_fill_value(geotiff_dataset: gdal.Dataset, default_fill_value: float,
+def get_fill_value(geotiff_dataset: gdal.Dataset,
+                   default_fill_value: Union[float, None],
                    logger: Logger) -> float:
     """ Returns the fill value for the given GeoTIFF.
         If the GeoTIFF has no fill value, returns the given default fill value.
@@ -153,10 +154,15 @@ def get_fill_value(geotiff_dataset: gdal.Dataset, default_fill_value: float,
     """
     fill_value = geotiff_dataset.GetRasterBand(1).GetNoDataValue()
 
-    if fill_value is None:
+    if fill_value is None and default_fill_value is not None:
         logger.info('The GeoTIFF does not have a fill value, so the default '
                     f'fill value {default_fill_value} will be used')
-        return default_fill_value
+        fill_value = default_fill_value
+    elif fill_value is None:
+        logger.info('GeoTIFF does not have fill value, and not default '
+                    'specified, retrieving default for data type.')
+        variable_type = get_geotiff_variable_type(geotiff_dataset)
+        fill_value = get_default_fill_for_data_type(variable_type)
 
     return fill_value
 
@@ -184,3 +190,12 @@ def convert_variable_path(variable_path: str) -> str:
 
     """
     return variable_path.replace('/', '_').replace('.', '_')
+
+
+def get_geotiff_variable_type(geotiff_dataset: gdal.Dataset) -> str:
+    """ Extract a string representation of the data type of the GeoTIFF. This
+        function assumes all bands will have the same data type, and retrieves
+        the first band, rather than the full array, as this is more performant.
+
+    """
+    return geotiff_dataset.GetRasterBand(1).ReadAsArray().dtype.name
