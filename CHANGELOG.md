@@ -1,3 +1,12 @@
+## v0.1.5
+### 2024-08-05
+
+This version of MaskFill adds rules to the configuration file to ensure the
+service does not attempt to mask the `/EASE2_global_projection` variable in
+SMAP L4 products. Additional file path prefixes are also added to ensure the
+service can recognise output from OPeNDAP (via HOSS) as belonging to those
+collections.
+
 ## v0.1.4
 ### 2024-02-05
 

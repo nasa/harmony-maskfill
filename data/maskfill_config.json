@@ -27,17 +27,33 @@
     ],
     "collection_prefix_to_shortname_mapping": {
         "SMAP_L2_SM_SP": "SPL2SMAP_S",
+        "SC:SPL2SMAP_S": "SPL2SMAP_S",
         "SMAP_L3_FT_P": "SPL3FTP",
+        "SC:SPL3FTP": "SPL3FTP",
         "SMAP_L3_FT_P_E": "SPL3FTP_E",
+        "SC:SPL3FTP_E": "SPL3FTP_E",
         "SMAP_L3_FT_A": "SPL3FTA",
+        "SC:SPL3FTA": "SPL3FTA",
         "SMAP_L3_SM_A": "SPL3SMA",
+        "SC:SPL3SMA": "SPL3SMA",
         "SMAP_L3_SM_AP": "SPL3SMAP",
+        "SC:SPL3SMAP": "SPL3SMAP",
         "SMAP_L3_SM_P": "SPL3SMP",
+        "SC:SPL3SMP": "SPL3SMP",
         "SMAP_L3_SM_P_E": "SPL3SMP_E",
+        "SC:SPL3SMP_E": "SPL3SMP_E",
         "SMAP_L4_C_mdl": "SPL4CMDL",
+        "SC_SPL4CMDL": "SPL4CMDL",
+        "SC:SPL4CMDL": "SPL4CMDL",
         "SMAP_L4_SM_aup": "SPL4SMAU",
+        "SC_SPL4SMAU": "SPL4SMAU",
+        "SC:SPL4SMAU": "SPL4SMAU",
         "SMAP_L4_SM_gph": "SPL4SMGP",
+        "SC_SPL4SMGP": "SPL4SMGP",
+        "SC:SPL4SMGP": "SPL4SMGP",
         "SMAP_L4_SM_lmc": "SPL4SMLM",
+        "SC_SPL4SMLM": "SPL4SMLM",
+        "SC:SPL4SMLM": "SPL4SMLM",
         "ATL16": "ATL16",
         "ATL17": "ATL17",
         "ATL20": "ATL20",
@@ -239,19 +255,23 @@
             "/Soil_Moisture_Retrieval_Data_(:?Polar_)?PM/EASE_(column|row)_index_pm"
         ],
         "SPL4CMDL": [
-            "/GEO/l(at|ong)itude"
+            "/GEO/l(at|ong)itude",
+            "/EASE2_global_projection"
         ],
         "SPL4SMAU": [
             "/cell_(column|row)",
-            "/cell_l(at|on)"
+            "/cell_l(at|on)",
+            "/EASE2_global_projection"
         ],
         "SPL4SMGP": [
             "/cell_(column|row)",
-            "/cell_l(at|on)"
+            "/cell_l(at|on)",
+            "/EASE2_global_projection"
         ],
         "SPL4SMLM": [
             "/cell_(column|row)",
-            "/cell_l(at|on)"
+            "/cell_l(at|on)",
+            "/EASE2_global_projection"
         ],
         "ATL16": [
             "/global_grid_l(at|on)",
