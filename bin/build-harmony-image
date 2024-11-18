@@ -22,4 +22,4 @@ fi
 #   version number from `docker/service_version.txt`.
 # - "latest", so the test Dockerfile can use the service image as a base image.
 #
-docker build -t ${image}:${tag} -t ${image}:latest -f docker/Harmony.Dockerfile .
+docker build --platform linux/amd64 -t ${image}:${tag} -t ${image}:latest -f docker/Harmony.Dockerfile .

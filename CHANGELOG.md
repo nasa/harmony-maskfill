@@ -1,3 +1,10 @@
+## v0.1.6
+### 2024-11-11
+
+This version of MaskFill adds additional prefix to shortname mappings for
+SMAP L3 collections and adds handling for fake dimensions that are
+created by OPeNDAP/NetCDF-Library when anonymous dimensions exist.
+
 ## v0.1.5
 ### 2024-08-05
 

@@ -174,9 +174,10 @@ def get_transform_information(h5_dataset: Dataset) -> str:
         operations.
 
     """
-    dimension_list = get_decoded_attribute(h5_dataset, 'DIMENSION_LIST')
+    from pymods.H5GridProjectionInfo import get_dimension_datasets
 
-    if dimension_list is not None:
+    if get_dimension_datasets(h5_dataset):
+        dimension_list = get_decoded_attribute(h5_dataset, 'DIMENSION_LIST')
         h5_file = h5_dataset.file
         dimension_names = ', '.join([h5_file[reference[0]].name
                                      for reference in dimension_list])

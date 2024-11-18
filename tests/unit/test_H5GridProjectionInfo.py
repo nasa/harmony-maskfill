@@ -821,6 +821,44 @@ class TestH5GridProjectionInfo(TestCase):
 
         h5_file.close()
 
+    def test_get_dimension_datasets_invalid_dims(self):
+        """ If a dataset has a DIMENSION_LIST attribute and either of the
+            x or y dimension values are zero (fake dimensions), the function
+            should return None.
+
+        """
+        h5_file = h5py.File(self.test_h5_name, 'w')
+        valid_x_dim = h5_file.create_dataset('/x_valid', data=np.ones((5, )))
+        valid_y_dim = h5_file.create_dataset('/y_valid', data=np.ones((5, )))
+        invalid_x_dim = h5_file.create_dataset('/x_invalid', data=np.zeros((5, )))
+        invalid_y_dim = h5_file.create_dataset('/y_invalid', data=np.zeros((5, )))
+
+        with self.subTest('Both x and y dimensions are invalid'):
+            dataset_subtest_1 = h5_file.create_dataset('data_1', data=np.ones((3, 2)))
+            dataset_subtest_1.attrs.create('DIMENSION_LIST',
+                                           ((invalid_y_dim.ref, ), (invalid_x_dim.ref, )),
+                                           dtype=h5py.ref_dtype)
+
+            self.assertEqual(get_dimension_datasets(dataset_subtest_1), None)
+
+        with self.subTest('x dimension is valid, y dimension is invalid'):
+            dataset_subtest_2 = h5_file.create_dataset('data_2', data=np.ones((3, 2)))
+            dataset_subtest_2.attrs.create('DIMENSION_LIST',
+                                           ((invalid_y_dim.ref, ), (valid_x_dim.ref, )),
+                                           dtype=h5py.ref_dtype)
+
+            self.assertEqual(get_dimension_datasets(dataset_subtest_2), None)
+
+        with self.subTest('x dimension is invalid, y dimension is valid'):
+            dataset_subtest_3 = h5_file.create_dataset('data_3', data=np.ones((3, 2)))
+            dataset_subtest_3.attrs.create('DIMENSION_LIST',
+                                           ((valid_y_dim.ref, ), (invalid_x_dim.ref, )),
+                                           dtype=h5py.ref_dtype)
+
+            self.assertEqual(get_dimension_datasets(dataset_subtest_3), None)
+
+        h5_file.close()
+
     def test_get_dimension_datasets_square_array(self):
         """ Ensure that if a square array is supplied, the correct dimensions
             are retrieved, rather than the same dimension twice. This function

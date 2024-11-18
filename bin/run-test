@@ -16,7 +16,7 @@ mkdir -p coverage
 
 # Run the test Docker image as a container
 #
-docker run --rm \
+docker run --platform linux/amd64 --rm \
 	-v $(pwd)/test-reports:/home/tests/reports \
 	-v $(pwd)/coverage:/home/tests/coverage \
 	sds/maskfill-test "${@:2}"

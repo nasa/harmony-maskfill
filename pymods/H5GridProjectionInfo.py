@@ -17,8 +17,7 @@ from pymods.exceptions import (InsufficientDataError,
                                InsufficientProjectionInformation,
                                InvalidMetadata, MissingCoordinateDataset)
 from pymods.MaskFillUtil import (get_decoded_attribute,
-                                 get_default_fill_for_data_type,
-                                 get_transform_information)
+                                 get_default_fill_for_data_type)
 
 
 CornerPoints = Tuple[float, float, float, float]
@@ -161,7 +160,7 @@ def get_dimension_datasets(h5_dataset: Dataset) -> Optional[Tuple[Dataset, Datas
                           and h5_file[dimension[0]] != column_dimension),
                          None)
 
-    if column_dimension is None or row_dimension is None:
+    if any(dim is None or all(value == 0.0 for value in dim) for dim in (column_dimension, row_dimension)):
         return None
     else:
         return column_dimension, row_dimension
@@ -177,10 +176,10 @@ def is_x_y_flipped(dataset: Dataset) -> bool:
         Note, Python array dimensions are [..., row, column].
 
     """
-    dimensions = get_decoded_attribute(dataset, 'DIMENSION_LIST')
+    dimension_datasets = get_dimension_datasets(dataset)
 
-    if dimensions is not None:
-        column_dimension, row_dimension = get_dimension_datasets(dataset)
+    if dimension_datasets:
+        column_dimension, row_dimension = dimension_datasets
         is_flipped = (is_projection_y_dimension(column_dimension)
                       and is_projection_x_dimension(row_dimension))
     else:
@@ -278,7 +277,7 @@ def get_transform(h5_dataset: Dataset, crs: CRS, cf_config: CFConfigH5,
                 coordinates
 
     """
-    if 'DIMENSION_LIST' in h5_dataset.attrs:
+    if get_dimension_datasets(h5_dataset):
         # CF compliant case with projected coordinates defined as dimensions
         cell_width, cell_height = get_cell_size_from_dimensions(h5_dataset)
         x_0, _, y_0, _ = get_corner_points_from_dimensions(h5_dataset)
