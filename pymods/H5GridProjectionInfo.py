@@ -97,17 +97,22 @@ def get_grid_mapping_name(h5_dataset: Dataset) -> Optional[str]:
     return grid_mapping_name
 
 
-def get_lon_lat_datasets(h5_dataset: Dataset) -> Tuple[Dataset, Dataset]:
-    """ Finds the lat/lon datsets corresponding to the given HDF5 dataset.
-        Args: h5_dataset (h5py._hl.dataset.Dataset): The HDF5 dataset
+def get_lon_lat_datasets(h5_dataset: Dataset, cf_config: CFConfigH5) -> Tuple[Dataset, Dataset]:
+    """ Finds the lat/lon datsets corresponding to the given HDF5 dataset. It
+        first checks for overrides in `cf_config.coordinate_overrides`. If no
+        overrides are found, it attempts to retrieve coordinate names from the
+        dataset’s 'coordinates' attribute. It then resolves and returns the
+        corresponding datasets.
+        Args:
+             h5_dataset (h5py._hl.dataset.Dataset): The HDF5 dataset
+             cf_config: default collection configuration information
         Returns:
              tuple: x coordinate dataset (longitude), y coordinate dataset (latitude);
                    both datasets are of type h5py._hl.dataset.Dataset
     """
     h5_file = h5_dataset.file
-    coordinate_list = re.split('[, ]', get_decoded_attribute(h5_dataset,
-                                                             'coordinates',
-                                                             ''))
+    coordinate_list = (cf_config.get_coordinate_overrides(h5_dataset.name)
+                       or re.split('[, ]', get_decoded_attribute(h5_dataset, 'coordinates', '')))
 
     for coordinate in coordinate_list:
         try:
@@ -288,7 +293,8 @@ def get_transform(h5_dataset: Dataset, crs: CRS, cf_config: CFConfigH5,
                                                             cf_config, logger)
         cell_width, cell_height = get_cell_size_from_lat_lon_extents(h5_dataset,
                                                                      x_0, x_n,
-                                                                     y_0, y_m)
+                                                                     y_0, y_m,
+                                                                     cf_config)
 
         x_0 -= cell_width / 2.0
         y_0 -= cell_height / 2.0
@@ -321,7 +327,7 @@ def get_cell_size_from_dimensions(h5_dataset: Dataset) -> Tuple[int, int]:
 
 def get_cell_size_from_lat_lon_extents(h5_dataset: Dataset, x_0: float,
                                        x_n: float, y_0: float,
-                                       y_m: float) -> Tuple[float, float]:
+                                       y_m: float, cf_config: CFConfigH5) -> Tuple[float, float]:
     """ Gets the cell height and width of the gridded HDF-5 dataset from the
         dataset's latitude and longitude coordinate datasets and their extents.
 
@@ -331,10 +337,11 @@ def get_cell_size_from_lat_lon_extents(h5_dataset: Dataset, x_0: float,
         Args:
             h5_dataset (h5py.Dataset): The HDF5 dataset
             x_0, x_n, y_0, y_m: Minimum and maximum projected x and y values.
+            cf_config: default collection configuration information
         Returns:
             tuple: (cell width, cell height)
     """
-    x, y = get_lon_lat_arrays(h5_dataset)
+    x, y = get_lon_lat_arrays(h5_dataset, cf_config)
     cell_height = (y_m - y_0) / (len(y) - 1)
     cell_width = (x_n - x_0) / (len(x) - 1)
     return cell_width, cell_height
@@ -368,7 +375,7 @@ def get_corner_points_from_lat_lon(h5_dataset: Dataset, crs: CRS,
     """
     projection = Proj(crs)
 
-    lon, lat = get_lon_lat_datasets(h5_dataset)
+    lon, lat = get_lon_lat_datasets(h5_dataset, cf_config)
     lon_fill_value = get_fill_value(lon, cf_config, logger, None)
     lat_fill_value = get_fill_value(lat, cf_config, logger, None)
 
@@ -501,17 +508,18 @@ def get_dimension_arrays(h5_dataset: Dataset) \
     return column_dimension[:], row_dimension[:]
 
 
-def get_lon_lat_arrays(h5_dataset: Dataset) \
+def get_lon_lat_arrays(h5_dataset: Dataset, cf_config: CFConfigH5) \
         -> Tuple[List[float], List[float]]:  # degrees - lat, lon
     """ Gets the lat/lon arrays of the HDF5 dataset.
         Args:
              h5_dataset (h5py.Dataset): The HDF5 dataset
+             cf_config: default collection configuration information.
         Returns:
             tuple: The x coordinate array (longitude) and the y coordinate
                array (latitude), if the data are 3-dimensional, return the
                first band.
     """
-    x, y = get_lon_lat_datasets(h5_dataset)
+    x, y = get_lon_lat_datasets(h5_dataset, cf_config)
     if len(x.shape) == 2:
         return x[0], y[:, 0]
     elif len(x.shape) == 3:

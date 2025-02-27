@@ -54,6 +54,28 @@ class TestCFConfig(TestCase):
                 self.cf_config.get_dataset_fill_value('/other_variable'), None
             )
 
+    def test_get_coordinate_overrides(self):
+        """ Ensure the correct coordinate overrides are returned from the configuration file.
+            If there is no match, `None` should be returned.
+
+        """
+        cf_config = CFConfigH5('tests/data/SPL3SMP_E_pm_input.h5')
+        self.assertEqual(cf_config.shortname, 'SPL3SMP_E')
+
+        with self.subTest('Matching coordinate overrides in the configuration file'):
+            self.assertEqual(
+                cf_config.get_coordinate_overrides('/Soil_Moisture_Retrieval_Data_Polar_PM/surface_flag_pm'),
+                [
+                    "/Soil_Moisture_Retrieval_Data_Polar_PM/latitude_pm",
+                    "/Soil_Moisture_Retrieval_Data_Polar_PM/longitude_pm"
+                ]
+            )
+
+        with self.subTest('No matching coordinate overrides in the configuration file'):
+            self.assertEqual(
+                cf_config.get_coordinate_overrides('/other_variable'), None
+            )
+
     def test_get_dataset_grid_mapping_attributes(self):
         """ Ensure that the grid mapping attributes are returned if a dataset
             name is specified that matches one of the keys in the

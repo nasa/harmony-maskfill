@@ -47,6 +47,9 @@ class CFConfig(ABC):
         self.coordinate_variables = (
             self.full_config['collection_coordinate_variables'].get(self.shortname, [])
         )
+        self.coordinate_overrides = (
+            self.full_config['collection_coordinate_overrides'].get(self.shortname, {})
+        )
         self.fill_values = self._get_configuration_item_by_shortname(
             'corrected_fill_values', {}
         )
@@ -174,6 +177,19 @@ class CFConfig(ABC):
             grid_mapping_attributes = None
 
         return grid_mapping_attributes
+
+    def get_coordinate_overrides(self, dataset_name: str) -> Optional[list]:
+        """ Retrieve coordinate overrides for a given dataset name.
+
+            This method searches the `coordinate_overrides` dictionary for a
+            pattern that matches the provided dataset name. If a match is found,
+            it returns the associated list of coordinate names. Otherwise, it
+            returns None.
+        """
+        for variable_pattern, coordinates in self.coordinate_overrides.items():
+            if re.search(variable_pattern, dataset_name):
+                return coordinates
+        return None
 
 
 class CFConfigH5(CFConfig):

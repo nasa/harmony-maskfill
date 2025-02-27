@@ -450,7 +450,8 @@ class TestH5GridProjectionInfo(TestCase):
         data.attrs['coordinates'] = b'/longitude /latitude'
 
         cell_width, cell_height = get_cell_size_from_lat_lon_extents(data, 1,
-                                                                     4, 2, 6)
+                                                                     4, 2, 6,
+                                                                     self.cf_config)
 
         self.assertAlmostEqual(cell_width, 1)
         self.assertAlmostEqual(cell_height, 2)
@@ -611,7 +612,9 @@ class TestH5GridProjectionInfo(TestCase):
     def test_get_lon_lat_datasets(self):
         """Ensure the coordinate datasets specified in the 'coordinates'
         attribute are returned. If either of those datasets are absent, an
-        exception should be raised.
+        exception should be raised. If a coordinate override exists for the
+        dataset, the overriden coordinates are used instead of the dataset's
+        'coordinates' attribute.
 
         """
         lat_array = np.array([[1, 1], [2, 2]])
@@ -628,7 +631,7 @@ class TestH5GridProjectionInfo(TestCase):
         dataset.attrs['coordinates'] = f'{lat_name} {lon_name}'.encode('utf-8')
 
         with self.subTest('latitude and longitude both present'):
-            lon_out, lat_out = get_lon_lat_datasets(dataset)
+            lon_out, lat_out = get_lon_lat_datasets(dataset, self.cf_config)
             self.assertEqual(lon_out, lon)
             self.assertEqual(lat_out, lat)
 
@@ -639,12 +642,22 @@ class TestH5GridProjectionInfo(TestCase):
             with self.subTest(coordinates_attr):
                 dataset.attrs['coordinates'] = coordinates_attr.encode('utf-8')
                 with self.assertRaises(MissingCoordinateDataset) as context:
-                    lon_out, lat_out = get_lon_lat_datasets(dataset)
+                    lon_out, lat_out = get_lon_lat_datasets(dataset, self.cf_config)
                     self.assertTrue(missing_coords in context.exception.message)
 
                 self.assertEqual(context.exception.message,
                                  (f'Cannot find "{missing_coords}" in '
                                   f'"{self.test_h5_name}".'))
+
+        with self.subTest('coordinate override exists in configuration'):
+            h5_spl3smp_e_file = h5py.File('tests/data/SPL3SMP_E_pm_input.h5', 'r')
+            lat = h5_spl3smp_e_file['/Soil_Moisture_Retrieval_Data_Polar_PM/latitude_pm']
+            lon = h5_spl3smp_e_file['/Soil_Moisture_Retrieval_Data_Polar_PM/longitude_pm']
+            cf_config = CFConfigH5('tests/data/SPL3SMP_E_pm_input.h5')
+            dataset = h5_spl3smp_e_file['/Soil_Moisture_Retrieval_Data_Polar_PM/surface_flag_pm']
+            lon_out, lat_out = get_lon_lat_datasets(dataset, cf_config)
+            self.assertEqual(lon_out, lon)
+            self.assertEqual(lat_out, lat)
 
     def test_get_hdf_crs(self):
         """Ensure that a `pyproj.CRS` object is returned, where possible. The

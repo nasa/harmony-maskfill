@@ -1,3 +1,10 @@
+## v0.1.7
+### 2025-02-20
+
+This version of MaskFill adds a coordinate override rule to the configuration
+file and implements use of this rule to point SPL3SMP and SPL3SMP_E PM
+variables from AM coordinates to the coordinate variables in their group.
+
 ## v0.1.6
 ### 2024-11-11
 

@@ -317,5 +317,23 @@
         "ABoVE_ForestDisturbance_Agents_1924": [
             "/l(at|on)"
         ]
+    },
+    "collection_coordinate_overrides": {
+        "SPL3SMP_E": {
+            "/Soil_Moisture_Retrieval_Data_PM/.*": [
+                "/Soil_Moisture_Retrieval_Data_PM/latitude_pm",
+                "/Soil_Moisture_Retrieval_Data_PM/longitude_pm"
+            ],
+            "/Soil_Moisture_Retrieval_Data_Polar_PM/.*": [
+                "/Soil_Moisture_Retrieval_Data_Polar_PM/latitude_pm",
+                "/Soil_Moisture_Retrieval_Data_Polar_PM/longitude_pm"
+            ]
+        },
+        "SPL3SMP": {
+                "/Soil_Moisture_Retrieval_Data_PM/.*": [
+                    "/Soil_Moisture_Retrieval_Data_PM/latitude_pm",
+                    "/Soil_Moisture_Retrieval_Data_PM/longitude_pm"
+                ]
+        }
     }
 }
