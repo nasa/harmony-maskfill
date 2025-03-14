@@ -4,6 +4,7 @@
 """
 from logging import Logger
 from typing import Any, Dict, List, Optional, Tuple, Union
+from collections.abc import Callable
 import re
 
 import numpy as np
@@ -15,9 +16,13 @@ from pyproj.exceptions import CRSError
 from pymods.cf_config import CFConfigH5
 from pymods.exceptions import (InsufficientDataError,
                                InsufficientProjectionInformation,
-                               InvalidMetadata, MissingCoordinateDataset)
+                               InvalidMetadata,
+                               MissingCoordinateDataset,
+                               NotSupportedData)
 from pymods.MaskFillUtil import (get_decoded_attribute,
-                                 get_default_fill_for_data_type)
+                                 get_default_fill_for_data_type,
+                                 apply_2d,
+                                 apply_2d_yxz)
 
 
 CornerPoints = Tuple[float, float, float, float]
@@ -113,7 +118,8 @@ def get_lon_lat_datasets(h5_dataset: Dataset, cf_config: CFConfigH5) -> Tuple[Da
     h5_file = h5_dataset.file
     coordinate_list = (cf_config.get_coordinate_overrides(h5_dataset.name)
                        or re.split('[, ]', get_decoded_attribute(h5_dataset, 'coordinates', '')))
-
+    latitude = None
+    longitude = None
     for coordinate in coordinate_list:
         try:
             qualified_coordinate = resolve_relative_dataset_path(h5_dataset,
@@ -262,6 +268,70 @@ def get_dataset_attributes(h5_dataset: Dataset) -> Dict:
             in h5_dataset.attrs}
 
 
+def get_apply_2d_process(h5_dataset: Dataset,
+                         cf_config: CFConfigH5
+                         ) -> Callable:
+    """ This function returns the right apply_2d process
+    based on the dimension order in the h5_dataset. Will
+    throw an exception the dataset is not in the supported
+    spatial dimension order
+    """
+    if is_nominal_data_shape(h5_dataset, cf_config):
+        return apply_2d
+    elif is_yxz_data_shape(h5_dataset, cf_config):
+        return apply_2d_yxz
+    else:
+        raise NotSupportedData(h5_dataset.name)
+
+
+def is_nominal_data_shape(h5_dataset: Dataset,
+                          cf_config: CFConfigH5
+                          ) -> bool:
+    """ This function returns True if the dimensions/coordinates are in
+    the yx order with the spatial dimensions as the two
+    lowest dimensions (rightmost dimensions) or returns false.
+    """
+    mask_array_shape = get_spatial_grid_shape(h5_dataset,
+                                              cf_config)
+    if h5_dataset.shape[-2:] == mask_array_shape:
+        return True
+    else:
+        return False
+
+
+def is_yxz_data_shape(h5_dataset: Dataset,
+                      cf_config: CFConfigH5
+                      ) -> bool:
+    """ This function returns True if the spatial dimensions are
+    the two left most dimensions or the highest dimensions and if the
+    dataset is three-dimensional.
+    """
+    mask_array_shape = get_spatial_grid_shape(h5_dataset,
+                                              cf_config)
+    if h5_dataset.ndim == 3 and h5_dataset.shape[:2] == mask_array_shape:
+        return True
+    else:
+        return False
+
+
+def get_spatial_grid_shape(h5_dataset: Dataset,
+                           cf_config: CFConfigH5
+                           ) -> list[int]:
+    """ This function returns the shape of dimension or
+    if dimensions are not explicitly defined (hdf-5 vs. NetCDF, SMAP L3),
+    determines shape from coordinate dataset
+    """
+    dimensions = get_dimension_datasets(h5_dataset)
+    if dimensions:
+        x, y = dimensions
+        return y.shape[0], x.shape[0]
+    coordinate_axes = get_lon_lat_axes(h5_dataset, cf_config)
+    if coordinate_axes:
+        lon_x, lat_y = coordinate_axes
+        return lat_y.shape[0], lon_x.shape[0]
+    return []
+
+
 def get_transform(h5_dataset: Dataset, crs: CRS, cf_config: CFConfigH5,
                   logger: Logger) -> Affine:
     """ Determines the transform from the index coordinates of the HDF5 dataset
@@ -303,7 +373,6 @@ def get_transform(h5_dataset: Dataset, crs: CRS, cf_config: CFConfigH5,
         transform = Affine(0, cell_height, y_0, cell_width, 0, x_0)
     else:
         transform = Affine(cell_width, 0, x_0, 0, cell_height, y_0)
-
     return transform
 
 
@@ -341,7 +410,7 @@ def get_cell_size_from_lat_lon_extents(h5_dataset: Dataset, x_0: float,
         Returns:
             tuple: (cell width, cell height)
     """
-    x, y = get_lon_lat_arrays(h5_dataset, cf_config)
+    x, y = get_lon_lat_axes(h5_dataset, cf_config)
     cell_height = (y_m - y_0) / (len(y) - 1)
     cell_width = (x_n - x_0) / (len(x) - 1)
     return cell_width, cell_height
@@ -508,9 +577,10 @@ def get_dimension_arrays(h5_dataset: Dataset) \
     return column_dimension[:], row_dimension[:]
 
 
-def get_lon_lat_arrays(h5_dataset: Dataset, cf_config: CFConfigH5) \
+def get_lon_lat_axes(h5_dataset: Dataset, cf_config: CFConfigH5) \
         -> Tuple[List[float], List[float]]:  # degrees - lat, lon
-    """ Gets the lat/lon arrays of the HDF5 dataset.
+    """ Gets the Lat/Lon axes of the HDF5 dataset - the first row/column
+        of the latitude/longitude arrays.
         Args:
              h5_dataset (h5py.Dataset): The HDF5 dataset
              cf_config: default collection configuration information.

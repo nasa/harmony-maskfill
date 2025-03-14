@@ -1,3 +1,9 @@
+## v0.2.0
+### 2025-03-20
+
+This version of MaskFill adds support to SPL3SMP which has 3D variables
+in a (y,x,z) order which is not the nominal order.
+
 ## v0.1.7
 ### 2025-02-20
 

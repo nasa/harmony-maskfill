@@ -78,6 +78,7 @@ class TestHarmonyMaskFill(MaskFillTestCase):
         cls.masked_geotiff = 'SMAP_L4_SM_aup_input_mf.tif'
         cls.masked_hdf5 = 'SMAP_L4_SM_aup_input_mf.h5'
         cls.shape_usa = 'tests/data/USA.geo.json'
+        cls.bbox_greenland_json = 'tests/data/bbox.geo.json'
         cls.staged_geotiff = 'SMAP_L4_SM_aup_input_subsetted.tif'
         cls.staged_hdf5 = 'SMAP_L4_SM_aup_input_subsetted.h5'
         cls.staging_location = 's3://example-bucket/example-path'
@@ -662,3 +663,48 @@ class TestHarmonyMaskFill(MaskFillTestCase):
             mock_stage.assert_not_called()
             self.assertEqual(context.exception.message,
                              'Shape file must be GeoJSON format.')
+
+    @patch('harmony_adapter.mkdtemp')
+    @patch('harmony_adapter.rmtree')
+    def test_harmony_adapter_not_nominal_order(
+        self,
+        mock_rmtree,
+        mock_mkdtemp,
+        mock_download,
+        mock_stage
+    ):
+        """ Ensure MaskFill can run successfully for granules with 'yxz' order  (e.g., from HOSS). """
+        mock_mkdtemp.return_value = self.output_dir
+
+        input_file_name = 'tests/data/SC_SPL3SMP_subsetted_without_maskfill.nc4'
+
+        test_data = Message({
+            'accessToken': self.access_token,
+            'callback': self.callback,
+            'stagingLocation': self.staging_location,
+            'sources': [{
+                'granules': [{
+                    'bbox': self.bounding_box,
+                    'temporal': self.temporal,
+                }]
+            }],
+            'subset': {
+                'shape': {
+                    'href': self.bbox_greenland_json,
+                    'type': 'application/geo+json'
+                }
+            },
+            'user': self.user,
+        })
+
+        maskfill_config = config(False)
+        input_stac = create_input_stac(input_file_name, 'application/netcdf-4')
+        maskfill_adapter = HarmonyAdapter(test_data, config=maskfill_config,
+                                          catalog=input_stac)
+        maskfill_adapter.invoke()
+
+        # Compare the output file to a template output file.
+        expected_output_file = 'tests/data/SC_SPL3SMP_subsetted_with_maskfill_mf.nc4'
+        actual_output_file = self.create_output_file_name(input_file_name,
+                                                          use_identifier=False)
+        self.compare_h5_files(expected_output_file, actual_output_file)

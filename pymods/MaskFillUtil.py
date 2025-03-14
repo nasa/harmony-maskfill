@@ -334,6 +334,27 @@ def apply_2d(data, process, *args):  # , name = ""  ??? - unused!
     return data
 
 
+def apply_2d_yxz(data, process, *args):  # , name = ""  ??? - unused!
+    """ Applies a 2D process to datasets with three dimensions,
+        Always applies the process to the first 2 dimensions of the dataset,
+        iterating through any lower dimensions and processing up through dimensions.
+        E.g., a dataset with coordinates dimensions: (lat, lon, land_cover_type),
+            will apply to lat, lon dimensions, for each land cover type.
+        Args:
+            data (numpy.ndarray): The data array to be processed
+            process: The process to be applied to data
+            *args: tuple of parameters being passed to process
+        Returns:
+            numpy.ndarray: The processed array
+    """
+
+    # For more than two non nominal dimensions(yxz), copy the first 2 dimensions
+    # get the masked array for each and combine them all together
+    for i in range(data.shape[-1]):
+        data[:, :, i] = process(data[:, :, i], *args)
+    return data
+
+
 def create_bounding_box_shape_file(bounding_box: List[float],
                                    working_directory: str) -> str:
     """ Take a bounding box in the format of [W, S, E, N] and create a GeoJSON

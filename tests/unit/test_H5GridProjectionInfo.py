@@ -12,9 +12,12 @@ import numpy as np
 from pymods.cf_config import CFConfigH5
 from pymods.exceptions import (InsufficientDataError,
                                InsufficientProjectionInformation,
-                               InvalidMetadata, MissingCoordinateDataset)
+                               InvalidMetadata,
+                               MissingCoordinateDataset,
+                               NotSupportedData)
 from pymods.H5GridProjectionInfo import (dataset_all_fill_value,
                                          dataset_all_outside_valid_range,
+                                         get_apply_2d_process,
                                          get_cell_size_from_dimensions,
                                          get_cell_size_from_lat_lon_extents,
                                          get_corner_points_from_dimensions,
@@ -28,11 +31,16 @@ from pymods.H5GridProjectionInfo import (dataset_all_fill_value,
                                          get_lon_lat_datasets,
                                          get_projected_coordinate_extent,
                                          get_transform,
+                                         get_spatial_grid_shape,
+                                         is_nominal_data_shape,
+                                         is_yxz_data_shape,
                                          is_projection_x_dimension,
                                          is_projection_y_dimension,
                                          is_x_y_flipped,
                                          has_geographic_dimensions,
                                          resolve_relative_dataset_path)
+
+from pymods.MaskFillUtil import (apply_2d, apply_2d_yxz)
 
 
 class TestH5GridProjectionInfo(TestCase):
@@ -1183,3 +1191,109 @@ class TestH5GridProjectionInfo(TestCase):
 
                 self.assertEqual(get_crs_from_grid_mapping(input_object).to_epsg(),
                                  expected_epsg_code)
+
+    def test_get_spatial_grid_shape(self):
+        """Ensure the shape of the spatial dimensions or coordinates used
+        are expected with the y or row dimension of the latitude and the
+        x or column dimension of the latitude
+
+        """
+        with self.subTest('get nominal 2d shape from a granule file'):
+            h5_file = h5py.File('tests/data/SPL3SMP_E_pm_input.h5', 'r')
+            h5_dataset = h5_file['/Soil_Moisture_Retrieval_Data_Polar_PM/surface_flag_pm']
+            cf_config = CFConfigH5('tests/data/SPL3SMP_E_pm_input.h5')
+            data_shape = get_spatial_grid_shape(h5_dataset, cf_config)
+            self.assertEqual(data_shape, (2000, 2000))
+        with self.subTest('get nominal 3d shape from a granule file'):
+            h5_file = h5py.File('tests/data/SMAP_L3_FT_P_polar_3d_input.h5', 'r')
+            h5_dataset = h5_file['Freeze_Thaw_Retrieval_Data_Polar/altitude_dem']
+            cf_config = CFConfigH5('tests/data/SMAP_L3_FT_P_polar_3d_input.h5')
+            data_shape = get_spatial_grid_shape(h5_dataset, cf_config)
+            self.assertEqual(data_shape, (500, 500))
+        with self.subTest('get shape from dimensions in a granule file'):
+            h5_file = h5py.File('tests/data/SMAP_L4_SM_aup_input.h5', 'r')
+            h5_dataset = h5_file['/Analysis_Data/surface_temp_analysis']
+            cf_config = CFConfigH5('tests/data/SMAP_L4_SM_aup_input.h5')
+            data_shape = get_spatial_grid_shape(h5_dataset, cf_config)
+            self.assertEqual(data_shape, (508, 1123))
+        with self.subTest('get yxz shape from a granule file'):
+            h5_file = h5py.File('tests/data/SC_SPL3SMP_subsetted_without_maskfill.nc4', 'r')
+            h5_dataset = h5_file['/Soil_Moisture_Retrieval_Data_AM/landcover_class_fraction']
+            cf_config = CFConfigH5('tests/data/SPL3SMP_E_pm_input.h5')
+            data_shape = get_spatial_grid_shape(h5_dataset, cf_config)
+            self.assertEqual(data_shape, (27, 162))
+
+    def test_is_nominal_data_shape(self):
+        """ Ensure that the function returns True if the
+        variable has a nominal y,x or z,y,x order for dimensions
+        and returns False if the variable has a different order.
+        """
+        with self.subTest('Check nominal 2d shape from a granule file'):
+            h5_file = h5py.File('tests/data/SPL3SMP_E_pm_input.h5', 'r')
+            h5_dataset = h5_file['/Soil_Moisture_Retrieval_Data_Polar_PM/surface_flag_pm']
+            cf_config = CFConfigH5('tests/data/SPL3SMP_E_pm_input.h5')
+            self.assertTrue(is_nominal_data_shape(h5_dataset, cf_config))
+        with self.subTest('Check nominal 3d shape from a granule file'):
+            h5_file = h5py.File('tests/data/SMAP_L3_FT_P_polar_3d_input.h5', 'r')
+            h5_dataset = h5_file['Freeze_Thaw_Retrieval_Data_Polar/altitude_dem']
+            cf_config = CFConfigH5('tests/data/SMAP_L3_FT_P_polar_3d_input.h5')
+            self.assertTrue(is_nominal_data_shape(h5_dataset, cf_config))
+        with self.subTest('get yxz shape from a granule file'):
+            h5_file = h5py.File('tests/data/SC_SPL3SMP_subsetted_without_maskfill.nc4', 'r')
+            h5_dataset = h5_file['/Soil_Moisture_Retrieval_Data_AM/landcover_class_fraction']
+            cf_config = CFConfigH5('tests/data/SPL3SMP_E_pm_input.h5')
+            self.assertFalse(is_nominal_data_shape(h5_dataset, cf_config))
+
+    def test_is_xyz_data_shape(self):
+        """ Ensure that the function returns False for a dataset with
+        nominal order of dimensions and returns True when the
+        variable does not hae a nominal order of dimensions.
+
+        """
+        with self.subTest('Check y.x.z shape from a nominal order granule file'):
+            h5_file = h5py.File('tests/data/SPL3SMP_E_pm_input.h5', 'r')
+            h5_dataset = h5_file['/Soil_Moisture_Retrieval_Data_Polar_PM/surface_flag_pm']
+            cf_config = CFConfigH5('tests/data/SPL3SMP_E_pm_input.h5')
+            self.assertFalse(is_yxz_data_shape(h5_dataset, cf_config))
+        with self.subTest('get yxz shape from a granule file'):
+            h5_file = h5py.File('tests/data/SC_SPL3SMP_subsetted_without_maskfill.nc4', 'r')
+            h5_dataset = h5_file['/Soil_Moisture_Retrieval_Data_AM/landcover_class_fraction']
+            cf_config = CFConfigH5('tests/data/SPL3SMP_E_pm_input.h5')
+            self.assertTrue(is_yxz_data_shape(h5_dataset, cf_config))
+
+    def test_get_apply_2d_process(self):
+        """ Ensure the the function returns the right apply_2d process
+        based on the shape of the variable
+        """
+        with self.subTest('apply_2d process for nominal 2d shaped dataset from a granule file'):
+            h5_file = h5py.File('tests/data/SPL3SMP_E_pm_input.h5', 'r')
+            h5_dataset = h5_file['/Soil_Moisture_Retrieval_Data_Polar_PM/surface_flag_pm']
+            cf_config = CFConfigH5('tests/data/SPL3SMP_E_pm_input.h5')
+            apply_2d_process = get_apply_2d_process(h5_dataset, cf_config)
+            self.assertEqual(apply_2d_process, apply_2d)
+        with self.subTest('get apply_2d for nominal 3d shape from a granule file'):
+            h5_file = h5py.File('tests/data/SMAP_L3_FT_P_polar_3d_input.h5', 'r')
+            h5_dataset = h5_file['Freeze_Thaw_Retrieval_Data_Polar/altitude_dem']
+            cf_config = CFConfigH5('tests/data/SMAP_L3_FT_P_polar_3d_input.h5')
+            apply_2d_process = get_apply_2d_process(h5_dataset, cf_config)
+            self.assertEqual(apply_2d_process, apply_2d)
+        with self.subTest('get apply_2d_yxz process for not nominal granule'):
+            h5_file = h5py.File('tests/data/SC_SPL3SMP_subsetted_without_maskfill.nc4', 'r')
+            h5_dataset = h5_file['/Soil_Moisture_Retrieval_Data_AM/landcover_class_fraction']
+            cf_config = CFConfigH5('tests/data/SPL3SMP_E_pm_input.h5')
+            apply_2d_process = get_apply_2d_process(h5_dataset, cf_config)
+            self.assertEqual(apply_2d_process, apply_2d_yxz)
+        with self.subTest('apply_2d_yxz process for not supported spatial order'):
+            with self.assertRaises(NotSupportedData) as context_manager:
+                with h5py.File(self.test_h5_name, 'w') as h5_file:
+                    dim_lon = h5_file.create_dataset('/lon', data=np.ones((4)))
+                    dim_lon.attrs.create('standard_name', 'longitude')
+                    dim_lon.attrs.create('units', 'degrees_east')
+                    dim_lat = h5_file.create_dataset('/lat', data=np.ones((3)))
+                    dim_lat.attrs.create('standard_name', 'latitude')
+                    dim_lat.attrs.create('units', 'degrees_north')
+                    h5_dataset = h5_file.create_dataset('data', data=np.ones((4, 3)))
+                    h5_dataset.attrs.create('coordinates', '/lon /lat')
+                    cf_config = CFConfigH5(self.test_h5_name)
+                    apply_2d_process = get_apply_2d_process(h5_dataset, cf_config)
+                    self.assertTrue(context_manager.exception.message.endswith("Not supported data"))

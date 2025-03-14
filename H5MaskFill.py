@@ -28,10 +28,11 @@ import h5py
 from pymods import MaskFillUtil
 from pymods.cf_config import CFConfigH5
 from pymods.H5GridProjectionInfo import (dataset_all_fill_value, get_fill_value,
-                                         get_hdf_crs, get_transform)
+                                         get_hdf_crs, get_transform, get_spatial_grid_shape,
+                                         get_apply_2d_process)
 from pymods.MaskFillCaching import (cache_h5_mask_arrays,
                                     get_mask_array_path_from_id)
-from pymods.MaskFillUtil import apply_2d, get_h5_mask_array_id, process_h5_file
+from pymods.MaskFillUtil import get_h5_mask_array_id, process_h5_file
 
 
 def produce_masked_hdf(hdf_path: str, shape_path: str, output_dir: str,
@@ -139,10 +140,10 @@ def mask_fill(h5_dataset: h5py.Dataset, shape_path: str, cache_dir: str,
     if mask_grid_cache != 'maskgrid_only':
         fill_value = get_fill_value(h5_dataset, cf_config, logger,
                                     default_fill_value)
-        mask_filled_data = apply_2d(h5_dataset[:],
-                                    MaskFillUtil.mask_fill_array,
-                                    mask_array, fill_value)
-
+        apply_2d_process = get_apply_2d_process(h5_dataset, cf_config)
+        mask_filled_data = apply_2d_process(h5_dataset[:],
+                                            MaskFillUtil.mask_fill_array,
+                                            mask_array, fill_value)
         h5_dataset.write_direct(mask_filled_data)
 
         # If the dataset attributes contain observed statistics, update them.
@@ -222,7 +223,6 @@ def get_mask_array(h5_dataset: h5py.Dataset, shape_path: str,
         logger.debug(f'{h5_dataset.name}: Creating new mask.')
         mask_array = create_mask_array(h5_dataset, crs, shape_path, cf_config,
                                        logger)
-
     # Save and return the mask array
     saved_mask_arrays[mask_id] = mask_array
     return mask_array
@@ -240,8 +240,8 @@ def create_mask_array(h5_dataset: h5py.Dataset, crs: CRS, shape_path: str,
             numpy.ndarray: The mask array
     """
     transform = get_transform(h5_dataset, crs, cf_config, logger)
-
-    return MaskFillUtil.get_mask_array(shape_path, crs, h5_dataset.shape[-2:],
+    spatial_grid_shape = get_spatial_grid_shape(h5_dataset, cf_config)
+    return MaskFillUtil.get_mask_array(shape_path, crs, spatial_grid_shape,
                                        transform)
 
 

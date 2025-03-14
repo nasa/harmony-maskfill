@@ -88,6 +88,16 @@ class MissingParameterValue(CustomError):
         super().__init__('MissingParameterValue', message, 2)
 
 
+class NotSupportedData(CustomError):
+    """This Exception is raised when the spatial dimension or coordinates
+    are not in the supported '..zyx' or 'yxz' order
+
+    """
+    def __init__(self, dataset):
+        super().__init__('NotSupportedData',
+                         f'"{dataset}" is not in nominal or supported spatial order', 7)
+
+
 class NoMatchingData(CustomError):
     """This Exception is used in output error messages. Currently is not raised
     within MaskFill.

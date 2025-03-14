@@ -15,7 +15,9 @@ from numpy.testing import assert_allclose, assert_array_equal
 from pyproj import CRS
 from shapely.geometry import Polygon, shape
 
-from pymods.MaskFillUtil import (create_bounding_box_shape_file,
+from pymods.MaskFillUtil import (apply_2d,
+                                 apply_2d_yxz,
+                                 create_bounding_box_shape_file,
                                  get_bounded_shape, get_decoded_attribute,
                                  get_default_fill_for_data_type,
                                  get_geographic_resolution, get_geotiff_crs,
@@ -24,7 +26,9 @@ from pymods.MaskFillUtil import (create_bounding_box_shape_file,
                                  get_resolved_line, get_resolved_polygon,
                                  get_resolved_ring, get_resolved_shape,
                                  get_transform_information,
-                                 should_ignore_pyproj_bounds)
+                                 mask_fill_array,
+                                 should_ignore_pyproj_bounds,
+                                 )
 
 
 class TestMaskFillUtil(TestCase):
@@ -564,3 +568,46 @@ class TestMaskFillUtil(TestCase):
                 get_default_fill_for_data_type('random_type_string'),
                 -9999.0
             )
+
+    def test_apply_2d_methods(self):
+        """ Ensure that the correct masked output is obtained
+            when the apply_2d methods are called.
+        """
+        mask_4x3 = np.array([[True, False, True],
+                            [True, False, True],
+                            [True, False, True],
+                            [True, False, True]])
+        with self.subTest('apply_2d to nominal shaped granule'):
+            array_2x4x3 = np.arange(24).reshape(2, 4, 3)
+            expected_masked_output = np.array([[[-9999, 1, -9999],
+                                               [-9999, 4, -9999],
+                                               [-9999, 7, -9999],
+                                               [-9999, 10, -9999]],
+                                              [[-9999, 13, -9999],
+                                               [-9999, 16, -9999],
+                                               [-9999, 19, -9999],
+                                               [-9999, 22, -9999]]])
+            np.testing.assert_array_equal(apply_2d(array_2x4x3,
+                                                   mask_fill_array,
+                                                   mask_4x3,
+                                                   -9999),
+                                          expected_masked_output)
+        with self.subTest('apply_2d_yxz to not nominal shaped granule'):
+            array_4x3x2 = np.arange(24).reshape(4, 3, 2)
+            expected_masked_output = np.array([[[-9999, -9999],
+                                                [2, 3],
+                                                [-9999, -9999]],
+                                               [[-9999, -9999],
+                                                [8, 9],
+                                                [-9999, -9999]],
+                                               [[-9999, -9999],
+                                                [14, 15],
+                                                [-9999, -9999]],
+                                               [[-9999, -9999],
+                                                [20, 21],
+                                                [-9999, -9999]]])
+            np.testing.assert_array_equal(apply_2d_yxz(array_4x3x2,
+                                                       mask_fill_array,
+                                                       mask_4x3,
+                                                       -9999),
+                                          expected_masked_output)
