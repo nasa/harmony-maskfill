@@ -1,12 +1,14 @@
 from logging import (basicConfig as basic_log_config, getLogger,
                      Handler as LogHandler, INFO)
+import os
 from os import sep
 from os.path import basename
+
 from shutil import copy
 from unittest.mock import ANY, patch
 
-from harmony.message import Message
-from harmony.util import config, HarmonyException
+from harmony_service_lib.message import Message
+from harmony_service_lib.util import config, HarmonyException
 
 from harmony_adapter import HarmonyAdapter
 from tests.utilities import create_input_stac, MaskFillTestCase
@@ -198,6 +200,11 @@ class TestHarmonyMaskFill(MaskFillTestCase):
         actual_output_file = self.create_output_file_name(self.input_geotiff,
                                                           use_identifier=False)
 
+        if os.path.exists(actual_output_file):
+            print(f"The file '{actual_output_file}' exists.")
+        else:
+            print(f"The file '{actual_output_file}' does not exist.")
+
         self.compare_geotiff_files(actual_output_file, expected_output_file)
 
         # Check the functions to download the input data and stage the output
@@ -256,7 +263,6 @@ class TestHarmonyMaskFill(MaskFillTestCase):
         expected_output_file = 'tests/data/GPM_3IMERGHH_output.nc4'
         actual_output_file = self.create_output_file_name(input_file_name,
                                                           use_identifier=False)
-
         self.compare_geotiff_files(actual_output_file, expected_output_file)
 
         mock_download.asset_called_once_with(self.input_geotiff,

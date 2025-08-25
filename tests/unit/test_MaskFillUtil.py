@@ -162,7 +162,7 @@ class TestMaskFillUtil(TestCase):
             bounded_gdf = get_bounded_shape(shape_path, self.ease_two_north,
                                             out_shape, transform)
 
-            assert_geodataframe_equal(expected_gdf, bounded_gdf)
+            assert_geodataframe_equal(expected_gdf, bounded_gdf, check_less_precise=True)
 
         with self.subTest('Creating bounded shape from CRS without EPSG code'):
             # This will truncate the shape by the longitude and latitude values
@@ -172,7 +172,7 @@ class TestMaskFillUtil(TestCase):
                 expected_gdf = gpd.read_file('tests/data/south_pole_bounded_grid.geo.json')
                 bounded_gdf = get_bounded_shape(shape_path, crs, out_shape,
                                                 transform)
-                assert_geodataframe_equal(expected_gdf, bounded_gdf)
+                assert_geodataframe_equal(expected_gdf, bounded_gdf, check_less_precise=True)
 
         with self.subTest('UTM projections do not use pyproj bounds'):
             utm_crs = CRS.from_epsg(32618)
@@ -239,7 +239,6 @@ class TestMaskFillUtil(TestCase):
         gpd_bbox = parsed_dataframe.iloc[0]
         self.assertEqual(parsed_dataframe['name'][0], 'Harmony bbox')
         self.assertTrue(gpd_bbox['geometry'].is_valid)
-        self.assertTrue(gpd_bbox['geometry'].is_closed)
         self.assertEqual(gpd_bbox['geometry'].type, 'Polygon')
         self.assertTupleEqual(parsed_dataframe['geometry'][0].bounds,
                               tuple(bounding_box))

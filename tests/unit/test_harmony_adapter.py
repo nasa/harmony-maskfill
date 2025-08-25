@@ -6,8 +6,8 @@ from tempfile import mkdtemp
 from unittest import TestCase
 from unittest.mock import patch
 
-from harmony.message import Message
-from harmony.util import config, HarmonyException
+from harmony_service_lib.message import Message
+from harmony_service_lib.util import config, HarmonyException
 
 from harmony_adapter import HarmonyAdapter
 from tests.test_harmony_adapter import TestLogHandler

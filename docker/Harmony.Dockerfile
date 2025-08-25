@@ -16,14 +16,14 @@
 #
 # Updated: 2021-06-25
 #
-FROM continuumio/miniconda3
+FROM continuumio/miniconda3:latest
 
 WORKDIR "/home"
 
 # Create Conda environment.
 COPY data/mask_fill_conda_requirements.txt data/mask_fill_conda_requirements.txt
 RUN conda create -y --name maskfill --file data/mask_fill_conda_requirements.txt \
-    python=3.9 --channel conda-forge --channel defaults -q && conda clean -a
+    python=3.12 --channel conda-forge --override-channels  -q && conda clean -a
 
 # Install additional Pip dependencies.
 COPY data/mask_fill_pip_requirements.txt data/mask_fill_pip_requirements.txt

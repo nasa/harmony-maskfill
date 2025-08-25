@@ -1,0 +1,12 @@
+# Snyk (https://snyk.io) policy file, patches or ignores known vulnerabilities.
+version: v1.25.0
+exclude:
+  global:
+    - data/pip_requirements_skip_snyk.txt
+ignore:
+  SNYK-OS-PYTHON-0006:
+    - '*':
+        reason: 'A list of service Python package dependencies that are not scanned by snyk for vulnerabilities.'
+        expires:
+language-settings:
+  python: "3.12"

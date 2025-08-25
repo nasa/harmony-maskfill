@@ -6,10 +6,12 @@ from tempfile import mkdtemp
 import os
 
 from pystac import Asset, Item
-from harmony import BaseHarmonyAdapter, run_cli, setup_cli
-from harmony.message import Source as MessageSource
-from harmony.util import (download, generate_output_filename, HarmonyException,
-                          stage)
+from harmony_service_lib import BaseHarmonyAdapter, run_cli, setup_cli
+from harmony_service_lib.message import Source as MessageSource
+from harmony_service_lib.util import (
+    download, generate_output_filename, HarmonyException,
+    stage
+)
 
 from MaskFill import DEFAULT_MASK_GRID_CACHE, mask_fill
 from pymods.MaskFillUtil import create_bounding_box_shape_file

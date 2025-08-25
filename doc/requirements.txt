@@ -1,7 +1,7 @@
 #
 # To create a conda environment to run the Jupyter notebook documentation:
 #
-# conda create --name maskfill-docs python=3.10 --channel conda-forge --channel defaults -y
+# conda create --name maskfill-docs python=3.12 --channel conda-forge --override-channels -y
 # conda activate maskfill-docs
 # conda install geos
 # pip install -r requirements.txt
@@ -18,6 +18,6 @@ h5py ~= 3.9.0
 harmony-py ~= 0.4.10
 intake-stac ~= 0.4.0
 matplotlib ~= 3.8.0
-notebook ~= 7.0.4
+notebook ~= 7.2.3
 numpy ~= 1.26.0
 pystac ~= 1.8.4

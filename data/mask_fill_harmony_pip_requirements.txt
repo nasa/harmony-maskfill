@@ -1,8 +1,8 @@
 # Harmony service library
-harmony-service-lib~=1.0.20
+harmony-service-lib~=2.0.0
 
 # Harmony-specific dependencies
-pystac~=0.5.3
+pystac~=1.0.1
 
 # Main MaskFill requirements
 -r mask_fill_pip_requirements.txt

@@ -8,7 +8,7 @@ from shutil import rmtree
 from tempfile import mkdtemp
 from unittest import TestCase
 
-from harmony.util import bbox_to_geometry
+from harmony_service_lib.util import bbox_to_geometry
 from numpy import array, array_equal, ndarray
 from osgeo import gdal
 from pystac import Asset as StacAsset, Catalog as StacCatalog, Item as StacItem
@@ -80,7 +80,6 @@ class MaskFillTestCase(TestCase):
 
         dataset_one = gdal.Open(file_one_name)
         dataset_two = gdal.Open(file_two_name)
-
         band_one = array(dataset_one.ReadAsArray())
         band_two = array(dataset_two.ReadAsArray())
         self.assertEqual(band_one.shape, band_two.shape)
