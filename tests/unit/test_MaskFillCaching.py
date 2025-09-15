@@ -4,12 +4,14 @@ from unittest.mock import Mock, patch
 
 import numpy as np
 
-from pymods import MaskFillUtil
-from pymods.MaskFillCaching import (cache_geotiff_mask_array,
-                                    cache_h5_mask_arrays,
-                                    get_geotiff_cached_mask_array,
-                                    get_geotiff_mask_array_path,
-                                    get_mask_array_path_from_id)
+from maskfill import MaskFillUtil
+from maskfill.MaskFillCaching import (
+    cache_geotiff_mask_array,
+    cache_h5_mask_arrays,
+    get_geotiff_cached_mask_array,
+    get_geotiff_mask_array_path,
+    get_mask_array_path_from_id,
+)
 
 
 class TestMaskFillCaching(TestCase):
@@ -23,8 +25,8 @@ class TestMaskFillCaching(TestCase):
         cls.cache_dir = '/path/to/cache'
         cls.mask_path = f'{cls.cache_dir}/{cls.mock_id}.npy'
 
-    @patch('pymods.MaskFillCaching.MaskFillUtil.get_geotiff_mask_array_id')
-    @patch('pymods.MaskFillCaching.np.save')
+    @patch('maskfill.MaskFillCaching.MaskFillUtil.get_geotiff_mask_array_id')
+    @patch('maskfill.MaskFillCaching.np.save')
     def test_cache_geotiff_mask_array(self, mock_np_save,
                                       mock_get_geotiff_mask_array_id):
         """ Ensure that a single GeoTIFF mask is saved to a `.npy` file, if the
@@ -56,7 +58,7 @@ class TestMaskFillCaching(TestCase):
                                      'ignore_and_delete')
             mock_np_save.assert_not_called()
 
-    @patch('pymods.MaskFillCaching.np.save')
+    @patch('maskfill.MaskFillCaching.np.save')
     def test_cache_h5_mask_arrays(self, mock_np_save):
         """ Ensure all masks are saved from a cache in local storage, to
             individual `.npy` files, if the correct grid caching option is
@@ -86,9 +88,9 @@ class TestMaskFillCaching(TestCase):
                                  self.logger)
             mock_np_save.assert_not_called()
 
-    @patch('pymods.MaskFillUtil.get_geotiff_mask_array_id')
-    @patch('pymods.MaskFillCaching.os.path.exists')
-    @patch('pymods.MaskFillCaching.np.load')
+    @patch('maskfill.MaskFillUtil.get_geotiff_mask_array_id')
+    @patch('maskfill.MaskFillCaching.os.path.exists')
+    @patch('maskfill.MaskFillCaching.np.load')
     def test_get_geotiff_cached_mask_array(self, mock_np_load, mock_os_exists,
                                            mock_get_geotiff_mask_array_id):
         """ Ensure that cached information is retrieved using `numpy.load`, if
@@ -138,7 +140,7 @@ class TestMaskFillCaching(TestCase):
             mock_os_exists.assert_not_called()
             mock_np_load.assert_not_called()
 
-    @patch('pymods.MaskFillCaching.MaskFillUtil.get_geotiff_mask_array_id')
+    @patch('maskfill.MaskFillCaching.MaskFillUtil.get_geotiff_mask_array_id')
     def test_get_geotiff_mask_array_path(self, mock_get_geotiff_mask_array_id):
         """ Ensure that the expected mask array path is constructed using the
             input file paths for the data, shape file and cache directory.

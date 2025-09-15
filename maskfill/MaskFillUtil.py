@@ -174,7 +174,7 @@ def get_transform_information(h5_dataset: Dataset) -> str:
         operations.
 
     """
-    from pymods.H5GridProjectionInfo import get_dimension_datasets
+    from maskfill.H5GridProjectionInfo import get_dimension_datasets
 
     if get_dimension_datasets(h5_dataset):
         dimension_list = get_decoded_attribute(h5_dataset, 'DIMENSION_LIST')

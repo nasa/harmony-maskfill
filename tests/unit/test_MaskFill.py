@@ -6,15 +6,26 @@ from shutil import rmtree
 from unittest import TestCase
 from unittest.mock import ANY, patch
 
-from MaskFill import (check_shapefile_geojson, debug_bool,
-                      DEFAULT_MASK_GRID_CACHE, format_parameters,
-                      get_log_file_path, get_sdps_logger,
-                      get_xml_error_response, get_xml_success_response,
-                      maskfill_sdps, validate_input_parameters)
-from pymods.exceptions import (InsufficientProjectionInformation,
-                               InvalidMetadata, InvalidParameterValue,
-                               MissingCoordinateDataset, MissingParameterValue,
-                               NoMatchingData)
+from maskfill.MaskFill import (
+    check_shapefile_geojson,
+    debug_bool,
+    DEFAULT_MASK_GRID_CACHE,
+    format_parameters,
+    get_log_file_path,
+    get_sdps_logger,
+    get_xml_error_response,
+    get_xml_success_response,
+    maskfill_sdps,
+    validate_input_parameters,
+)
+from maskfill.exceptions import (
+    InsufficientProjectionInformation,
+    InvalidMetadata,
+    InvalidParameterValue,
+    MissingCoordinateDataset,
+    MissingParameterValue,
+    NoMatchingData,
+)
 
 
 class TestMaskFill(TestCase):
@@ -275,8 +286,8 @@ class TestMaskFill(TestCase):
             with self.subTest(description):
                 self.assertEqual(debug_bool(input_value), expected_value)
 
-    @patch('MaskFill.get_input_parameters')
-    @patch('MaskFill.mask_fill')
+    @patch('maskfill.MaskFill.get_input_parameters')
+    @patch('maskfill.MaskFill.mask_fill')
     def test_maskfill_sdps_converts_fill_value(self, mock_mask_fill,
                                                mock_get_input_parameters):
         """ Verifiy that the `maskfill_sdps` function converts an input fill
@@ -309,8 +320,8 @@ class TestMaskFill(TestCase):
                                                DEFAULT_MASK_GRID_CACHE,
                                                123.4, ANY)
 
-    @patch('MaskFill.get_input_parameters')
-    @patch('MaskFill.mask_fill')
+    @patch('maskfill.MaskFill.get_input_parameters')
+    @patch('maskfill.MaskFill.mask_fill')
     def test_maskfill_sdps_non_numeric_fill_value(self, mock_mask_fill,
                                                   mock_get_input_parameters):
         """ Verifiy that the `maskfill_sdps` function converts an input fill
@@ -340,7 +351,7 @@ class TestMaskFill(TestCase):
         # Ensure the assertion was raised prior to calling `mask_fill`.
         mock_mask_fill.assert_not_called()
 
-    @patch('MaskFill.get_input_parameters')
+    @patch('maskfill.MaskFill.get_input_parameters')
     def test_maskfill_sdps_exception(self, mock_get_input_parameters):
         """ Verify an exception is caught, and that it returns an appropriate
             response. To simulate a failure, a `None` value is given for the

@@ -7,7 +7,7 @@ import os
 
 import numpy as np
 
-from pymods import MaskFillUtil
+from maskfill import MaskFillUtil
 
 MASK_GRID_CACHE_VALUES = ['ignore_and_delete',
                           'ignore_and_save',

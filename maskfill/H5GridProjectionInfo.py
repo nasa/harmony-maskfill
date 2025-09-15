@@ -13,16 +13,20 @@ from h5py import Dataset, Reference
 from pyproj import CRS, Proj
 from pyproj.exceptions import CRSError
 
-from pymods.cf_config import CFConfigH5
-from pymods.exceptions import (InsufficientDataError,
-                               InsufficientProjectionInformation,
-                               InvalidMetadata,
-                               MissingCoordinateDataset,
-                               NotSupportedData)
-from pymods.MaskFillUtil import (get_decoded_attribute,
-                                 get_default_fill_for_data_type,
-                                 apply_2d,
-                                 apply_2d_yxz)
+from maskfill.cf_config import CFConfigH5
+from maskfill.exceptions import (
+    InsufficientDataError,
+    InsufficientProjectionInformation,
+    InvalidMetadata,
+    MissingCoordinateDataset,
+    NotSupportedData,
+)
+from maskfill.MaskFillUtil import (
+    get_decoded_attribute,
+    get_default_fill_for_data_type,
+    apply_2d,
+    apply_2d_yxz,
+)
 
 
 CornerPoints = Tuple[float, float, float, float]

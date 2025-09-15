@@ -4,7 +4,7 @@ import json
 
 from h5py import File
 
-from pymods.cf_config import CFConfigGeotiff, CFConfigH5
+from maskfill.cf_config import CFConfigGeotiff, CFConfigH5
 
 
 class TestCFConfig(TestCase):

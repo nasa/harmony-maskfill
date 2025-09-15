@@ -6,9 +6,12 @@ from unittest import TestCase
 
 from osgeo import gdal
 
-from GeotiffMaskFill import (convert_variable_path, get_fill_value,
-                             get_geotiff_variable_type,
-                             variable_should_be_masked)
+from maskfill.GeotiffMaskFill import (
+    convert_variable_path,
+    get_fill_value,
+    get_geotiff_variable_type,
+    variable_should_be_masked,
+)
 
 
 class TestGeotiffMaskfill(TestCase):

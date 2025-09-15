@@ -9,38 +9,42 @@ from pyproj import CRS, Proj
 import h5py
 import numpy as np
 
-from pymods.cf_config import CFConfigH5
-from pymods.exceptions import (InsufficientDataError,
-                               InsufficientProjectionInformation,
-                               InvalidMetadata,
-                               MissingCoordinateDataset,
-                               NotSupportedData)
-from pymods.H5GridProjectionInfo import (dataset_all_fill_value,
-                                         dataset_all_outside_valid_range,
-                                         get_apply_2d_process,
-                                         get_cell_size_from_dimensions,
-                                         get_cell_size_from_lat_lon_extents,
-                                         get_corner_points_from_dimensions,
-                                         get_corner_points_from_lat_lon,
-                                         get_crs_from_grid_mapping,
-                                         get_dataset_attributes,
-                                         get_dimension_datasets,
-                                         get_fill_value,
-                                         get_grid_mapping_name,
-                                         get_hdf_crs,
-                                         get_lon_lat_datasets,
-                                         get_projected_coordinate_extent,
-                                         get_transform,
-                                         get_spatial_grid_shape,
-                                         is_nominal_data_shape,
-                                         is_yxz_data_shape,
-                                         is_projection_x_dimension,
-                                         is_projection_y_dimension,
-                                         is_x_y_flipped,
-                                         has_geographic_dimensions,
-                                         resolve_relative_dataset_path)
+from maskfill.cf_config import CFConfigH5
+from maskfill.exceptions import (
+    InsufficientDataError,
+    InsufficientProjectionInformation,
+    InvalidMetadata,
+    MissingCoordinateDataset,
+    NotSupportedData,
+)
+from maskfill.H5GridProjectionInfo import (
+    dataset_all_fill_value,
+    dataset_all_outside_valid_range,
+    get_apply_2d_process,
+    get_cell_size_from_dimensions,
+    get_cell_size_from_lat_lon_extents,
+    get_corner_points_from_dimensions,
+    get_corner_points_from_lat_lon,
+    get_crs_from_grid_mapping,
+    get_dataset_attributes,
+    get_dimension_datasets,
+    get_fill_value,
+    get_grid_mapping_name,
+    get_hdf_crs,
+    get_lon_lat_datasets,
+    get_projected_coordinate_extent,
+    get_transform,
+    get_spatial_grid_shape,
+    is_nominal_data_shape,
+    is_yxz_data_shape,
+    is_projection_x_dimension,
+    is_projection_y_dimension,
+    is_x_y_flipped,
+    has_geographic_dimensions,
+    resolve_relative_dataset_path,
+)
 
-from pymods.MaskFillUtil import (apply_2d, apply_2d_yxz)
+from maskfill.MaskFillUtil import apply_2d, apply_2d_yxz
 
 
 class TestH5GridProjectionInfo(TestCase):
@@ -492,8 +496,8 @@ class TestH5GridProjectionInfo(TestCase):
 
         h5_file.close()
 
-    @patch('pymods.H5GridProjectionInfo.get_cell_size_from_lat_lon_extents')
-    @patch('pymods.H5GridProjectionInfo.get_corner_points_from_lat_lon')
+    @patch('maskfill.H5GridProjectionInfo.get_cell_size_from_lat_lon_extents')
+    @patch('maskfill.H5GridProjectionInfo.get_corner_points_from_lat_lon')
     def test_get_transform_dimensions(self, mock_get_corner_points_from_lat_lon,
                                       mock_get_cell_size_from_lat_lon):
         """ Ensure the correct Affine transformation matrix is formed for a
@@ -570,8 +574,8 @@ class TestH5GridProjectionInfo(TestCase):
                 mock_get_corner_points_from_lat_lon.assert_not_called()
                 mock_get_cell_size_from_lat_lon.assert_not_called()
 
-    @patch('pymods.H5GridProjectionInfo.get_cell_size_from_dimensions')
-    @patch('pymods.H5GridProjectionInfo.get_corner_points_from_dimensions')
+    @patch('maskfill.H5GridProjectionInfo.get_cell_size_from_dimensions')
+    @patch('maskfill.H5GridProjectionInfo.get_corner_points_from_dimensions')
     def test_get_transform_coordinates(self,
                                        mock_get_corner_points_from_dimensions,
                                        mock_get_cell_size_from_dimensions):

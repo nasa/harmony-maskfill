@@ -8,12 +8,15 @@ from pyproj import CRS
 import h5py
 import numpy as np
 
-from H5MaskFill import (get_mask_array,
-                        mask_fill,
-                        get_coordinates,
-                        get_exclusions,
-                        get_string_variables)
-from pymods.cf_config import CFConfigH5
+from maskfill.H5MaskFill import (
+    get_mask_array,
+    mask_fill,
+    get_coordinates,
+    get_exclusions,
+    get_string_variables,
+)
+from maskfill.cf_config import CFConfigH5
+
 from tests.utilities import MaskFillTestCase
 
 
@@ -41,7 +44,7 @@ class TestH5MaskFill(MaskFillTestCase):
         if isdir(self.output_dir):
             rmtree(self.output_dir)
 
-    @patch('H5MaskFill.get_mask_array')
+    @patch('maskfill.H5MaskFill.get_mask_array')
     def test_mask_fill_no_processing(self, mock_get_mask_array):
         """ Ensure that a dataset that fails to meet the required criteria is
             not processed in any way. Instead, the function should return prior
@@ -82,7 +85,7 @@ class TestH5MaskFill(MaskFillTestCase):
 
             mock_get_mask_array.assert_not_called()
 
-    @patch('H5MaskFill.create_mask_array')
+    @patch('maskfill.H5MaskFill.create_mask_array')
     def test_get_mask_array(self, mock_create_mask_array):
         """ Ensure that the following cases correctly occur:
 
@@ -145,7 +148,7 @@ class TestH5MaskFill(MaskFillTestCase):
         h5_file.close()
 
     def test_get_coordinates(self):
-        """ Assert for H5MaskFill.get_coordinates
+        """ Assert for maskfill.H5MaskFill.get_coordinates
              - set of strings is returned
              - strings are datasets contained in h5 file
              - all coordinates references exist in result
@@ -158,9 +161,9 @@ class TestH5MaskFill(MaskFillTestCase):
 
         self.assertTrue({'/cell_lat', '/cell_lon'}.issubset(coordinates))
 
-    @patch('H5MaskFill.get_string_variables')
+    @patch('maskfill.H5MaskFill.get_string_variables')
     def test_get_exclusions(self, mock_get_string_variables):
-        """ Assert for H5MaskFill.get_exclusions:
+        """ Assert for maskfill.H5MaskFill.get_exclusions:
              - set of strings is returned
              - coordinate exclusions are included
              - configuration exclusions are included
@@ -186,8 +189,8 @@ class TestH5MaskFill(MaskFillTestCase):
 
         mock_get_string_variables.assert_called_once()
 
-    @patch('H5MaskFill.get_exclusions')
-    @patch('H5MaskFill.get_mask_array')
+    @patch('maskfill.H5MaskFill.get_exclusions')
+    @patch('maskfill.H5MaskFill.get_mask_array')
     def test_no_exclusions(self, mock_get_mask_array, mock_get_exclusions):
         """ Assert for each given exclusions, maskfill processing is skipped
             (similar to test_mask_fill_no_processing)

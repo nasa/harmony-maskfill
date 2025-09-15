@@ -15,24 +15,31 @@ from numpy.testing import assert_allclose, assert_array_equal
 from pyproj import CRS
 from shapely.geometry import Polygon, shape
 
-from pymods.MaskFillUtil import (apply_2d,
-                                 apply_2d_yxz,
-                                 create_bounding_box_shape_file,
-                                 get_bounded_shape, get_decoded_attribute,
-                                 get_default_fill_for_data_type,
-                                 get_geographic_resolution, get_geotiff_crs,
-                                 get_geotiff_info, get_grid_lat_lons,
-                                 get_h5_mask_array_id, get_resolved_dataframe,
-                                 get_resolved_line, get_resolved_polygon,
-                                 get_resolved_ring, get_resolved_shape,
-                                 get_transform_information,
-                                 mask_fill_array,
-                                 should_ignore_pyproj_bounds,
-                                 )
+from maskfill.MaskFillUtil import (
+    apply_2d,
+    apply_2d_yxz,
+    create_bounding_box_shape_file,
+    get_bounded_shape,
+    get_decoded_attribute,
+    get_default_fill_for_data_type,
+    get_geographic_resolution,
+    get_geotiff_crs,
+    get_geotiff_info,
+    get_grid_lat_lons,
+    get_h5_mask_array_id,
+    get_resolved_dataframe,
+    get_resolved_line,
+    get_resolved_polygon,
+    get_resolved_ring,
+    get_resolved_shape,
+    get_transform_information,
+    mask_fill_array,
+    should_ignore_pyproj_bounds,
+)
 
 
 class TestMaskFillUtil(TestCase):
-    """ Tests for the functions in pymods/MaskFillUtil.py. """
+    """ Tests for the functions in maskfill/MaskFillUtil.py. """
 
     @classmethod
     def setUpClass(cls):
@@ -178,7 +185,7 @@ class TestMaskFillUtil(TestCase):
             utm_crs = CRS.from_epsg(32618)
             expected_gdf = gpd.read_file('tests/data/COL_UTM_bounded.geo.json')
 
-            with patch('pymods.MaskFillUtil.CRS') as mock_crs:
+            with patch('maskfill.MaskFillUtil.CRS') as mock_crs:
                 bounded_gdf = get_bounded_shape('tests/data/COL.geo.json',
                                                 utm_crs, out_shape, transform)
                 mock_crs.assert_not_called()

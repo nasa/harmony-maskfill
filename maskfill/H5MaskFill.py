@@ -25,14 +25,24 @@ from pyproj import CRS
 import numpy as np
 import h5py
 
-from pymods import MaskFillUtil
-from pymods.cf_config import CFConfigH5
-from pymods.H5GridProjectionInfo import (dataset_all_fill_value, get_fill_value,
-                                         get_hdf_crs, get_transform, get_spatial_grid_shape,
-                                         get_apply_2d_process)
-from pymods.MaskFillCaching import (cache_h5_mask_arrays,
-                                    get_mask_array_path_from_id)
-from pymods.MaskFillUtil import get_h5_mask_array_id, process_h5_file
+from maskfill import MaskFillUtil
+from maskfill.cf_config import CFConfigH5
+from maskfill.H5GridProjectionInfo import (
+    dataset_all_fill_value,
+    get_fill_value,
+    get_hdf_crs,
+    get_transform,
+    get_spatial_grid_shape,
+    get_apply_2d_process,
+)
+from maskfill.MaskFillCaching import (
+    cache_h5_mask_arrays,
+    get_mask_array_path_from_id,
+)
+from maskfill.MaskFillUtil import (
+    get_h5_mask_array_id,
+    process_h5_file,
+)
 
 
 def produce_masked_hdf(hdf_path: str, shape_path: str, output_dir: str,

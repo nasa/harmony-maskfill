@@ -10,11 +10,13 @@ import numpy as np
 import rasterio
 import rasterio.mask
 
-from pymods import MaskFillUtil
-from pymods.cf_config import CFConfigGeotiff
-from pymods.MaskFillCaching import (cache_geotiff_mask_array,
-                                    get_geotiff_cached_mask_array)
-from pymods.MaskFillUtil import get_default_fill_for_data_type, get_geotiff_crs
+from maskfill import MaskFillUtil
+from maskfill.cf_config import CFConfigGeotiff
+from maskfill.MaskFillCaching import (
+    cache_geotiff_mask_array,
+    get_geotiff_cached_mask_array,
+)
+from maskfill.MaskFillUtil import get_default_fill_for_data_type, get_geotiff_crs
 
 
 def produce_masked_geotiff(geotiff_path: str, shape_path: str, output_dir: str,
