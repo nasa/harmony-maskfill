@@ -1,15 +1,21 @@
 #!/bin/bash
+###############################################################################
+#
+# Build a Docker container to run the test suite for the Harmony MaskFill
+# service.
+#
+# 2025-09-15: Updated for GitHub and GHCR image names.
+#
+###############################################################################
 
-image="sds/maskfill-test"
+image="ghcr.io/nasa/harmony-maskfill-test"
 tag=${1:-latest}
 
 # Look for old version of image and remove
-#
 old=$(docker images | grep "$image" | grep "$tag" | awk '{print $3}')
 if [ ! -z "$old" ] && [ "$2" != "--no-delete" ]; then
 	docker rmi "$old"
 fi
 
 # Build the image
-#
 docker build --platform linux/amd64 -t ${image}:${tag} -f docker/tests.Dockerfile .

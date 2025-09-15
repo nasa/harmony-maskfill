@@ -14,20 +14,25 @@
 # docker build -f Harmony.Dockerfile -t sds/maskfill-harmony .
 # docker run -v /full/path/to/host/directory:/home/results sds/maskfill-harmony:latest "<full list of arguments>"
 #
-# Updated: 2021-06-25
+# 2021-06-25: Updated
+# 2025-09-15: Updated for migration to GitHub and GHCR Docker image names.
 #
 FROM continuumio/miniconda3:latest
 
 WORKDIR "/home"
 
-# Create Conda environment.
+# Copy Conda requirements into the container
 COPY data/mask_fill_conda_requirements.txt data/mask_fill_conda_requirements.txt
+
+# Create Conda environment
 RUN conda create -y --name maskfill --file data/mask_fill_conda_requirements.txt \
     python=3.12 --channel conda-forge --override-channels  -q && conda clean -a
 
-# Install additional Pip dependencies.
+# Copy additional Pip dependencies into the image
 COPY data/mask_fill_pip_requirements.txt data/mask_fill_pip_requirements.txt
 COPY data/mask_fill_harmony_pip_requirements.txt data/mask_fill_harmony_pip_requirements.txt
+
+# Install additional Pip dependencies.
 RUN conda run --name maskfill pip install --no-input -r data/mask_fill_harmony_pip_requirements.txt
 
 # Place contents of the repository in the container.

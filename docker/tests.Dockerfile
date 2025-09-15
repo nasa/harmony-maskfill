@@ -1,6 +1,6 @@
 #
-# Test image for the Harmony sds/maskfill-harmony service. This image uses the
-# main service image, sds/maskfill-harmony, as a base layer for the tests. This
+# Test image for the Harmony MaskFill service. This image uses the main service
+# image, ghcr.io/nasa/harmony-maskfill, as a base layer for the tests. This
 # ensures that the contents of the service image are tested, preventing
 # discrepancies between the service and test environments.
 #
@@ -12,9 +12,10 @@
 # docker build -f tests/Dockerfile -t maskfill .
 # docker run -v /full/path/to/host/directory/test-reports:/home/tests/reports maskfill:latest
 #
-# Updated: 2021-06-25
+# 2021-06-25: Updated
+# 2025-09-15: Updated for migration to GitHub and GHCR images.
 #
-FROM sds/maskfill-harmony
+FROM ghcr.io/nasa/harmony-maskfill
 
 # Copy test directory containing Python unittest suite, test data and utilities
 COPY ./tests tests

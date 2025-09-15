@@ -1,6 +1,13 @@
 #!/bin/bash
+###############################################################################
+#
+# Build a Docker image of the service.
+#
+# 2025-09-15: Updated for use in GitHub with new Docker image name.
+#
+###############################################################################
 
-image="sds/maskfill-harmony"
+image="ghcr.io/nasa/harmony-maskfill"
 
 # Retrieve the tag from the script argument, or default to "latest". Bamboo
 # will pass the contents of `docker/service_version.txt` as this argument,
@@ -9,12 +16,8 @@ image="sds/maskfill-harmony"
 tag=${1:-latest}
 
 
-# Look for old version of image and remove
-#
-old=$(docker images | grep "$image" | grep "$tag" | awk '{print $3}')
-if [ ! -z "$old" ]; then
-  docker rmi "$old"
-fi
+# Remove old versions of the service and test images:
+bin/clean-images
 
 # Build the image
 # This command tags the image with two tags:
@@ -22,4 +25,4 @@ fi
 #   version number from `docker/service_version.txt`.
 # - "latest", so the test Dockerfile can use the service image as a base image.
 #
-docker build --platform linux/amd64 -t ${image}:${tag} -t ${image}:latest -f docker/Harmony.Dockerfile .
+docker build --platform linux/amd64 -t ${image}:${tag} -t ${image}:latest -f docker/service.Dockerfile .
