@@ -1,8 +1,7 @@
 ## Overview:
 
 The `MaskFill` utility works with gridded data, applying a fill value in all pixels
-outside of a provided shape. This utility is now available either on-premises
-via SPDS or as a Harmony service.
+outside of a provided shape. This utility is now available via a Harmony service.
 
 The utility accepts HDF-5 and NetCDF-4 files that follow CF conventions and
 GeoTIFFs.
@@ -33,20 +32,12 @@ Note, that installation must be done within the `data` directory so the
 reference to `mask_fill_pip_requirements.txt` within the Harmony Pip
 requirements file can be resolved.
 
-Updating third party, non-Harmony dependencies will result in changes to the
-underlying conda environment as used by SDPS. When this occurs, the string
-contained within `data/MASKFILL_CONDA_ENVIRONMENT.txt` must be changed so that
-a new SDPS conda environment can be created, without overwriting the previous
-environment. When updating the environment dependencies, a corresponding conda
-environment *must* be created within SDPS. The name of that environment should
-match the contents of `data/MASKFILL_CONDA_ENVIRONMENT.txt`.
-
 ## Development:
 
 ### General notes:
 
 * Commit messages should use the ticket number as a prefix,
-  e.g.: `DAS-123 - Awesome feature description.`
+  e.g.: `DAS-123: Awesome feature description.`
 * Commit history should be squashed locally, to avoid minor commits (e.g.:
   `fix typo`, `update README`). This can be done via an interactive rebase,
   where `N` is the number of commits added during the feature development:
@@ -55,9 +46,6 @@ match the contents of `data/MASKFILL_CONDA_ENVIRONMENT.txt`.
   ```
 
 ### Versioning:
-
-There are two versions associated with MaskFill: the Harmony version and the
-SDPS version.
 
 The Harmony version is a semantic version number (`major.minor.patch`), which
 should be iterated every release. It is contained in the
@@ -73,73 +61,39 @@ The general rules for iterating a semantic version number are:
 When the Docker image is built, it will be tagged with the semantic version
 number as stored in `docker/service_version.txt`.
 
-The SDPS version is saved in the `VERSION` file. This should only be iterated
-shortly before the SDPS release or hotshelves. More details on that process are
-in the next two sections of this README.
+### CI/CD:
 
-### Regular SDPS releases:
+The CICD for MaskFill is contained in GitHub workflows in the `.github/workflows`
+directory:
 
-During regular development, developers should create feature branches from the
-`dev` branch. When feature work is done, this branch should be merged back into
-`dev` via a pull request (PR). When it is time for a full SDPS release, a
-release branch will be created from the head of the `dev` branch. Within this
-release branch a `VERSION` file should be updated, or created if not present,
-containing a single string name for the release. For example: "202_UPDATES". A
-PR should be then made between this release branch and the `master` branch.
-Merging this PR will trigger the deployment of two new artefacts to Maven, one
-to `master/maskfill.tar.gz`, and a second relating to the version listed in the
-`VERSION` file, e.g. `202_UPDATES/maskfill.tar.gz`.
+* `run_tests.yml` - A reusable workflow that builds the service and test Docker
+  images, then runs the Python unit test suite in an instance of the test
+  Docker container.
+* `run_tests_on_pull_requests.yml` - Triggered for all PRs against the `main`
+  branch. It runs the workflow in `run_tests.yml` to ensure all tests pass for
+  the new code.
+* `publish_docker_image.yml` - Triggered either manually or for commits to the
+  `main` branch that contain changes to the `docker/service_version.txt` file.
 
-### SDPS Hot shelves:
+The `publish_docker_image.yml` workflow will:
 
-Hot shelves occur when bug fixes are required outside of the regular release
-cycle. When one has been identified, and new hot shelf branch should be created
-from the master branch. It should have a name with the format:
+* Run the full unit test suite, to prevent publication of broken code.
+* Extract the semantic version number from `docker/service_version.txt`.
+* Extract the release notes for the most recent version from `CHANGELOG.md`
+* Build the service Docker image and push it to the GitHub Container Registry.
+* Create a GitHub release that will also tag the related git commit with the
+  semantic version number.
 
-```
-HOTSHELF-DAS-XYZ
-```
-
-When hot shelf work is complete, the contents of the `VERSION` file in the root
-directory of the repository should be updated to `HOTSHELF-DAS-XYZ` (where
-`DAS-XYZ` is the related ticket number) and a pull request should be opened
-against the `master` branch.
-
-After the merge into the master branch, the developer who worked on the hot
-shelf also needs to then merge the changes into the `dev` branch.
-
-If there has been a lot of work since the last release, then this
-step may be tricky. An additional branch to deal with merge conflicts may be
-required.
-
-### Harmony releases:
-
-The Bamboo build plan and deployment project for MaskFill are configured to
-deploy a new version to the Harmony SIT and Sandbox environments every time a
-pull request is merged into the `dev` branch. From that point, a release to SIT
-can be manually promoted to UAT, or even production via Bamboo at
-<https://ci.earthdata.nasa.gov>. Note, the long term access keys for each
-environment will need to be up to date for these deployments to be successful.
-If the deployments fail it is likely due to out-of-date AWS long term access
-credentials.
-
-## Running locally (SDPS method):
-
-Within the `maskfill` Conda environment, the main `MaskFill` utility can be run via:
-
-```bash
-python MaskFill.py --FILE_URLS [data_file_path] --BOUNDINGSHAPE [shape_file_path] --OUTPUT_DIR [output_directory_path] --IDENTIFIER [output_subdirectory]
-```
-
-There are other parameters that can be supplied to the script, but these are optional:
+Before triggering a release, ensure both the `docker/service_version.txt` and
+`CHANGELOG.md` files are updated. The `CHANGELOG.md` file requires a specific
+format for a new release, as it looks for the following string to define the
+newest release of the code (starting at the top of the file).
 
 ```
---DEBUG True
---DEFAULT_FILL [value]
---MASK_GRID_CACHE [ignore_and_delete|ignore_and_save|use_cache|use_cache_delete|MaskGrid_Only]
+## vX.Y.Z
 ```
 
-## Running locally (Harmony method):
+## Running locally:
 
 The best method to run Harmony locally is to have a local instance of Harmony
 running that is configured to use the MaskFill service. Requests can then be
@@ -148,66 +102,6 @@ made as they would for any other environment (production, UAT, SIT) via:
 * [harmony-py](<https://github.com/nasa/harmony-py>)
 * cURL
 * A URL placed in a browser window, pointing at `localhost:3000`.
-
-You can also run the service within the `HarmonyAdapter`, starting within the
-root directory of the `maskfill` repository. When you do this you will need to
-set several environment variables, that Harmony expects. The first, `ENV`,
-tells Harmony not to try and stage the results.
-
-Additionally, if you want to inspect the output, you'll need to temporarily
-comment out the `rmtree` call in the `finally` block of the
-`HarmonyAdapter.process_item` method. It will probably be helpful to temporarily
-log the `working_dir` in that method, to see the temporary directory produced,
-which contains the output file.
-
-```bash
-export ENV=dev
-export OAUTH_CLIENT_ID=''
-export OAUTH_PASSWORD=''
-export OAUTH_REDIRECT_URI=''
-export OAUTH_UID=''
-export STAGING_BUCKET=''
-export STAGING_PATH=''
-```
-
-Then in a Python session:
-
-```Python
-from harmony.message import Message
-from harmony.util import config
-from harmony_adapter import HarmonyAdapter
-
-
-message = Message({
-    'accessToken': 'fake_token',
-    'callback': 'https://www.example.com/callback',
-    'stagingLocation': 's3://example-bucket/example-path',
-    'sources': [{
-        'granules': [{
-            'bbox': [-180, -90, 180, 90],
-            'temporal': {
-                'start': '2020-01-01T00:00:00.000Z',
-                'end': '2020-12-31T00:00:00.0000Z'
-            },
-            'url': 'file:///full/path/to/maskfill/tests/data/SMAP_L4_SM_aup_input.h5'
-        }]
-    }],
-	'subset': {
-        'shape': {
-            'href': 'file:///full/path/to/maskfill/tests/data/USA.geo.json',
-            'type': 'application/geo+json'
-        }
-    },
-	'user': 'narmstrong'
-})
-
-maskfill_adapter = HarmonyAdapter(message, config=config(False))
-maskfill_adapter.invoke()
-```
-
-Note in the message above, the URL for a granule and shape file should be a
-path to a local file. Both paths will have to be updated to be the absolute
-file path on your local machine.
 
 ## Testing:
 
@@ -318,3 +212,44 @@ When adding several SMAP collections, new entries were needed for the default
 grid mapping when input data to MaskFill have not been reprojected. When adding
 the MaskFill service to a new collection, care should be taken to ensure
 whether the granule format can provide the necessary grid mapping information.
+
+### pre-commit hooks:
+
+This repository uses [pre-commit](https://pre-commit.com/) to enable pre-commit
+checking the repository for some coding standard best practices. These include:
+
+* Removing trailing whitespaces.
+* Removing blank lines at the end of a file.
+* JSON files have valid formats.
+  formatting checks.
+
+To enable these checks:
+
+```bash
+# Install pre-commit Python package as part of test requirements:
+pip install -r tests/pip_test_requirements.txt
+
+# Install the git hook scripts:
+pre-commit install
+
+# (Optional) Run against all files:
+pre-commit run --all-files
+```
+
+When you try to make a new commit locally, `pre-commit` will automatically run.
+If any of the hooks detect non-compliance (e.g., trailing whitespace), that
+hook will state it failed, and also try to fix the issue. You will need to
+review and `git add` the changes before you can make a commit.
+
+It is planned to implement additional hooks, possibly including tools such as
+`mypy`.
+
+[pre-commit.ci](pre-commit.ci) is configured such that these same hooks will be
+automatically run for every pull request.
+
+## Get in touch:
+
+You can reach out to the maintainers of this repository via email:
+
+* david.p.auty@nasa.gov
+* owen.m.littlejohns@nasa.gov
