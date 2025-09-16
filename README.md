@@ -117,7 +117,7 @@ python -m unittest discover tests
 ```
 
 The environment variable `ENV` must be set to ensure that all unit tests that
-invoke the `HarmonyAdapter` class do not try to stage their output files.
+invoke the `MaskFillAdapter` class do not try to stage their output files.
 
 The unit tests also contain basic tests for code style, ensuring that all Python
 files conform to [PEP8](https://www.python.org/dev/peps/pep-0008/), excluding

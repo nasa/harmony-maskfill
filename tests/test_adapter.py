@@ -11,7 +11,7 @@ from unittest import skip
 from harmony_service_lib.message import Message
 from harmony_service_lib.util import config, HarmonyException
 
-from harmony_adapter import HarmonyAdapter
+from maskfill.adapter import MaskFillAdapter
 from tests.utilities import create_input_stac, MaskFillTestCase
 
 
@@ -55,11 +55,11 @@ def download_side_effect(file_path, working_dir, **kwargs):
     return output_file_path
 
 
-@patch('harmony_adapter.stage', return_value='https://example.com/data')
-@patch('harmony_adapter.download', side_effect=download_side_effect)
+@patch('maskfill.adapter.stage', return_value='https://example.com/data')
+@patch('maskfill.adapter.download', side_effect=download_side_effect)
 class TestHarmonyMaskFill(MaskFillTestCase):
     """ A test class that will run the full MaskFill service using the
-        `HarmonyAdapter` class.
+        `MaskFillAdapter` class.
 
     """
     @classmethod
@@ -100,11 +100,16 @@ class TestHarmonyMaskFill(MaskFillTestCase):
         super().tearDown()
         self.log_handler.reset()
 
-    @patch('harmony_adapter.mkdtemp')
-    @patch('harmony_adapter.rmtree')
-    def test_harmony_adapter_hdf5(self, mock_rmtree, mock_mkdtemp,
-                                  mock_download, mock_stage):
-        """ Successful MaskFill run using the HarmonyAdapter and an HDF-5
+    @patch('maskfill.adapter.mkdtemp')
+    @patch('maskfill.adapter.rmtree')
+    def test_maskfill_adapter_hdf5(
+        self,
+        mock_rmtree,
+        mock_mkdtemp,
+        mock_download,
+        mock_stage,
+    ):
+        """ Successful MaskFill run using the MaskFillAdapter and an HDF-5
             granule.
 
         """
@@ -131,10 +136,10 @@ class TestHarmonyMaskFill(MaskFillTestCase):
         input_stac = create_input_stac(self.input_hdf5, 'application/x-hdf5')
 
         maskfill_config = config(False)
-        maskfill_adapter = HarmonyAdapter(
+        maskfill_adapter = MaskFillAdapter(
             test_data,
             config=maskfill_config,
-            catalog=input_stac
+            catalog=input_stac,
         )
         maskfill_adapter.invoke()
 
@@ -160,11 +165,16 @@ class TestHarmonyMaskFill(MaskFillTestCase):
 
         mock_rmtree.assert_called_once_with(self.output_dir, ignore_errors=True)
 
-    @patch('harmony_adapter.mkdtemp')
-    @patch('harmony_adapter.rmtree')
-    def test_harmony_adapter_geotiff(self, mock_rmtree, mock_mkdtemp,
-                                     mock_download, mock_stage):
-        """ Successful MaskFill run using the HarmonyAdapter and a GeoTIFF
+    @patch('maskfill.adapter.mkdtemp')
+    @patch('maskfill.adapter.rmtree')
+    def test_maskfill_adapter_geotiff(
+        self,
+        mock_rmtree,
+        mock_mkdtemp,
+        mock_download,
+        mock_stage,
+    ):
+        """ Successful MaskFill run using the MaskFillAdapter and a GeoTIFF
             granule.
 
         """
@@ -192,8 +202,11 @@ class TestHarmonyMaskFill(MaskFillTestCase):
         input_stac = create_input_stac(self.input_geotiff, 'image/tiff')
 
         maskfill_config = config(False)
-        maskfill_adapter = HarmonyAdapter(test_data, config=maskfill_config,
-                                          catalog=input_stac)
+        maskfill_adapter = MaskFillAdapter(
+            test_data,
+            config=maskfill_config,
+            catalog=input_stac,
+        )
         maskfill_adapter.invoke()
 
         # Compare the output file to a template output file.
@@ -223,10 +236,15 @@ class TestHarmonyMaskFill(MaskFillTestCase):
 
         mock_rmtree.assert_called_once_with(self.output_dir, ignore_errors=True)
 
-    @patch('harmony_adapter.mkdtemp')
-    @patch('harmony_adapter.rmtree')
-    def test_harmony_adapter_netcdf4_input(self, mock_rmtree, mock_mkdtemp,
-                                           mock_download, mock_stage):
+    @patch('maskfill.adapter.mkdtemp')
+    @patch('maskfill.adapter.rmtree')
+    def test_maskfill_adapter_netcdf4_input(
+        self,
+        mock_rmtree,
+        mock_mkdtemp,
+        mock_download,
+        mock_stage,
+    ):
         """ Ensure MaskFill can run on a NetCDF-4 file (e.g., from HOSS). """
         mock_mkdtemp.return_value = self.output_dir
 
@@ -256,8 +274,11 @@ class TestHarmonyMaskFill(MaskFillTestCase):
 
         maskfill_config = config(False)
         input_stac = create_input_stac(input_file_name, 'application/netcdf-4')
-        maskfill_adapter = HarmonyAdapter(test_data, config=maskfill_config,
-                                          catalog=input_stac)
+        maskfill_adapter = MaskFillAdapter(
+            test_data,
+            config=maskfill_config,
+            catalog=input_stac,
+        )
         maskfill_adapter.invoke()
 
         # Compare the output file to a template output file.
@@ -279,11 +300,16 @@ class TestHarmonyMaskFill(MaskFillTestCase):
 
         mock_rmtree.assert_called_once_with(self.output_dir, ignore_errors=True)
 
-    @skip("Bug ticket DAS-2428 - temporarily disabled")
-    @patch('harmony_adapter.mkdtemp')
-    @patch('harmony_adapter.rmtree')
-    def test_harmony_adapter_bbox_request(self, mock_rmtree, mock_mkdtemp,
-                                          mock_download, mock_stage):
+    @skip('Bug ticket DAS-2428 - temporarily disabled')
+    @patch('maskfill.adapter.mkdtemp')
+    @patch('maskfill.adapter.rmtree')
+    def test_maskfill_adapter_bbox_request(
+        self,
+        mock_rmtree,
+        mock_mkdtemp,
+        mock_download,
+        mock_stage,
+    ):
         """ Ensure MaskFill can handle a bounding box request for a
             non-geographic collection. The bounding box should encompass
             Norway, Sweden and Finland.
@@ -310,8 +336,11 @@ class TestHarmonyMaskFill(MaskFillTestCase):
 
         maskfill_config = config(False)
         input_stac = create_input_stac(input_file_name, 'application/x-hdf5')
-        maskfill_adapter = HarmonyAdapter(test_data, config=maskfill_config,
-                                          catalog=input_stac)
+        maskfill_adapter = MaskFillAdapter(
+            test_data,
+            config=maskfill_config,
+            catalog=input_stac,
+        )
         maskfill_adapter.invoke()
 
         # Compare the output file to a template output file.
@@ -336,10 +365,15 @@ class TestHarmonyMaskFill(MaskFillTestCase):
 
         mock_rmtree.assert_called_once_with(self.output_dir, ignore_errors=True)
 
-    @patch('harmony_adapter.mkdtemp')
-    @patch('harmony_adapter.rmtree')
-    def test_harmony_adapter_h5_default_fill(self, mock_rmtree, mock_mkdtemp,
-                                             mock_download, mock_stage):
+    @patch('maskfill.adapter.mkdtemp')
+    @patch('maskfill.adapter.rmtree')
+    def test_maskfill_adapter_h5_default_fill(
+        self,
+        mock_rmtree,
+        mock_mkdtemp,
+        mock_download,
+        mock_stage,
+    ):
         """ Ensure MaskFill can process a file that has no in-file fill value
             metadata, relying instead on default fill values that are selected
             based on the data type of each variable in the HDF-5 file.
@@ -371,8 +405,11 @@ class TestHarmonyMaskFill(MaskFillTestCase):
 
         maskfill_config = config(False)
         input_stac = create_input_stac(input_file_name, 'application/x-hdf5')
-        maskfill_adapter = HarmonyAdapter(test_data, config=maskfill_config,
-                                          catalog=input_stac)
+        maskfill_adapter = MaskFillAdapter(
+            test_data,
+            config=maskfill_config,
+            catalog=input_stac,
+        )
         maskfill_adapter.invoke()
 
         # Compare the output file to a template output file.
@@ -397,9 +434,9 @@ class TestHarmonyMaskFill(MaskFillTestCase):
 
         mock_rmtree.assert_called_once_with(self.output_dir, ignore_errors=True)
 
-    @patch('harmony_adapter.mkdtemp')
-    @patch('harmony_adapter.rmtree')
-    def test_harmony_adapter_geotiff_float_default_fill(
+    @patch('maskfill.adapter.mkdtemp')
+    @patch('maskfill.adapter.rmtree')
+    def test_maskfill_adapter_geotiff_float_default_fill(
         self,
         mock_rmtree,
         mock_mkdtemp,
@@ -442,10 +479,10 @@ class TestHarmonyMaskFill(MaskFillTestCase):
         staged_name = 'SMAP_L3_FT_P_fill_float_input_subsetted.tif'
 
         input_stac = create_input_stac(input_file_name, 'image/tiff')
-        maskfill_adapter = HarmonyAdapter(
+        maskfill_adapter = MaskFillAdapter(
             test_data,
             config=maskfill_config,
-            catalog=input_stac
+            catalog=input_stac,
         )
         maskfill_adapter.invoke()
 
@@ -477,9 +514,9 @@ class TestHarmonyMaskFill(MaskFillTestCase):
 
         mock_rmtree.assert_called_once_with(self.output_dir, ignore_errors=True)
 
-    @patch('harmony_adapter.mkdtemp')
-    @patch('harmony_adapter.rmtree')
-    def test_harmony_adapter_geotiff_uint_default_fill(
+    @patch('maskfill.adapter.mkdtemp')
+    @patch('maskfill.adapter.rmtree')
+    def test_maskfill_adapter_geotiff_uint_default_fill(
         self,
         mock_rmtree,
         mock_mkdtemp,
@@ -522,10 +559,10 @@ class TestHarmonyMaskFill(MaskFillTestCase):
         staged_name = 'SMAP_L3_FT_P_fill_uint_input_subsetted.tif'
 
         input_stac = create_input_stac(input_file_name, 'image/tiff')
-        maskfill_adapter = HarmonyAdapter(
+        maskfill_adapter = MaskFillAdapter(
             test_data,
             config=maskfill_config,
-            catalog=input_stac
+            catalog=input_stac,
         )
         maskfill_adapter.invoke()
 
@@ -562,7 +599,7 @@ class TestHarmonyMaskFill(MaskFillTestCase):
             validation.
 
         """
-        maskfill_adapter = HarmonyAdapter(None, config=config(False))
+        maskfill_adapter = MaskFillAdapter(None, config=config(False))
 
         with self.assertRaises(HarmonyException) as context:
             maskfill_adapter.invoke()
@@ -589,7 +626,7 @@ class TestHarmonyMaskFill(MaskFillTestCase):
             'user': self.user,
         })
 
-        maskfill_adapter = HarmonyAdapter(test_data, config=config(False))
+        maskfill_adapter = MaskFillAdapter(test_data, config=config(False))
 
         with self.assertRaises(HarmonyException) as context:
             maskfill_adapter.invoke()
@@ -621,7 +658,7 @@ class TestHarmonyMaskFill(MaskFillTestCase):
 
         with self.subTest('No shape specified in Message.subset'):
             message = Message(base_message_text)
-            maskfill_adapter = HarmonyAdapter(message, config=config(False))
+            maskfill_adapter = MaskFillAdapter(message, config=config(False))
 
             with self.assertRaises(HarmonyException) as context:
                 maskfill_adapter.invoke()
@@ -636,7 +673,7 @@ class TestHarmonyMaskFill(MaskFillTestCase):
             message_text = base_message_text.copy()
             message_text['subset'] = {'shape': {'type': 'application/geo+json'}}
             message = Message(message_text)
-            maskfill_adapter = HarmonyAdapter(message, config=config(False))
+            maskfill_adapter = MaskFillAdapter(message, config=config(False))
 
             with self.assertRaises(HarmonyException) as context:
                 maskfill_adapter.invoke()
@@ -650,7 +687,7 @@ class TestHarmonyMaskFill(MaskFillTestCase):
             message_text['subset'] = {'shape': {'href': self.shape_usa,
                                                 'type': 'image/tiff'}}
             message = Message(message_text)
-            maskfill_adapter = HarmonyAdapter(message, config=config(False))
+            maskfill_adapter = MaskFillAdapter(message, config=config(False))
 
             with self.assertRaises(HarmonyException) as context:
                 maskfill_adapter.invoke()
@@ -663,7 +700,7 @@ class TestHarmonyMaskFill(MaskFillTestCase):
             message_text = base_message_text.copy()
             message_text['subset'] = {'shape': {'href': self.shape_usa}}
             message = Message(message_text)
-            maskfill_adapter = HarmonyAdapter(message, config=config(False))
+            maskfill_adapter = MaskFillAdapter(message, config=config(False))
 
             with self.assertRaises(HarmonyException) as context:
                 maskfill_adapter.invoke()
@@ -672,14 +709,14 @@ class TestHarmonyMaskFill(MaskFillTestCase):
             self.assertEqual(context.exception.message,
                              'Shape file must be GeoJSON format.')
 
-    @patch('harmony_adapter.mkdtemp')
-    @patch('harmony_adapter.rmtree')
-    def test_harmony_adapter_not_nominal_order(
+    @patch('maskfill.adapter.mkdtemp')
+    @patch('maskfill.adapter.rmtree')
+    def test_maskfill_adapter_not_nominal_order(
         self,
         mock_rmtree,
         mock_mkdtemp,
         mock_download,
-        mock_stage
+        mock_stage,
     ):
         """ Ensure MaskFill can run successfully for granules with 'yxz' order  (e.g., from HOSS). """
         mock_mkdtemp.return_value = self.output_dir
@@ -707,8 +744,11 @@ class TestHarmonyMaskFill(MaskFillTestCase):
 
         maskfill_config = config(False)
         input_stac = create_input_stac(input_file_name, 'application/netcdf-4')
-        maskfill_adapter = HarmonyAdapter(test_data, config=maskfill_config,
-                                          catalog=input_stac)
+        maskfill_adapter = MaskFillAdapter(
+            test_data,
+            config=maskfill_config,
+            catalog=input_stac,
+        )
         maskfill_adapter.invoke()
 
         # Compare the output file to a template output file.

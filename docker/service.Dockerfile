@@ -16,6 +16,7 @@
 #
 # 2021-06-25: Updated
 # 2025-09-15: Updated for migration to GitHub and GHCR Docker image names.
+# 2025-09-16: Updated entry point to align with Harmony service repository best practices.
 #
 FROM continuumio/miniconda3:latest
 
@@ -64,4 +65,4 @@ ENV CPL_ZIP_ENCODING=UTF-8 \
     PROJ_LIB=/opt/conda/envs/maskfill/share/proj
 
 # Configure a container to be executable via the `docker run` command.
-ENTRYPOINT ["python", "harmony_adapter.py"]
+ENTRYPOINT ["python", "-m", "maskfill"]

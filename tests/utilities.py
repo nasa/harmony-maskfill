@@ -17,7 +17,7 @@ import h5py
 
 def create_input_stac(granule_url: str, media_type: str) -> StacCatalog:
     """ A helper function to create a STAC catalog to be used as input when
-        invoking the MaskFill HarmonyAdapter.
+        invoking the MaskFillAdapter.
 
         The geometry and datetime are set to arbitrary values are these are
         not used in the tests.

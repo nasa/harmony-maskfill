@@ -1,5 +1,9 @@
-from logging import (basicConfig as basic_log_config, getLogger,
-                     Handler as LogHandler, INFO)
+from logging import (
+    basicConfig as basic_log_config,
+    getLogger,
+    Handler as LogHandler,
+    INFO,
+)
 from os.path import exists as file_exists, join as path_join
 from shutil import rmtree
 from tempfile import mkdtemp
@@ -9,14 +13,14 @@ from unittest.mock import patch
 from harmony_service_lib.message import Message
 from harmony_service_lib.util import config, HarmonyException
 
-from harmony_adapter import HarmonyAdapter
-from tests.test_harmony_adapter import TestLogHandler
+from maskfill.adapter import MaskFillAdapter
+from tests.test_adapter import TestLogHandler
 from tests.utilities import create_input_stac
 
 
 class TestHarmonyMaskFill(TestCase):
     """ A test class that will run the full MaskFill service using the
-        `HarmonyAdapter` class.
+        `MaskFillAdapter` class.
 
     """
     @classmethod
@@ -61,7 +65,7 @@ class TestHarmonyMaskFill(TestCase):
             cls.input_hdf5,
             'application/x-hdf5'
         )
-        cls.harmony_adapter = HarmonyAdapter(
+        cls.harmony_adapter = MaskFillAdapter(
             cls.message,
             config=config(False),
             catalog=cls.input_stac
@@ -121,7 +125,7 @@ class TestHarmonyMaskFill(TestCase):
                     expected_mimetype
                 )
 
-    @patch('harmony_adapter.download')
+    @patch('maskfill.adapter.download')
     def test_download_from_remote(self, mock_download):
         """ Ensure that a specified resource is downloaded using the
             `harmony-service-lib-py` via the `harmony.util.download` function.
@@ -184,16 +188,19 @@ class TestHarmonyMaskFill(TestCase):
                     }
                 }
             })
-            harmony_adapter = HarmonyAdapter(message, config=config(False),
-                                             catalog=self.input_stac)
+            harmony_adapter = MaskFillAdapter(
+                message,
+                config=config(False),
+                catalog=self.input_stac,
+            )
             self.assertTrue(harmony_adapter.message_has_valid_shape_file())
 
         with self.subTest('Undefined Message.subset.shape.href'):
             message = Message({
                 'subset': {'shape': {'type': 'application/geo+json'}}
             })
-            harmony_adapter = HarmonyAdapter(message, config=config(False),
-                                             catalog=self.input_stac)
+            harmony_adapter = MaskFillAdapter(message, config=config(False),
+                                              catalog=self.input_stac)
 
             with self.assertRaises(HarmonyException) as context_manager:
                 harmony_adapter.message_has_valid_shape_file()
@@ -205,8 +212,11 @@ class TestHarmonyMaskFill(TestCase):
             message = Message({
                 'subset': {'shape': {'href': 'www.example.com/shape.geo.json'}}
             })
-            harmony_adapter = HarmonyAdapter(message, config=config(False),
-                                             catalog=self.input_stac)
+            harmony_adapter = MaskFillAdapter(
+                message,
+                config=config(False),
+                catalog=self.input_stac,
+            )
 
             with self.assertRaises(HarmonyException) as context_manager:
                 harmony_adapter.message_has_valid_shape_file()
@@ -219,8 +229,11 @@ class TestHarmonyMaskFill(TestCase):
                 'subset': {'shape': {'href': 'www.example.com/shape.geo.json',
                                      'type': 'application/other'}}
             })
-            harmony_adapter = HarmonyAdapter(message, config=config(False),
-                                             catalog=self.input_stac)
+            harmony_adapter = MaskFillAdapter(
+                message,
+                config=config(False),
+                catalog=self.input_stac,
+            )
 
             with self.assertRaises(HarmonyException) as context_manager:
                 harmony_adapter.message_has_valid_shape_file()
@@ -230,8 +243,11 @@ class TestHarmonyMaskFill(TestCase):
 
         with self.subTest('Absent shape file'):
             message = Message({'subset': {'bbox': [10, 20, 30, 40]}})
-            harmony_adapter = HarmonyAdapter(message, config=config(False),
-                                             catalog=self.input_stac)
+            harmony_adapter = MaskFillAdapter(
+                message,
+                config=config(False),
+                catalog=self.input_stac,
+            )
             self.assertFalse(harmony_adapter.message_has_valid_shape_file())
 
     def test_message_has_valid_bounding_box(self):
@@ -241,20 +257,29 @@ class TestHarmonyMaskFill(TestCase):
         """
         with self.subTest('Valid bounding box'):
             message = Message({'subset': {'bbox': [10, 20, 30, 40]}})
-            harmony_adapter = HarmonyAdapter(message, config=config(False),
-                                             catalog=self.input_stac)
+            harmony_adapter = MaskFillAdapter(
+                message,
+                config=config(False),
+                catalog=self.input_stac,
+            )
             self.assertTrue(harmony_adapter.message_has_valid_bounding_box())
 
         with self.subTest('No bounding box'):
             message = Message({'subset': {'shape': {}}})
-            harmony_adapter = HarmonyAdapter(message, config=config(False),
-                                             catalog=self.input_stac)
+            harmony_adapter = MaskFillAdapter(
+                message,
+                config=config(False),
+                catalog=self.input_stac,
+            )
             self.assertFalse(harmony_adapter.message_has_valid_bounding_box())
 
         with self.subTest('Non-list bounding box'):
             message = Message({'subset': {'bbox': 10}})
-            harmony_adapter = HarmonyAdapter(message, config=config(False),
-                                             catalog=self.input_stac)
+            harmony_adapter = MaskFillAdapter(
+                message,
+                config=config(False),
+                catalog=self.input_stac,
+            )
 
             with self.assertRaises(HarmonyException) as context_manager:
                 harmony_adapter.message_has_valid_bounding_box()
@@ -264,8 +289,11 @@ class TestHarmonyMaskFill(TestCase):
 
         with self.subTest('Bounding box has the wrong number of elements'):
             message = Message({'subset': {'bbox': [10, 20, 30]}})
-            harmony_adapter = HarmonyAdapter(message, config=config(False),
-                                             catalog=self.input_stac)
+            harmony_adapter = MaskFillAdapter(
+                message,
+                config=config(False),
+                catalog=self.input_stac,
+            )
 
             with self.assertRaises(HarmonyException) as context_manager:
                 harmony_adapter.message_has_valid_bounding_box()

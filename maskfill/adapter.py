@@ -1,42 +1,17 @@
-""" Data Services MaskFill service for Harmony.
-
-DEPRECATION NOTICE!
-
-This module remains in the harmony-maskfill repository while Harmony tranistions
-over to the new Docker image. The contents of this file are replaced with:
-
-    - `maskfill.__main__.py` - The main entry point for invoking the
-      `MaskFillAdapter`, in alignment with other Harmony services.
-    - `maskfill.adapter.py` - The module containing the service adapter class.
-
-Steps to remove this file:
-
-    - Migrate this code to a `__main__.py` and `adapter.py`.
-    - Update the entry point in the service Dockerfile.
-    - Migrate Harmony to use the new image. Update the Harmony repository to
-      have a default value for the entry point that is the new `__main__.py`.
-      Note: The entry point used by Harmony will still be this file due to the
-      harmony-ci-cd repository overriding the value.
-    - Update the Bamboo environment variables for the MaskFill service image.
-    - Update the harmony-ci-cd repository to use the new service image and new
-      end point.
-    - Redeploy Harmony with the new CI/CD.
-    - Test.
-    - Remove this module.
-
-"""
-from argparse import ArgumentParser
+""" Data Services MaskFill service for Harmony. """
 from mimetypes import guess_type as guess_mimetype
 from shutil import move as move_file, rmtree
 from tempfile import mkdtemp
 import os
 
 from pystac import Asset, Item
-from harmony_service_lib import BaseHarmonyAdapter, run_cli, setup_cli
+from harmony_service_lib import BaseHarmonyAdapter
 from harmony_service_lib.message import Source as MessageSource
 from harmony_service_lib.util import (
-    download, generate_output_filename, HarmonyException,
-    stage
+    download,
+    generate_output_filename,
+    HarmonyException,
+    stage,
 )
 
 from maskfill.MaskFill import DEFAULT_MASK_GRID_CACHE, mask_fill
@@ -165,7 +140,7 @@ class MaskFillAdapter(BaseHarmonyAdapter):
         """ A class method to wrap the Harmony utility function to download a
             file from a remote source. This method automatically uses the
             Logger, access token and configuration object from the instance of
-            the HarmonyAdapter class.
+            the MaskFillAdapter class.
 
             If a file name is specified, then the downloaded file will be
             renamed. Otherwise, Harmony will use a UUID as the basename for
@@ -289,12 +264,3 @@ class MaskFillAdapter(BaseHarmonyAdapter):
             mimetype = EXTENSION_MIMETYPES.get(file_extension, None)
 
         return mimetype
-
-
-if __name__ == '__main__':
-    PARSER = ArgumentParser(prog='MaskFill',
-                            description=('Extract a polygon spatial subset of '
-                                         'from HDF-5 or GeoTIFF file'))
-    setup_cli(PARSER)
-    ARGS, _ = PARSER.parse_known_args()
-    run_cli(PARSER, ARGS, MaskFillAdapter)
