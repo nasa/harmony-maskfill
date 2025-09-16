@@ -6,7 +6,7 @@ from unittest import TestCase
 
 from osgeo import gdal
 
-from maskfill.GeotiffMaskFill import (
+from maskfill.geotiff_maskfill import (
     convert_variable_path,
     get_fill_value,
     get_geotiff_variable_type,
@@ -15,7 +15,7 @@ from maskfill.GeotiffMaskFill import (
 
 
 class TestGeotiffMaskfill(TestCase):
-    """ Unit tests for GeotiffMaskfill branch. These are not end-to-end. """
+    """ Unit tests for geotiff_maskfill module. These are not end-to-end. """
 
     @classmethod
     def setUpClass(cls):

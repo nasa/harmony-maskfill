@@ -53,8 +53,8 @@ from maskfill.exceptions import (
     MissingParameterValue,
     NoMatchingData
 )
-from maskfill import GeotiffMaskFill
-from maskfill import H5MaskFill
+from maskfill import geotiff_maskfill
+from maskfill import h5_maskfill
 
 
 DEFAULT_MASK_GRID_CACHE = 'ignore_and_delete'
@@ -80,7 +80,7 @@ def mask_fill(input_file: str, shape_file: str, output_dir: str,
         # GeoTIFF case
         logger.info(f'Performing mask fill with GeoTIFF {input_file} and '
                     f'shapefile {shape_file}')
-        output_file = GeotiffMaskFill.produce_masked_geotiff(
+        output_file = geotiff_maskfill.produce_masked_geotiff(
             input_file, shape_file, output_dir, output_dir,
             mask_grid_cache, fill_value, logger
         )
@@ -88,7 +88,7 @@ def mask_fill(input_file: str, shape_file: str, output_dir: str,
         # HDF5 or NetCDF-4 case (HOSS produces NetCDF-4 files)
         logger.info('Performing mask fill with HDF5/NetCDF-4 file '
                     f'{input_file} and shapefile {shape_file}')
-        output_file = H5MaskFill.produce_masked_hdf(
+        output_file = h5_maskfill.produce_masked_hdf(
             input_file, shape_file, output_dir, output_dir,
             mask_grid_cache, fill_value, logger
         )

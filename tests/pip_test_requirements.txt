@@ -1,3 +1,4 @@
 coverage~=7.10.3
+pre-commit~=4.3.0
 pycodestyle~=2.14.0
 unittest-xml-reporting~=3.2.0

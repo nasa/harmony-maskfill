@@ -17,7 +17,7 @@ from maskfill.exceptions import (
     MissingCoordinateDataset,
     NotSupportedData,
 )
-from maskfill.H5GridProjectionInfo import (
+from maskfill.h5_grid_info import (
     dataset_all_fill_value,
     dataset_all_outside_valid_range,
     get_apply_2d_process,
@@ -44,7 +44,7 @@ from maskfill.H5GridProjectionInfo import (
     resolve_relative_dataset_path,
 )
 
-from maskfill.MaskFillUtil import apply_2d, apply_2d_yxz
+from maskfill.utilities import apply_2d, apply_2d_yxz
 
 
 class TestH5GridProjectionInfo(TestCase):
@@ -496,8 +496,8 @@ class TestH5GridProjectionInfo(TestCase):
 
         h5_file.close()
 
-    @patch('maskfill.H5GridProjectionInfo.get_cell_size_from_lat_lon_extents')
-    @patch('maskfill.H5GridProjectionInfo.get_corner_points_from_lat_lon')
+    @patch('maskfill.h5_grid_info.get_cell_size_from_lat_lon_extents')
+    @patch('maskfill.h5_grid_info.get_corner_points_from_lat_lon')
     def test_get_transform_dimensions(self, mock_get_corner_points_from_lat_lon,
                                       mock_get_cell_size_from_lat_lon):
         """ Ensure the correct Affine transformation matrix is formed for a
@@ -574,8 +574,8 @@ class TestH5GridProjectionInfo(TestCase):
                 mock_get_corner_points_from_lat_lon.assert_not_called()
                 mock_get_cell_size_from_lat_lon.assert_not_called()
 
-    @patch('maskfill.H5GridProjectionInfo.get_cell_size_from_dimensions')
-    @patch('maskfill.H5GridProjectionInfo.get_corner_points_from_dimensions')
+    @patch('maskfill.h5_grid_info.get_cell_size_from_dimensions')
+    @patch('maskfill.h5_grid_info.get_corner_points_from_dimensions')
     def test_get_transform_coordinates(self,
                                        mock_get_corner_points_from_dimensions,
                                        mock_get_cell_size_from_dimensions):

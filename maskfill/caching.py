@@ -7,7 +7,7 @@ import os
 
 import numpy as np
 
-from maskfill import MaskFillUtil
+from maskfill import utilities
 
 MASK_GRID_CACHE_VALUES = ['ignore_and_delete',
                           'ignore_and_save',
@@ -54,7 +54,7 @@ def get_geotiff_mask_array_path(data: str, shape_path: str, cache_dir: str) -> s
         Returns:
             str: The path to the mask array file
     """
-    mask_id = MaskFillUtil.get_geotiff_mask_array_id(data, shape_path)
+    mask_id = utilities.get_geotiff_mask_array_id(data, shape_path)
     mask_array_path = get_mask_array_path_from_id(mask_id, cache_dir)
     return mask_array_path
 

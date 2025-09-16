@@ -25,9 +25,9 @@ from pyproj import CRS
 import numpy as np
 import h5py
 
-from maskfill import MaskFillUtil
+from maskfill import utilities
 from maskfill.cf_config import CFConfigH5
-from maskfill.H5GridProjectionInfo import (
+from maskfill.h5_grid_info import (
     dataset_all_fill_value,
     get_fill_value,
     get_hdf_crs,
@@ -35,11 +35,11 @@ from maskfill.H5GridProjectionInfo import (
     get_spatial_grid_shape,
     get_apply_2d_process,
 )
-from maskfill.MaskFillCaching import (
+from maskfill.caching import (
     cache_h5_mask_arrays,
     get_mask_array_path_from_id,
 )
-from maskfill.MaskFillUtil import (
+from maskfill.utilities import (
     get_h5_mask_array_id,
     process_h5_file,
 )
@@ -48,7 +48,7 @@ from maskfill.MaskFillUtil import (
 def produce_masked_hdf(hdf_path: str, shape_path: str, output_dir: str,
                        cache_dir: str, mask_grid_cache: str,
                        default_fill_value: float, logger: Logger) -> str:
-    """ This is the main wrapper function that is called from MaskFill.py
+    """ This is the main wrapper function that is called from maskfill.py
         when processing an HDF-5 file. This deals primarily with instantiating
         a dictionary-based cache for masks, based on their coordinate
         information, placing the output file in the correct location
@@ -67,7 +67,7 @@ def produce_masked_hdf(hdf_path: str, shape_path: str, output_dir: str,
                         mask_grid_cache, default_fill_value, saved_mask_arrays,
                         cf_config, exclusion_set, logger)
     else:
-        new_file_path = MaskFillUtil.get_masked_file_path(hdf_path, output_dir)
+        new_file_path = utilities.get_masked_file_path(hdf_path, output_dir)
         shutil.copy(hdf_path, new_file_path)
         logger.debug(f'Created output file: {new_file_path}')
         process_h5_file(new_file_path, mask_fill, shape_path, cache_dir,
@@ -77,7 +77,7 @@ def produce_masked_hdf(hdf_path: str, shape_path: str, output_dir: str,
     cache_h5_mask_arrays(saved_mask_arrays, cache_dir, mask_grid_cache, logger)
 
     if mask_grid_cache != 'maskgrid_only':
-        return MaskFillUtil.get_masked_file_path(hdf_path, output_dir)
+        return utilities.get_masked_file_path(hdf_path, output_dir)
 
 
 def get_exclusions(h5_file_path: str, cf_config: CFConfigH5) -> Set[str]:
@@ -153,7 +153,7 @@ def mask_fill(h5_dataset: h5py.Dataset, shape_path: str, cache_dir: str,
                                     default_fill_value)
         apply_2d_process = get_apply_2d_process(h5_dataset, cf_config)
         mask_filled_data = apply_2d_process(h5_dataset[:],
-                                            MaskFillUtil.mask_fill_array,
+                                            utilities.mask_fill_array,
                                             mask_array, fill_value)
         h5_dataset.write_direct(mask_filled_data)
 
@@ -252,8 +252,9 @@ def create_mask_array(h5_dataset: h5py.Dataset, crs: CRS, shape_path: str,
     """
     transform = get_transform(h5_dataset, crs, cf_config, logger)
     spatial_grid_shape = get_spatial_grid_shape(h5_dataset, cf_config)
-    return MaskFillUtil.get_mask_array(shape_path, crs, spatial_grid_shape,
-                                       transform)
+    return utilities.get_mask_array(
+        shape_path, crs, spatial_grid_shape, transform,
+    )
 
 
 def get_coordinates(input_file: h5py.File) -> Set[str]:

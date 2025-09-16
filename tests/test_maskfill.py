@@ -5,7 +5,7 @@ from numpy import array, array_equal, where
 from osgeo import gdal
 import h5py
 
-from maskfill.MaskFill import (
+from maskfill.maskfill import (
     DEFAULT_MASK_GRID_CACHE,
     maskfill_sdps,
     get_xml_success_response,
@@ -52,7 +52,7 @@ class TestMaskFill(MaskFillTestCase):
     def create_parameters_namespace(self, parameters_dictionary):
         return Namespace(**parameters_dictionary)
 
-    @patch('maskfill.MaskFill.get_input_parameters')
+    @patch('maskfill.maskfill.get_input_parameters')
     def test_mask_fill_h5(self, mock_get_input_parameters):
         """A full test of the `mask_fill` utility using an HDF-5 input file,
         patching the reading of input parameters. This checks for a success
@@ -72,7 +72,7 @@ class TestMaskFill(MaskFillTestCase):
 
         self.compare_h5_files(self.output_h5_template, self.output_h5_file)
 
-    @patch('maskfill.MaskFill.get_input_parameters')
+    @patch('maskfill.maskfill.get_input_parameters')
     def test_mask_fill_geotiff(self, mock_get_input_parameters):
         """A full test of the `mask_fill` utility using a GeoTIFF input file,
         patching the reading of input parameters. This checks for a success
@@ -94,7 +94,7 @@ class TestMaskFill(MaskFillTestCase):
 
         self.compare_geotiff_files(self.output_geotiff_template, self.output_geotiff_file)
 
-    @patch('maskfill.MaskFill.get_input_parameters')
+    @patch('maskfill.maskfill.get_input_parameters')
     def test_mask_fill_h5_extrapolating_corner(self, mock_get_input_parameters):
         """A full test of the `mask_fill` utility using an HDF-5 input file
         that has filled data in the upper right corner of the longitude and
@@ -113,7 +113,7 @@ class TestMaskFill(MaskFillTestCase):
 
         self.compare_h5_files(self.output_corner_template, self.output_corner_file)
 
-    @patch('maskfill.MaskFill.get_input_parameters')
+    @patch('maskfill.maskfill.get_input_parameters')
     def test_mask_fill_h5_polar_3d(self, mock_get_input_parameters):
         """A full test of the `mask_fill` utility using an HDF-5 input file
         that contains SMAP L3 FTP polar data. These data are 3-dimensional,
@@ -138,7 +138,7 @@ class TestMaskFill(MaskFillTestCase):
 
         self.compare_h5_files(self.output_polar_template, self.output_polar_h5_file)
 
-    @patch('maskfill.MaskFill.get_input_parameters')
+    @patch('maskfill.maskfill.get_input_parameters')
     def test_mask_fill_compare_h5_geo(self, mock_get_input_parameters):
         """Run MaskFill over the same input data in both GeoTIFF and HDF-5
         format to ensure the output is consistent between the two methologies.
@@ -188,7 +188,7 @@ class TestMaskFill(MaskFillTestCase):
         # Finally, check all pixel values are identical (slowest check)
         self.assertTrue(array_equal(h5_array, geo_array))
 
-    @patch('maskfill.MaskFill.get_input_parameters')
+    @patch('maskfill.maskfill.get_input_parameters')
     def test_mask_fill_h5_default_fill(self, mock_get_input_parameters):
         """ Ensure MaskFill can process a file that has no in-file fill value
             metadata, relying instead on default fill values that are selected
@@ -221,7 +221,7 @@ class TestMaskFill(MaskFillTestCase):
             output_file_path
         )
 
-    @patch('maskfill.MaskFill.get_input_parameters')
+    @patch('maskfill.maskfill.get_input_parameters')
     def test_mask_fill_geo_float_default(self, mock_get_input_parameters):
         """A full test of the `mask_fill` utility using a GeoTIFF input file,
         patching the reading of input parameters. This specific test ensure
@@ -257,7 +257,7 @@ class TestMaskFill(MaskFillTestCase):
             output_file_path
         )
 
-    @patch('maskfill.MaskFill.get_input_parameters')
+    @patch('maskfill.maskfill.get_input_parameters')
     def test_mask_fill_geo_uint_default(self, mock_get_input_parameters):
         """A full test of the `mask_fill` utility using a GeoTIFF input file,
         patching the reading of input parameters. This specific test ensure
@@ -293,7 +293,7 @@ class TestMaskFill(MaskFillTestCase):
             output_file_path
         )
 
-    @patch('maskfill.MaskFill.get_input_parameters')
+    @patch('maskfill.maskfill.get_input_parameters')
     def test_mask_fill_south_pole(self, mock_get_input_parameters):
         """ Test mask fill with a shapefile containing the south pole for
             both h5 and geotiff files.
@@ -339,7 +339,7 @@ class TestMaskFill(MaskFillTestCase):
             self.compare_geotiff_files(self.output_geotiff_template_south_pole,
                                        self.output_polar_geo_file)
 
-    @patch('maskfill.MaskFill.get_input_parameters')
+    @patch('maskfill.maskfill.get_input_parameters')
     def test_mask_fill_geotiff_coordinates(self, mock_get_input_parameters):
         """ Check that a GeoTIFF file that matches a coordinate pattern is
             copied without masking.
@@ -366,7 +366,7 @@ class TestMaskFill(MaskFillTestCase):
 
         self.compare_geotiff_files(input_name, output_name)
 
-    @patch('maskfill.MaskFill.get_input_parameters')
+    @patch('maskfill.maskfill.get_input_parameters')
     def test_mask_fill_geotiff_bands(self, mock_get_input_parameters):
         """ Check that a GeoTIFF with multiple bands will successfully be
             processed by MaskFill.
@@ -394,7 +394,7 @@ class TestMaskFill(MaskFillTestCase):
                                                             test_output))
         self.compare_geotiff_files(template_output, test_output)
 
-    @patch('maskfill.MaskFill.get_input_parameters')
+    @patch('maskfill.maskfill.get_input_parameters')
     def test_mask_fill_geotiff_compression(self, mock_get_input_parameters):
         """ Ensure that the compression of an input granule is preserved in the
             output from MaskFill.
@@ -418,7 +418,7 @@ class TestMaskFill(MaskFillTestCase):
         compression = geotiff_results.GetMetadata('IMAGE_STRUCTURE').get('COMPRESSION', None)
         self.assertEqual(compression, 'LZW')
 
-    @patch('maskfill.MaskFill.get_input_parameters')
+    @patch('maskfill.maskfill.get_input_parameters')
     def test_mask_fill_h5_dimension_list(self, mock_get_input_parameters):
         """ Ensure a science variable with DIMENSION_LIST, but not coordinates
             metadata attributes will be masked.
@@ -443,7 +443,7 @@ class TestMaskFill(MaskFillTestCase):
 
         self.compare_h5_files(template_output, output_file)
 
-    @patch('maskfill.MaskFill.get_input_parameters')
+    @patch('maskfill.maskfill.get_input_parameters')
     def test_mask_fill_h5_utm(self, mock_get_input_parameters):
         """ Ensure an HDF-5 file can be correctly masked when the input file
             has a UTM grid.
@@ -468,7 +468,7 @@ class TestMaskFill(MaskFillTestCase):
 
         self.compare_h5_files(template_output, output_file)
 
-    @patch('maskfill.MaskFill.get_input_parameters')
+    @patch('maskfill.maskfill.get_input_parameters')
     def test_mask_fill_geo_utm(self, mock_get_input_parameters):
         """ Ensure a GeoTIFF file can be correctly masked when the input file
             has a UTM grid.
@@ -493,7 +493,7 @@ class TestMaskFill(MaskFillTestCase):
 
         self.compare_geotiff_files(template_output, output_file)
 
-    @patch('maskfill.MaskFill.get_input_parameters')
+    @patch('maskfill.maskfill.get_input_parameters')
     def test_mask_fill_netcdf4_input(self, mock_get_input_parameters):
         """ Ensure a NetCDF-4 file input (e.g., from HOSS) can be correctly
             masked using an example GPM/IMERG granule.

@@ -10,13 +10,13 @@ import numpy as np
 import rasterio
 import rasterio.mask
 
-from maskfill import MaskFillUtil
+from maskfill import utilities
 from maskfill.cf_config import CFConfigGeotiff
-from maskfill.MaskFillCaching import (
+from maskfill.caching import (
     cache_geotiff_mask_array,
     get_geotiff_cached_mask_array,
 )
-from maskfill.MaskFillUtil import get_default_fill_for_data_type, get_geotiff_crs
+from maskfill.utilities import get_default_fill_for_data_type, get_geotiff_crs
 
 
 def produce_masked_geotiff(geotiff_path: str, shape_path: str, output_dir: str,
@@ -47,7 +47,7 @@ def produce_masked_geotiff(geotiff_path: str, shape_path: str, output_dir: str,
     mask_array = get_mask_array(geotiff_path, shape_path, cache_dir,
                                 mask_grid_cache)
 
-    output_path = MaskFillUtil.get_masked_file_path(geotiff_path, output_dir)
+    output_path = utilities.get_masked_file_path(geotiff_path, output_dir)
 
     if mask_grid_cache == 'maskgrid_only':
         return None
@@ -61,7 +61,7 @@ def produce_masked_geotiff(geotiff_path: str, shape_path: str, output_dir: str,
 
         # Raster band indices in gdal.Dataset are 1-based, range is 0-based.
         out_image = np.array([
-            MaskFillUtil.mask_fill_array(
+            utilities.mask_fill_array(
                 input_dataset.GetRasterBand(band + 1).ReadAsArray(),
                 mask_array,
                 fill_value
@@ -135,8 +135,9 @@ def create_mask_array(geotiff_path: str, shape_path: str) -> np.ndarray:
     raster = rasterio.open(geotiff_path)
     crs = get_geotiff_crs(geotiff_path)
 
-    return MaskFillUtil.get_mask_array(shape_path, crs, raster.read(1).shape,
-                                       raster.transform)
+    return utilities.get_mask_array(
+        shape_path, crs, raster.read(1).shape, raster.transform,
+    )
 
 
 def get_fill_value(geotiff_dataset: gdal.Dataset,

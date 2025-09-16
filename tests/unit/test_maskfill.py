@@ -6,7 +6,7 @@ from shutil import rmtree
 from unittest import TestCase
 from unittest.mock import ANY, patch
 
-from maskfill.MaskFill import (
+from maskfill.maskfill import (
     check_shapefile_geojson,
     debug_bool,
     DEFAULT_MASK_GRID_CACHE,
@@ -65,7 +65,7 @@ class TestMaskFill(TestCase):
                 self.assertEqual(get_log_file_path(output_dir), log_file)
 
     def test_format_parameters(self):
-        """MaskFill.format_parameters handles the following cases:
+        """maskfill.format_parameters handles the following cases:
 
         * Strings without single quotes are unchanged.
         * Strings surrounded by single quotes have those quotes stripped out.
@@ -90,14 +90,14 @@ class TestMaskFill(TestCase):
 
     @patch('uuid.uuid4')
     def test_check_shapefile_geojson_path(self, mock_uuid4):
-        """MaskFill.check_shapefile_geojson handles a shape file path."""
+        """maskfill.check_shapefile_geojson handles a shape file path."""
         self.assertEqual(self.shape_file,
                          check_shapefile_geojson(self.shape_file, self.output_dir))
         mock_uuid4.assert_not_called()
 
     @patch('uuid.uuid4')
     def test_check_shapefile_geojson_native_string(self, mock_uuid4):
-        """MaskFill.check_shapefile_geojson handles a raw GeoJSON string."""
+        """maskfill.check_shapefile_geojson handles a raw GeoJSON string."""
         test_uuid4 = '18045b77-5733-430f-a5f6-1547baea88d4'
         mock_uuid4.return_value = test_uuid4
         geojson_string = '{"type": "FeatureCollection", "features": []}'
@@ -286,8 +286,8 @@ class TestMaskFill(TestCase):
             with self.subTest(description):
                 self.assertEqual(debug_bool(input_value), expected_value)
 
-    @patch('maskfill.MaskFill.get_input_parameters')
-    @patch('maskfill.MaskFill.mask_fill')
+    @patch('maskfill.maskfill.get_input_parameters')
+    @patch('maskfill.maskfill.mask_fill')
     def test_maskfill_sdps_converts_fill_value(self, mock_mask_fill,
                                                mock_get_input_parameters):
         """ Verifiy that the `maskfill_sdps` function converts an input fill
@@ -320,8 +320,8 @@ class TestMaskFill(TestCase):
                                                DEFAULT_MASK_GRID_CACHE,
                                                123.4, ANY)
 
-    @patch('maskfill.MaskFill.get_input_parameters')
-    @patch('maskfill.MaskFill.mask_fill')
+    @patch('maskfill.maskfill.get_input_parameters')
+    @patch('maskfill.maskfill.mask_fill')
     def test_maskfill_sdps_non_numeric_fill_value(self, mock_mask_fill,
                                                   mock_get_input_parameters):
         """ Verifiy that the `maskfill_sdps` function converts an input fill
@@ -351,7 +351,7 @@ class TestMaskFill(TestCase):
         # Ensure the assertion was raised prior to calling `mask_fill`.
         mock_mask_fill.assert_not_called()
 
-    @patch('maskfill.MaskFill.get_input_parameters')
+    @patch('maskfill.maskfill.get_input_parameters')
     def test_maskfill_sdps_exception(self, mock_get_input_parameters):
         """ Verify an exception is caught, and that it returns an appropriate
             response. To simulate a failure, a `None` value is given for the

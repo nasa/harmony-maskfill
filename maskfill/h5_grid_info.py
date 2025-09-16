@@ -21,7 +21,7 @@ from maskfill.exceptions import (
     MissingCoordinateDataset,
     NotSupportedData,
 )
-from maskfill.MaskFillUtil import (
+from maskfill.utilities import (
     get_decoded_attribute,
     get_default_fill_for_data_type,
     apply_2d,

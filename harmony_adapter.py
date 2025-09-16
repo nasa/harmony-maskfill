@@ -39,8 +39,8 @@ from harmony_service_lib.util import (
     stage
 )
 
-from maskfill.MaskFill import DEFAULT_MASK_GRID_CACHE, mask_fill
-from maskfill.MaskFillUtil import create_bounding_box_shape_file
+from maskfill.maskfill import DEFAULT_MASK_GRID_CACHE, mask_fill
+from maskfill.utilities import create_bounding_box_shape_file
 
 
 EXTENSION_MIMETYPES = {'.h5': 'application/x-hdf5',
