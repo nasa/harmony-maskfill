@@ -17,24 +17,24 @@
 # 2021-06-25: Updated
 # 2025-09-15: Updated for migration to GitHub and GHCR Docker image names.
 # 2025-09-16: Updated entry point to align with Harmony service repository best practices.
+# 2025-09-16: Updated paths to requirements files.
 #
 FROM continuumio/miniconda3:latest
 
 WORKDIR "/home"
 
 # Copy Conda requirements into the container
-COPY data/mask_fill_conda_requirements.txt data/mask_fill_conda_requirements.txt
+COPY ./conda_requirements.txt conda_requirements.txt
 
 # Create Conda environment
-RUN conda create -y --name maskfill --file data/mask_fill_conda_requirements.txt \
+RUN conda create -y --name maskfill --file conda_requirements.txt \
     python=3.12 --channel conda-forge --override-channels  -q && conda clean -a
 
 # Copy additional Pip dependencies into the image
-COPY data/mask_fill_pip_requirements.txt data/mask_fill_pip_requirements.txt
-COPY data/mask_fill_harmony_pip_requirements.txt data/mask_fill_harmony_pip_requirements.txt
+COPY ./pip_requirements.txt pip_requirements.txt
 
 # Install additional Pip dependencies.
-RUN conda run --name maskfill pip install --no-input -r data/mask_fill_harmony_pip_requirements.txt
+RUN conda run --name maskfill pip install --no-input -r pip_requirements.txt
 
 # Place contents of the repository in the container.
 COPY . /home/

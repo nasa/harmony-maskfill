@@ -14,8 +14,13 @@
 #
 # 2021-06-25: Updated
 # 2025-09-15: Updated for migration to GitHub and GHCR images.
+# 2025-09-16: Updated to install test dependencies.
 #
 FROM ghcr.io/nasa/harmony-maskfill
+
+# Install additional Pip requirements (for testing)
+COPY tests/pip_test_requirements.txt .
+RUN conda run --name maskfill pip install --no-input -r pip_test_requirements.txt
 
 # Copy test directory containing Python unittest suite, test data and utilities
 COPY ./tests tests

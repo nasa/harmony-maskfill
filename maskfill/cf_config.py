@@ -68,7 +68,7 @@ class CFConfig(ABC):
             os.pardir
         ]))
 
-        config_file_path = os.sep.join([maskfill_directory, 'data',
+        config_file_path = os.sep.join([maskfill_directory, 'maskfill',
                                         'maskfill_config.json'])
 
         with open(config_file_path, encoding='utf-8') as file_handler:

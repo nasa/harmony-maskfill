@@ -106,7 +106,7 @@ class TestCFConfigH5(TestCase):
     """
     @classmethod
     def setUpClass(cls):
-        with open('data/maskfill_config.json', 'r') as file_handler:
+        with open('maskfill/maskfill_config.json', 'r') as file_handler:
             cls.raw_config = json.load(file_handler)
 
     def test_instantiation(self):
@@ -213,7 +213,7 @@ class TestCFConfigGeotiff(TestCase):
 
     @classmethod
     def setUpClass(cls):
-        with open('data/maskfill_config.json', 'r') as file_handler:
+        with open('maskfill/maskfill_config.json', 'r') as file_handler:
             cls.raw_config = json.load(file_handler)
 
     def test_instantiation(self):
