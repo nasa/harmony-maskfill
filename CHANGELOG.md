@@ -1,7 +1,14 @@
+## v0.2.2
+### 2025-09-29
+
+This version of MaskFill adds string variables to the list of exclusions.
+It also temporarily skips the end-to-end bounding box test to be addressed
+in a separate bug ticket (DAS-2428).
+
 ## v0.2.1
 ### 2025-08-20
 
-This version of MaskFill removes the default channel in the conda environment, 
+This version of MaskFill removes the default channel in the conda environment,
 changes python version from 3.9 to 3.12 and updates the supporting packages.
 
 ## v0.2.0

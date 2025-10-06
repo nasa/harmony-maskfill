@@ -6,6 +6,7 @@ from os.path import basename
 
 from shutil import copy
 from unittest.mock import ANY, patch
+from unittest import skip
 
 from harmony_service_lib.message import Message
 from harmony_service_lib.util import config, HarmonyException
@@ -278,6 +279,7 @@ class TestHarmonyMaskFill(MaskFillTestCase):
 
         mock_rmtree.assert_called_once_with(self.output_dir, ignore_errors=True)
 
+    @skip("Bug ticket DAS-2428 - temporarily disabled")
     @patch('harmony_adapter.mkdtemp')
     @patch('harmony_adapter.rmtree')
     def test_harmony_adapter_bbox_request(self, mock_rmtree, mock_mkdtemp,

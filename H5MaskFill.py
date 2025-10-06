@@ -16,7 +16,7 @@
         str: The path to the output HDF-5 file
 """
 from logging import Logger
-from typing import Dict, Set
+from typing import Dict, List, Set
 import os
 import re
 import shutil
@@ -80,6 +80,7 @@ def get_exclusions(h5_file_path: str, cf_config: CFConfigH5) -> Set[str]:
     """
     with h5py.File(h5_file_path, mode='r') as input_file:
         exclusion_set = get_coordinates(input_file)
+        exclusion_set.update(get_string_variables(input_file))
 
     exclusion_set.update(set(cf_config.get_file_exclusions()))
 
@@ -271,3 +272,24 @@ def get_coordinates(input_file: h5py.File) -> Set[str]:
                 coords.add(coordinate)
 
     return coords
+
+
+def get_string_variables(input_file: h5py.File) -> List[str]:
+    """ Return all the string type variables within the file.
+
+    This walks through every hierachial group and dataset and checks if dataset
+    objects are one of the 3 possible string types:
+
+    - Fixed-length byte strings ('S')
+    - Unicode strings ('U')
+    - Object type / variable-length strings ('O')
+    """
+    string_variables = []
+
+    def find_string_variables(name, obj):
+        if isinstance(obj, h5py.Dataset) and obj.dtype.kind in ['S', 'U', 'O']:
+            string_variables.append(name)
+
+    input_file.visititems(find_string_variables)
+
+    return string_variables

@@ -2,19 +2,22 @@ from logging import getLogger
 from os import mkdir
 from os.path import isdir, join
 from shutil import rmtree
-from unittest import TestCase
 from unittest.mock import patch
 
 from pyproj import CRS
 import h5py
 import numpy as np
 
-from H5MaskFill import (get_mask_array, mask_fill, get_coordinates,
-                        get_exclusions)
+from H5MaskFill import (get_mask_array,
+                        mask_fill,
+                        get_coordinates,
+                        get_exclusions,
+                        get_string_variables)
 from pymods.cf_config import CFConfigH5
+from tests.utilities import MaskFillTestCase
 
 
-class TestH5MaskFill(TestCase):
+class TestH5MaskFill(MaskFillTestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -51,7 +54,8 @@ class TestH5MaskFill(TestCase):
 
         test_args = [['1-d data', np.ones((3)), True, 0],
                      ['No coordinates', np.ones((3, 2)), False, 0],
-                     ['All fill values', np.ones((3, 2)), True, 1]]
+                     ['All fill values', np.ones((3, 2)), True, 1],
+                     ['String data', 'A string', True, '']]
 
         for description, data, coordinates_present, fill_value in test_args:
             with self.subTest(description):
@@ -154,7 +158,8 @@ class TestH5MaskFill(TestCase):
 
         self.assertTrue({'/cell_lat', '/cell_lon'}.issubset(coordinates))
 
-    def test_get_exclusions(self):
+    @patch('H5MaskFill.get_string_variables')
+    def test_get_exclusions(self, mock_get_string_variables):
         """ Assert for H5MaskFill.get_exclusions:
              - set of strings is returned
              - coordinate exclusions are included
@@ -179,6 +184,8 @@ class TestH5MaskFill(TestCase):
         config_file_exclusions = {'/cell_(column|row)', '/cell_l(at|on)'}
         self.assertTrue(config_file_exclusions.issubset(exclusions))
 
+        mock_get_string_variables.assert_called_once()
+
     @patch('H5MaskFill.get_exclusions')
     @patch('H5MaskFill.get_mask_array')
     def test_no_exclusions(self, mock_get_mask_array, mock_get_exclusions):
@@ -198,3 +205,64 @@ class TestH5MaskFill(TestCase):
                       self.exclusions_set, self.logger)
 
             mock_get_mask_array.assert_not_called()
+
+    def test_get_string_variables(self):
+        """Test that string variables are returned when they exist in the
+        input file.
+
+        This includes three types of string variables:
+
+        - Fixed-length byte strings
+        - Unicode strings
+        - Object type / variable-length strings
+
+        Note: Other variations of each type exist, but the ones I chose below
+        are the most common.
+
+        """
+        # Data for all string types.
+        ascii_data = ['hello', 'world', 'test']
+        unicode_data = ['café', 'résumé', 'naïve', '中文']
+        mixed_length_data = ['short', 'a much longer string', 'varying']
+
+        with h5py.File(self.sample_nc4_file(), 'r+') as input_file:
+
+            # 1. Fixed-length ASCII strings
+            input_file.create_dataset('fixed_ascii_s10',
+                                      dtype='S10')
+
+            # 2. Fixed-length ASCII (alternative syntax)
+            input_file.create_dataset('fixed_ascii_np',
+                                      data=ascii_data,
+                                      dtype=np.dtype('S15'))
+
+            # 3. Variable-length Unicode strings
+            vlen_str = h5py.special_dtype(vlen=str)
+            input_file.create_dataset('vlen_unicode',
+                                      data=unicode_data,
+                                      dtype=vlen_str)
+
+            # 4. Variable-length Unicode with UTF-8 encoding
+            utf8_variable = h5py.string_dtype(encoding='utf-8')
+            input_file.create_dataset('variable_utf8',
+                                      data=mixed_length_data,
+                                      dtype=utf8_variable)
+
+            # Check that all the strings datasets are included in the output.
+            expected_strings = ['fixed_ascii_s10',
+                                'fixed_ascii_np',
+                                'vlen_unicode',
+                                'variable_utf8']
+
+            actual_strings = get_string_variables(input_file)
+            self.assertCountEqual(expected_strings, actual_strings)
+
+    def test_get_string_variables_no_strings(self):
+        """Test that an empty list is returned when the input file contains
+        no strings.
+
+        """
+        with h5py.File(self.sample_nc4_file(), 'r+') as input_file:
+            expected_strings = []
+            actual_strings = get_string_variables(input_file)
+            self.assertEqual(expected_strings, actual_strings)

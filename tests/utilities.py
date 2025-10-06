@@ -3,13 +3,13 @@
 
 """
 from datetime import datetime
-from os.path import basename, isdir, join, splitext
+import os
 from shutil import rmtree
-from tempfile import mkdtemp
+import tempfile
 from unittest import TestCase
 
 from harmony_service_lib.util import bbox_to_geometry
-from numpy import array, array_equal, ndarray
+import numpy as np
 from osgeo import gdal
 from pystac import Asset as StacAsset, Catalog as StacCatalog, Item as StacItem
 import h5py
@@ -47,11 +47,11 @@ class MaskFillTestCase(TestCase):
         cls.identifier = 'test'
 
     def setUp(self):
-        self.output_dir = mkdtemp()
+        self.output_dir = tempfile.mkdtemp()
 
     def tearDown(self):
         """Clean up test artifacts after each test."""
-        if isdir(self.output_dir):
+        if os.path.isdir(self.output_dir):
             rmtree(self.output_dir)
 
     def create_output_file_name(self, input_file_name, use_identifier=True):
@@ -59,12 +59,12 @@ class MaskFillTestCase(TestCase):
             based on the target directory and input file name.
 
         """
-        output_root, output_extension = splitext(basename(input_file_name))
+        output_root, output_extension = os.path.splitext(os.path.basename(input_file_name))
         output_basename = f'{output_root}_mf{output_extension}'
         if use_identifier:
-            file_name = join(self.output_dir, self.identifier, output_basename)
+            file_name = os.path.join(self.output_dir, self.identifier, output_basename)
         else:
-            file_name = join(self.output_dir, output_basename)
+            file_name = os.path.join(self.output_dir, output_basename)
 
         return file_name
 
@@ -80,10 +80,10 @@ class MaskFillTestCase(TestCase):
 
         dataset_one = gdal.Open(file_one_name)
         dataset_two = gdal.Open(file_two_name)
-        band_one = array(dataset_one.ReadAsArray())
-        band_two = array(dataset_two.ReadAsArray())
+        band_one = np.array(dataset_one.ReadAsArray())
+        band_two = np.array(dataset_two.ReadAsArray())
         self.assertEqual(band_one.shape, band_two.shape)
-        self.assertTrue(array_equal(band_one, band_two))
+        self.assertTrue(np.array_equal(band_one, band_two))
         self.assertEqual(dataset_one.GetMetadata(), dataset_two.GetMetadata())
 
     def compare_h5_files(self, file_one_name, file_two_name):
@@ -122,7 +122,7 @@ class MaskFillTestCase(TestCase):
                          list(file_two_attributes.keys()))
 
         for attribute_name, attribute_value in file_one_attributes.items():
-            if isinstance(attribute_value, ndarray):
+            if isinstance(attribute_value, np.ndarray):
                 if attribute_name.endswith('_LIST'):
                     # This catches 'DIMENSION_LIST' and 'REFERENCE_LIST' metadata
                     for ref_index, ref_one in enumerate(attribute_value):
@@ -133,8 +133,8 @@ class MaskFillTestCase(TestCase):
                                          dataset_ref_two.name)
                 else:
                     self.assertTrue(
-                        array_equal(attribute_value,
-                                    file_two_attributes[attribute_name]),
+                        np.array_equal(attribute_value,
+                                       file_two_attributes[attribute_name]),
                         attribute_name
                     )
 
@@ -160,9 +160,9 @@ class MaskFillTestCase(TestCase):
 
             if isinstance(object_one_value, h5py.Dataset):
                 self.assertEqual(object_one_value.shape, object_two_value.shape)
-                if isinstance(object_one_value[()], ndarray):
-                    self.assertTrue(array_equal(object_one_value[()],
-                                                object_two_value[()]))
+                if isinstance(object_one_value[()], np.ndarray):
+                    self.assertTrue(np.array_equal(object_one_value[()],
+                                                   object_two_value[()]))
                 else:
                     self.assertEqual(object_one_value[()], object_two_value[()])
 
@@ -196,3 +196,17 @@ class MaskFillTestCase(TestCase):
                 self.extract_all_h5_attributes(iterable_object, attribute_dictionary)
 
         return attribute_dictionary
+
+    def sample_nc4_file(self):
+        """Create a temporary NetCDF4 file for testing."""
+        with tempfile.NamedTemporaryFile(suffix='.nc4', delete=False) as tmp_file:
+            temp_filename = tmp_file.name
+
+        # Create a basic NetCDF4 file with some test data.
+        with h5py.File(temp_filename, 'w') as f:
+            f.create_dataset('dataset1', data=np.array([1, 2, 3]))
+            f.create_dataset('dataset2', data=np.array([4, 5, 6]))
+            f.attrs['attribute1'] = 'attribute_value1'
+            f.attrs['attribute2'] = 'attribute_value2'
+
+        return temp_filename
