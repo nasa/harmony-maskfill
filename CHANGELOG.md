@@ -5,7 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v1.0.0] -  Unreleased
+## [v1.0.1] - 2025-10-14
+
+### Removed
+
+- bin/push-harmony-image. This script was used to push Harmony images to AWS
+  ECR, which is no longer used. Images now live in ghcr.io.
+- harmony_adapter.py. Previously this was left in the repository out of caution,
+  but the entry point for the Harmony image has been moved to `maskfill/adapter.py`.
+  This extra file is redundant and a potential cause for confusion.
+
+## [v1.0.0] - 2025-10-14
 
 This version of the Harmony MaskFill service contains all functionality
 previously released internally to EOSDIS as `sds/maskfill:0.2.1`. Minor
