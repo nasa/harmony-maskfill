@@ -166,7 +166,7 @@ The unit tests can also be run within a Docker container:
 
 The terminal should display output from the test results, with the failures
 from `unittest`. Additionally, the XML test reports should be saved to the new
-`test-reports` directory. Test coverage report should also be displayed in the 
+`test-reports` directory. Test coverage report should also be displayed in the
 terminal, and will also be saved to the 'coverage' directory in HTML format.
 Coverage reports are being generate for each execution of the GitHub workflow,
 and are saved as artefacts.
