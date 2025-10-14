@@ -6,10 +6,10 @@
 #
 #####################################
 
-coverage run -m xmlrunner discover tests -o tests/reports
+coverage run -m xmlrunner discover tests -o reports/test-reports
 
 echo "\n\n"
 
 echo "Test Coverage Estimates"
 coverage report --omit="*tests/*"
-coverage html --omit="*tests/*" -d tests/coverage
+coverage html --omit="*tests/*" -d reports/coverage
