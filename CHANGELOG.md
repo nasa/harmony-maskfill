@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v1.0.0] - 2025-10-14
 
 This version of the Harmony MaskFill service contains all functionality
-previously released internally to EOSDIS as `sds/maskfill:0.2.1`. Minor
+previously released internally to EOSDIS as `sds/maskfill:0.2.2`. Minor
 reformatting of the repository structure has occurred to better comply with
 recommended best practices for a Harmony backend service repository, but the
 service itself is fundamentally unchanged.
