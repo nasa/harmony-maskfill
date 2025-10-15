@@ -22,6 +22,6 @@ mkdir -p reports/coverage
 # Run the test Docker image as a container with mounted volumes for XML report
 # output and test coverage reporting
 docker run --platform linux/amd64 --rm \
-	-v $(pwd)/reports/test-reports:/home/tests/reports \
-	-v $(pwd)/reports/coverage:/home/tests/coverage \
+	-v $(pwd)/reports/test-reports:/home/reports/tests-reports \
+	-v $(pwd)/reports/coverage:/home/reports/coverage \
 	ghcr.io/nasa/harmony-maskfill-test "${@:2}"
