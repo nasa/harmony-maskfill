@@ -18,7 +18,8 @@ from shapely.geometry import Polygon, shape
 import geopandas as gpd
 import numpy as np
 import rasterio
-
+from maskfill.exceptions import InsufficientDataError
+from maskfill.cf_config import CFConfigH5
 
 BBox = namedtuple('BBox', ['west', 'south', 'east', 'north'])
 Coordinates = Tuple[float]
@@ -310,49 +311,93 @@ def process_h5_file(file_path, process, *args):
         process_children(file, process, *args)
 
 
-def apply_2d(data, process, *args):  # , name = ""  ??? - unused!
+def apply_2d(h5_dataset: Dataset, cf_config: CFConfigH5, process, *args):
     """ Recursively applies a 2D process to datasets with two or more dimensions,
         Always applies the process to the last 2 dimensions of the dataset,
         iterating through any lower dimensions and processing up through n-2 dimensions.
         E.g., a dataset with coordinates dimensions: (time, lat, lon),
             will apply to lat, lon dimensions, for each time entry.
         Args:
-            data (numpy.ndarray): The data array to be processed
+            h5_dataset (Dataset): The HDF5 dataset object.
+            cf_config: default collection configuration information
             process: The process to be applied to data
             *args: tuple of parameters being passed to process
         Returns:
             numpy.ndarray: The processed array
     """
+    data = h5_dataset[:]
+
     # 2D Case
     if len(data.shape) == 2:
         return process(data, *args)
 
     # For more than two dimensions, mask fill each dimension recursively
     for i in range(len(data)):
-        data[i] = apply_2d(data[i], process, *args)
+        data[i] = apply_2d(data[i], cf_config, process, *args)
 
     return data
 
 
-def apply_2d_yxz(data, process, *args):  # , name = ""  ??? - unused!
-    """ Applies a 2D process to datasets with three dimensions,
-        Always applies the process to the first 2 dimensions of the dataset,
-        iterating through any lower dimensions and processing up through dimensions.
-        E.g., a dataset with coordinates dimensions: (lat, lon, land_cover_type),
-            will apply to lat, lon dimensions, for each land cover type.
+def apply_2d_dataset_to_multidim(h5_dataset: Dataset, cf_config: CFConfigH5, process, *args):
+    """ Applies a 2D process to the spatial dimensions (Y, X) of a
+        multi-dimensional HDF5 dataset, handling necessary axis transpositions
+        for processing and re-transposing back.
+
+        The function assumes the 2D process should be applied across
+        the spatial axes (Y, X) for every combination of all other non-spatial
+        dimensions (e.g., Time, Layer).
+
         Args:
-            data (numpy.ndarray): The data array to be processed
-            process: The process to be applied to data
-            *args: tuple of parameters being passed to process
-        Returns:
-            numpy.ndarray: The processed array
-    """
+            h5_dataset (Dataset): The HDF5 dataset object.
+            cf_config: default collection configuration information
+            process (Callable): The function to be applied to each 2D (Y, X) slice.
+            *args: Additional parameters passed to the 'process' function.
 
-    # For more than two non nominal dimensions(yxz), copy the first 2 dimensions
-    # get the masked array for each and combine them all together
-    for i in range(data.shape[-1]):
-        data[:, :, i] = process(data[:, :, i], *args)
-    return data
+        Returns:
+            numpy.ndarray: The processed array, returned to the original shape
+            of the input data.
+
+        Raises:
+            InsufficientDataError: If the required spatial dimensions (row/column)
+            cannot be found.
+
+    """
+    from maskfill.h5_grid_info import get_spatial_grid_shape
+
+    data = h5_dataset[:]
+
+    column_dimension, row_dimension = get_spatial_grid_shape(h5_dataset, cf_config)
+
+    # Ensure both required dims are present
+    if column_dimension is None or row_dimension is None:
+        raise InsufficientDataError(f'Dimensions (row/column) have no valid data.')
+
+    # Construct the desired shape: (row/Y, column/X)
+    ordered_track_shape = (row_dimension, column_dimension)
+
+    # Construct the non track shape: (time, land_cover_type)
+    ordered_non_track_shape = [
+        shape for shape in data.shape if shape not in ordered_track_shape
+    ]
+
+    # Construct the new shape: (time, land_cover_type, row/Y, column/X)
+    all_ordered_shape = (*ordered_non_track_shape, *ordered_track_shape)
+
+    # For the shape (time(0), land_cover_type(3), row/Y(1), column/X(2))
+    # reorder the axes as [0, 3, 1, 2]
+    reordered_axes = get_axes_permutation(data.shape, all_ordered_shape)
+
+    data_transposed = np.transpose(data, axes=reordered_axes)
+
+    # Apply the 2D process iteratively
+    apply_2d_data = apply_2d(data_transposed, cf_config, process, *args)
+
+    axes_to_original = get_axes_permutation(all_ordered_shape, data.shape)
+
+    # Transpose the processed data back to the original shape
+    processed_data_transposed = np.transpose(apply_2d_data, axes=axes_to_original)
+
+    return processed_data_transposed
 
 
 def create_bounding_box_shape_file(bounding_box: List[float],
@@ -543,3 +588,19 @@ def get_default_fill_for_data_type(variable_type: Union[str, None]) -> Any:
         'uint64': 18446744073709551614
     }
     return default_fill_values.get(variable_type, -9999.0)
+
+
+def get_axes_permutation(old_dims: Tuple[int], new_dims: Tuple[int]) -> Tuple[int]:
+    """
+    Compute the axis permutation required to reorder dimension array.
+    """
+    axes = []
+    used = [False] * len(old_dims)
+
+    for new_dim in new_dims:
+        for i, old_dim in enumerate(old_dims):
+            if old_dim == new_dim and not used[i]:
+                axes.append(i)
+                used[i] = True
+                break
+    return axes

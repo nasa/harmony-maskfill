@@ -14,10 +14,11 @@ from geopandas.testing import assert_geodataframe_equal
 from numpy.testing import assert_allclose, assert_array_equal
 from pyproj import CRS
 from shapely.geometry import Polygon, shape
+from maskfill.cf_config import CFConfigH5
 
 from maskfill.utilities import (
     apply_2d,
-    apply_2d_yxz,
+    apply_2d_dataset_to_multidim,
     create_bounding_box_shape_file,
     get_bounded_shape,
     get_decoded_attribute,
@@ -583,6 +584,7 @@ class TestUtilities(TestCase):
                             [True, False, True],
                             [True, False, True],
                             [True, False, True]])
+        cf_config = CFConfigH5('tests/data/SPL3SMP_E_pm_input.h5')
         with self.subTest('apply_2d to nominal shaped granule'):
             array_2x4x3 = np.arange(24).reshape(2, 4, 3)
             expected_masked_output = np.array([[[-9999, 1, -9999],
@@ -594,12 +596,44 @@ class TestUtilities(TestCase):
                                                [-9999, 19, -9999],
                                                [-9999, 22, -9999]]])
             np.testing.assert_array_equal(apply_2d(array_2x4x3,
+                                                   cf_config,
                                                    mask_fill_array,
                                                    mask_4x3,
                                                    -9999),
                                           expected_masked_output)
-        with self.subTest('apply_2d_yxz to not nominal shaped granule'):
-            array_4x3x2 = np.arange(24).reshape(4, 3, 2)
+
+    def test_apply_2d_dataset_to_multidim(self):
+        """ Ensure that the correct masked output is obtained
+            when the apply_2d_dataset_to_multidim methods are called.
+        """
+        h5_file = h5py.File('test_apply_2d.h5', 'w', driver='core', backing_store=False)
+        cf_config = CFConfigH5('tests/data/SPL3SMP_E_pm_input.h5')
+
+        with self.subTest('apply on 2d dataset'):
+            mask_2x3 = np.array([[True, False],
+                                 [True, False],
+                                 [True, False]])
+            expected_masked_output = np.array([[-9999, 1],
+                                              [-9999, 3],
+                                              [-9999, 5]])
+
+            data_2d = np.arange(6).reshape(3, 2)
+            dset_2d = h5_file.create_dataset('data_2d', data=data_2d)
+
+            with patch('maskfill.h5_grid_info.get_spatial_grid_shape',
+                       return_value=(2, 3)):
+
+                result = apply_2d_dataset_to_multidim(dset_2d,
+                                                      cf_config,
+                                                      mask_fill_array,
+                                                      mask_2x3,
+                                                      -9999)
+
+            np.testing.assert_array_equal(result, expected_masked_output)
+
+        with self.subTest('apply on 3d dataset'):
+            mask_array = np.array([[[True, True], [False, False], [True, True]]])
+
             expected_masked_output = np.array([[[-9999, -9999],
                                                 [2, 3],
                                                 [-9999, -9999]],
@@ -612,8 +646,40 @@ class TestUtilities(TestCase):
                                                [[-9999, -9999],
                                                 [20, 21],
                                                 [-9999, -9999]]])
-            np.testing.assert_array_equal(apply_2d_yxz(array_4x3x2,
-                                                       mask_fill_array,
-                                                       mask_4x3,
-                                                       -9999),
-                                          expected_masked_output)
+
+            data_3d = np.arange(24).reshape(4, 3, 2)  # shape (time, y, x)
+            dset_3d = h5_file.create_dataset('data_3d', data=data_3d)
+
+            with patch('maskfill.h5_grid_info.get_spatial_grid_shape',
+                       return_value=(2, 3)):
+
+                result = apply_2d_dataset_to_multidim(dset_3d,
+                                                      cf_config,
+                                                      mask_fill_array,
+                                                      mask_array,
+                                                      -9999)
+
+            np.testing.assert_array_equal(result, expected_masked_output)
+
+        with self.subTest('apply on 4d dataset'):
+            mask_array = np.array([[[True, True], [False, False], [True, True]]])
+            expected_masked_output = np.array([[[[-9999, -9999, -9999, -9999],
+                                                 [-9999, -9999, -9999, -9999]],
+                                                [[8, 9, 10, 11],
+                                                 [12, 13, 14, 15]],
+                                                [[-9999, -9999, -9999, -9999],
+                                                 [-9999, -9999, -9999, -9999]]]])
+
+            data_4d = np.arange(24).reshape(1, 3, 2, 4)  # shape (time, y, x, l)
+            dset_4d = h5_file.create_dataset('data_4d', data=data_4d)
+
+            with patch('maskfill.h5_grid_info.get_spatial_grid_shape',
+                       return_value=(2, 3)):
+
+                result = apply_2d_dataset_to_multidim(dset_4d,
+                                                      cf_config,
+                                                      mask_fill_array,
+                                                      mask_array,
+                                                      -9999)
+
+            np.testing.assert_array_equal(result, expected_masked_output)

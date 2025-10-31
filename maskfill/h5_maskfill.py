@@ -152,7 +152,7 @@ def mask_fill(h5_dataset: h5py.Dataset, shape_path: str, cache_dir: str,
         fill_value = get_fill_value(h5_dataset, cf_config, logger,
                                     default_fill_value)
         apply_2d_process = get_apply_2d_process(h5_dataset, cf_config)
-        mask_filled_data = apply_2d_process(h5_dataset[:],
+        mask_filled_data = apply_2d_process(h5_dataset, cf_config,
                                             utilities.mask_fill_array,
                                             mask_array, fill_value)
         h5_dataset.write_direct(mask_filled_data)

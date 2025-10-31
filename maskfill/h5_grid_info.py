@@ -25,7 +25,7 @@ from maskfill.utilities import (
     get_decoded_attribute,
     get_default_fill_for_data_type,
     apply_2d,
-    apply_2d_yxz,
+    apply_2d_dataset_to_multidim,
 )
 
 
@@ -160,25 +160,42 @@ def get_dimension_datasets(h5_dataset: Dataset) -> Optional[Tuple[Dataset, Datas
     dimension_list = get_decoded_attribute(h5_dataset, 'DIMENSION_LIST',
                                            np.array([]))
 
-    # The following iterators begin at the end of the DIMENSION_LIST, because
-    # spatial dimensions are mostly likely at the end of that list (e.g.:
-    # (time, lat, lon). This attempts to avoid spurious matches to other
-    # dimensions (e.g., time) that happen to have the same number of elements.
-    column_dimension = next((h5_file[dimension[0]]
-                             for dimension in np.flip(dimension_list)
-                             if h5_file[dimension[0]].size == h5_dataset.shape[-1]),
-                            None)
+    # Initialize dimension variables
+    column_dimension: Optional[Dataset] = None
+    row_dimension: Optional[Dataset] = None
 
-    row_dimension = next((h5_file[dimension[0]]
-                          for dimension in np.flip(dimension_list)
-                          if h5_file[dimension[0]].size == h5_dataset.shape[-2]
-                          and h5_file[dimension[0]] != column_dimension),
-                         None)
+    if len(h5_dataset.shape) >= 4:
+        for dimension in dimension_list:
+            dimension_dataset = h5_file[dimension[0]]
+            if is_projection_y_dimension(dimension_dataset):
+                row_dimension = dimension_dataset
+            elif is_projection_x_dimension(dimension_dataset):
+                column_dimension = dimension_dataset
+
+    if column_dimension is None and row_dimension is None:
+        # The following iterators begin at the end of the DIMENSION_LIST, because
+        # spatial dimensions are mostly likely at the end of that list (e.g.:
+        # (time, lat, lon). This attempts to avoid spurious matches to other
+        # dimensions (e.g., time) that happen to have the same number of elements.
+        column_dimension = next((h5_file[dimension[0]]
+                                for dimension in np.flip(dimension_list)
+                                if h5_file[dimension[0]].size == h5_dataset.shape[-1]),
+                                None)
+
+        row_dimension = next((h5_file[dimension[0]]
+                             for dimension in np.flip(dimension_list)
+                             if h5_file[dimension[0]].size == h5_dataset.shape[-2]
+                             and h5_file[dimension[0]] != column_dimension),
+                             None)
+
+    # Final validation: check if both dimensions were found and contain non-zero data
+    if column_dimension is None or row_dimension is None:
+        return None
 
     if any(dim is None or all(value == 0.0 for value in dim) for dim in (column_dimension, row_dimension)):
         return None
-    else:
-        return column_dimension, row_dimension
+
+    return column_dimension, row_dimension
 
 
 def is_x_y_flipped(dataset: Dataset) -> bool:
@@ -279,43 +296,23 @@ def get_apply_2d_process(h5_dataset: Dataset,
     based on the dimension order in the h5_dataset. Will
     throw an exception the dataset is not in the supported
     spatial dimension order
+
+    Args:
+        h5_dataset: The HDF5 dataset to check.
+        cf_config: default collection configuration information
+
+    Returns:
+        Callable: Returns the right callable method apply_2d()
+        or apply_2d_dataset_to_multidim() process.
     """
-    if is_nominal_data_shape(h5_dataset, cf_config):
+    mask_array_shape = get_spatial_grid_shape(h5_dataset, cf_config)
+
+    if h5_dataset.shape[-2:] == mask_array_shape:
         return apply_2d
-    elif is_yxz_data_shape(h5_dataset, cf_config):
-        return apply_2d_yxz
+    elif h5_dataset.ndim >= 3 and mask_array_shape:
+        return apply_2d_dataset_to_multidim
     else:
         raise NotSupportedData(h5_dataset.name)
-
-
-def is_nominal_data_shape(h5_dataset: Dataset,
-                          cf_config: CFConfigH5
-                          ) -> bool:
-    """ This function returns True if the dimensions/coordinates are in
-    the yx order with the spatial dimensions as the two
-    lowest dimensions (rightmost dimensions) or returns false.
-    """
-    mask_array_shape = get_spatial_grid_shape(h5_dataset,
-                                              cf_config)
-    if h5_dataset.shape[-2:] == mask_array_shape:
-        return True
-    else:
-        return False
-
-
-def is_yxz_data_shape(h5_dataset: Dataset,
-                      cf_config: CFConfigH5
-                      ) -> bool:
-    """ This function returns True if the spatial dimensions are
-    the two left most dimensions or the highest dimensions and if the
-    dataset is three-dimensional.
-    """
-    mask_array_shape = get_spatial_grid_shape(h5_dataset,
-                                              cf_config)
-    if h5_dataset.ndim == 3 and h5_dataset.shape[:2] == mask_array_shape:
-        return True
-    else:
-        return False
 
 
 def get_spatial_grid_shape(h5_dataset: Dataset,
@@ -452,7 +449,7 @@ def get_corner_points_from_lat_lon(h5_dataset: Dataset, crs: CRS,
     lon_fill_value = get_fill_value(lon, cf_config, logger, None)
     lat_fill_value = get_fill_value(lat, cf_config, logger, None)
 
-    if len(lon.shape) == 3:
+    if len(lon.shape) >= 3:
         # If there are 3 dimensions, select the first for corner point location.
         # Using lon, assuming lat is the same.
         # TODO: refactor MaskFill so each band in a 3-D dataset is reprojected
@@ -596,7 +593,7 @@ def get_lon_lat_axes(h5_dataset: Dataset, cf_config: CFConfigH5) \
     x, y = get_lon_lat_datasets(h5_dataset, cf_config)
     if len(x.shape) == 2:
         return x[0], y[:, 0]
-    elif len(x.shape) == 3:
+    elif len(x.shape) >= 3:
         return x[0][0], y[0][:, 0]
 
 
