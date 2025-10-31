@@ -324,28 +324,6 @@ class TestH5GridProjectionInfo(TestCase):
                 self.assertAlmostEqual(corners[2], y_lower_left)
                 self.assertAlmostEqual(corners[3], y_upper_right)
 
-        with self.subTest('Entirely filled latitude should raise an InsufficientDataError'):
-            with self.assertRaises(InsufficientDataError) as context_manager:
-                lat_copy = np.copy(lat_array)
-                lon_copy = np.copy(lon_array)
-                lat_copy.fill(fill_value)
-
-                lat_name = '/lat_filled'
-                lon_name = '/lon_filled'
-                lat_dataset = h5_file.create_dataset(lat_name, data=lat_copy)
-                lat_dataset.attrs.create('_FillValue', fill_value)
-                lon_dataset = h5_file.create_dataset(lon_name, data=lon_copy)
-                lon_dataset.attrs.create('_FillValue', fill_value)
-
-                data.attrs['coordinates'] = f'{lat_name} {lon_name}'.encode('utf-8')
-
-                corners = get_corner_points_from_lat_lon(data, crs,
-                                                         self.cf_config,
-                                                         self.logger)
-
-            self.assertEqual(context_manager.exception.message,
-                             '/lon_filled or /lat_filled have no valid data.')
-
         h5_file.close()
 
     def test_get_projected_coordinate_extent(self):

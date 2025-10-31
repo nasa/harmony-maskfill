@@ -85,6 +85,31 @@ class TestH5MaskFill(MaskFillTestCase):
 
             mock_get_mask_array.assert_not_called()
 
+        with self.subTest('Dataset coordinates contain only fill values'):
+            dataset_fill_value = -9999
+            latitude_fill_value = 1
+            longitude_fill_value = 0
+
+            # The dataset itself does not contain only fill values.
+            dataset = h5_file.create_dataset('variable',
+                                             data=np.ones((3, 2)),
+                                             fillvalue=dataset_fill_value)
+            latitude_ds = h5_file.create_dataset('latitude',
+                                                 data=np.ones((3, 2)),
+                                                 fillvalue=latitude_fill_value)
+            longitude_ds = h5_file.create_dataset('longitude',
+                                                  data=np.zeros((3, 2)),
+                                                  fillvalue=latitude_fill_value)
+            dataset.attrs['coordinates'] = '/latitude, /longitude'
+            latitude_ds.attrs['_FillValue'] = latitude_fill_value
+            longitude_ds.attrs['_FillValue'] = longitude_fill_value
+
+            mask_fill(dataset, self.shape_file, self.cache_dir, 'maskgrid_only',
+                      dataset_fill_value, self.saved_mask_arrays, self.cf_config,
+                      self.exclusions_set, self.logger)
+
+            mock_get_mask_array.assert_not_called()
+
     @patch('maskfill.h5_maskfill.create_mask_array')
     def test_get_mask_array(self, mock_create_mask_array):
         """ Ensure that the following cases correctly occur:
