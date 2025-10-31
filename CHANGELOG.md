@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.0.2] - 2025-10-31
+This version of the Harmony MaskFill service now supports processing 
+4D TEMPO O3PROF L3 datasets. 
+
+### Changed
+- `get_dimension_datasets` method supports the identification of spatial
+  dimensions within 4D datasets.
+- `apply_2d_dataset_to_multidim` can now process both 3-dimensional
+  and 4-dimensional data with less code.
+
 ## [v1.0.1] - 2025-10-14
 
 ### Removed
