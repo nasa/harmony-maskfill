@@ -145,7 +145,7 @@ def mask_fill(h5_dataset: h5py.Dataset, shape_path: str, cache_dir: str,
         return
     # Ensure dataset's coordinates (if they exist) contain valid data so the
     # dataset can be mask filled.
-    elif any(attribute in h5_dataset.attrs for attribute in ['coordinates']):
+    elif 'coordinates' in h5_dataset.attrs:
         try:
             for coordinate in get_lon_lat_datasets(h5_dataset, cf_config):
                 if dataset_all_fill_value(coordinate,
