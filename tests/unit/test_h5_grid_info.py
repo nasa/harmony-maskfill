@@ -236,8 +236,7 @@ class TestH5GridProjectionInfo(TestCase):
 
     def test_get_corner_points_from_lat_lon(self):
         """Ensure extrapolation occurs where expected, corners with valid points
-        are used outright, and a InsufficientDataError is returned for entirely
-        filled coordinate arrays.
+        are used outright.
 
         This test circumvents the retrieval of the Proj4 string at the start of
         the function, as the functionality being tested is that the extrapolation
