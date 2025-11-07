@@ -164,29 +164,12 @@ def get_dimension_datasets(h5_dataset: Dataset) -> Optional[Tuple[Dataset, Datas
     column_dimension: Optional[Dataset] = None
     row_dimension: Optional[Dataset] = None
 
-    if len(h5_dataset.shape) >= 4:
-        for dimension in dimension_list:
-            dimension_dataset = h5_file[dimension[0]]
-            if is_projection_y_dimension(dimension_dataset):
-                row_dimension = dimension_dataset
-            elif is_projection_x_dimension(dimension_dataset):
-                column_dimension = dimension_dataset
-
-    if column_dimension is None and row_dimension is None:
-        # The following iterators begin at the end of the DIMENSION_LIST, because
-        # spatial dimensions are mostly likely at the end of that list (e.g.:
-        # (time, lat, lon). This attempts to avoid spurious matches to other
-        # dimensions (e.g., time) that happen to have the same number of elements.
-        column_dimension = next((h5_file[dimension[0]]
-                                for dimension in np.flip(dimension_list)
-                                if h5_file[dimension[0]].size == h5_dataset.shape[-1]),
-                                None)
-
-        row_dimension = next((h5_file[dimension[0]]
-                             for dimension in np.flip(dimension_list)
-                             if h5_file[dimension[0]].size == h5_dataset.shape[-2]
-                             and h5_file[dimension[0]] != column_dimension),
-                             None)
+    for dimension in dimension_list:
+        dimension_dataset = h5_file[dimension[0]]
+        if is_projection_y_dimension(dimension_dataset):
+            row_dimension = dimension_dataset
+        elif is_projection_x_dimension(dimension_dataset):
+            column_dimension = dimension_dataset
 
     # Final validation: check if both dimensions were found and contain non-zero data
     if column_dimension is None or row_dimension is None:

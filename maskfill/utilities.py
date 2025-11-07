@@ -366,7 +366,7 @@ def apply_2d_dataset_to_multidim(h5_dataset: Dataset, cf_config: CFConfigH5, pro
 
     data = h5_dataset[:]
 
-    column_dimension, row_dimension = get_spatial_grid_shape(h5_dataset, cf_config)
+    row_dimension, column_dimension = get_spatial_grid_shape(h5_dataset, cf_config)
 
     # Ensure both required dims are present
     if column_dimension is None or row_dimension is None:
@@ -383,8 +383,6 @@ def apply_2d_dataset_to_multidim(h5_dataset: Dataset, cf_config: CFConfigH5, pro
     # Construct the new shape: (time, land_cover_type, row/Y, column/X)
     all_ordered_shape = (*ordered_non_track_shape, *ordered_track_shape)
 
-    # For the shape (time(0), land_cover_type(3), row/Y(1), column/X(2))
-    # reorder the axes as [0, 3, 1, 2]
     reordered_axes = get_axes_permutation(data.shape, all_ordered_shape)
 
     data_transposed = np.transpose(data, axes=reordered_axes)
