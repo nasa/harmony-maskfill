@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v1.0.2] - 2025-10-31
+## [v1.1.1] - 2025-11-06
 This version of the Harmony MaskFill service now supports processing 
 4D TEMPO O3PROF L3 datasets. 
 
@@ -14,6 +14,15 @@ This version of the Harmony MaskFill service now supports processing
   dimensions within 4D datasets.
 - `apply_2d_dataset_to_multidim` can now process both 3-dimensional
   and 4-dimensional data with less code.
+
+
+## [v1.1.0] - 2025-11-03
+
+## Changed
+
+- Allow MaskFill to skip masking of valid datasets when the associated
+  coordinate variables only contain fill values (this case previously
+  threw an error).
 
 ## [v1.0.1] - 2025-10-14
 
@@ -61,3 +70,5 @@ see legacy-CHANGELOG.md.
   the repository.
 
 [v1.0.0]: https://github.com/nasa/harmony-maskfill/releases/tag/1.0.0
+[v1.0.1]: https://github.com/nasa/harmony-maskfill/releases/tag/1.0.1
+[v1.1.0]: https://github.com/nasa/harmony-maskfill/releases/tag/1.1.0

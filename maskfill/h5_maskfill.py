@@ -31,6 +31,7 @@ from maskfill.h5_grid_info import (
     dataset_all_fill_value,
     get_fill_value,
     get_hdf_crs,
+    get_lon_lat_datasets,
     get_transform,
     get_spatial_grid_shape,
     get_apply_2d_process,
@@ -39,6 +40,7 @@ from maskfill.caching import (
     cache_h5_mask_arrays,
     get_mask_array_path_from_id,
 )
+from maskfill.exceptions import MissingCoordinateDataset
 from maskfill.utilities import (
     get_h5_mask_array_id,
     process_h5_file,
@@ -122,8 +124,8 @@ def mask_fill(h5_dataset: h5py.Dataset, shape_path: str, cache_dir: str,
     # Test if h5_dataset matches within list of exclusions for maskfill
     for exclusion in exclusions_set:
         if re.search(exclusion, h5_dataset.name):
-            logger.debug(f'Dataset {h5_dataset.name} matches exclusion '
-                         f'{exclusion} and will not be mask filled.')
+            logger.info(f' Dataset {h5_dataset.name} matches exclusion '
+                        f'{exclusion} and will not be mask filled.')
             return
 
     # Ensure dataset has at least two dimensions and can be mask filled
@@ -132,14 +134,30 @@ def mask_fill(h5_dataset: h5py.Dataset, shape_path: str, cache_dir: str,
             or not any(attribute in h5_dataset.attrs
                        for attribute in ('coordinates', 'DIMENSION_LIST'))
     ):
-        logger.debug(f'The dataset {h5_dataset.name} is not two dimensional '
-                     'or does not contain a coordinates or DIMENSION_LIST '
-                     'attribute, and cannot be mask filled')
+        logger.info(f'The dataset {h5_dataset.name} is not two dimensional '
+                    'or does not contain a coordinates or DIMENSION_LIST '
+                    'attribute, and cannot be mask filled')
         return
+    # Ensure dataset contains valid data.
     elif dataset_all_fill_value(h5_dataset, cf_config, logger, default_fill_value):
-        logger.debug(f'The dataset {h5_dataset.name} only contains fill value,'
-                     ' so there is no need to mask fill.')
+        logger.info(f'The dataset {h5_dataset.name} only contains fill value,'
+                    ' so there is no need to mask fill.')
         return
+    # Ensure dataset's coordinates (if they exist) contain valid data so the
+    # dataset can be mask filled.
+    elif 'coordinates' in h5_dataset.attrs:
+        try:
+            for coordinate in get_lon_lat_datasets(h5_dataset, cf_config):
+                if dataset_all_fill_value(coordinate,
+                                          cf_config,
+                                          logger,
+                                          default_fill_value):
+                    logger.info(f"The dataset {h5_dataset.name}'s coordinate "
+                                " {coordinate} contains only fill values, so "
+                                " the dataset cannot be masked")
+                    return
+        except MissingCoordinateDataset:
+            pass  # Input file does not contain latitude or longitude datasets.
 
     # Get the mask array corresponding to the HDF5 dataset and the shapefile
     mask_array = get_mask_array(h5_dataset, shape_path, cache_dir,

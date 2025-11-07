@@ -458,13 +458,7 @@ def get_corner_points_from_lat_lon(h5_dataset: Dataset, crs: CRS,
         lon_corner_values = [lon_values[lower_left_tuple], lon_values[upper_right_tuple]]
         lat_corner_values = [lat_values[lower_left_tuple], lat_values[upper_right_tuple]]
 
-    if (
-        dataset_all_fill_value(lon, cf_config, logger, None, band)
-        or dataset_all_fill_value(lat, cf_config, logger, None, band)
-    ):
-        # The longitude or latitude arrays are entirely fill values
-        raise InsufficientDataError(f'{lon.name} or {lat.name} have no valid data.')
-    elif lon_fill_value in lon_corner_values or lat_fill_value in lat_corner_values:
+    if lon_fill_value in lon_corner_values or lat_fill_value in lat_corner_values:
         # Find all pixels with a valid associated latitude and longitude:
         valid_indices = np.where((lon_values != lon_fill_value)
                                  & (lat_values != lat_fill_value))
