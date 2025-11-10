@@ -372,10 +372,16 @@ def get_cell_size_from_dimensions(h5_dataset: Dataset) -> Tuple[int, int]:
         Returns:
             tuple: cell width, cell height
     """
-    column_dimension, row_dimension = get_dimension_arrays(h5_dataset)
-    cell_width = column_dimension[1] - column_dimension[0]
-    cell_height = row_dimension[1] - row_dimension[0]
-    return cell_width, cell_height
+    dimension_datasets = get_dimension_arrays(h5_dataset)
+
+    if dimension_datasets:
+        column_dimension, row_dimension = dimension_datasets
+        cell_width = column_dimension[1] - column_dimension[0]
+        cell_height = row_dimension[1] - row_dimension[0]
+
+        return cell_width, cell_height
+    else:
+        return None
 
 
 def get_cell_size_from_lat_lon_extents(h5_dataset: Dataset, x_0: float,
@@ -551,8 +557,13 @@ def get_dimension_arrays(h5_dataset: Dataset) \
         Returns:
             tuple: The column coordinate array and the row coordinate array
     """
-    column_dimension, row_dimension = get_dimension_datasets(h5_dataset)
-    return column_dimension[:], row_dimension[:]
+    dimension_datasets = get_dimension_datasets(h5_dataset)
+
+    if dimension_datasets:
+        column_dimension, row_dimension = dimension_datasets
+        return column_dimension[:], row_dimension[:]
+    else:
+        return None
 
 
 def get_lon_lat_axes(h5_dataset: Dataset, cf_config: CFConfigH5) \

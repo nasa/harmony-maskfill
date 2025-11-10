@@ -413,13 +413,34 @@ class TestH5GridProjectionInfo(TestCase):
         h5_file = h5py.File(self.test_h5_name, 'w')
         data = h5_file.create_dataset('data', data=data_array)
         x = h5_file.create_dataset('x', data=x_array)
+        x.attrs.create('standard_name', 'projection_x_coordinate')
+
         y = h5_file.create_dataset('y', data=y_array)
+        y.attrs.create('standard_name', 'projection_y_coordinate')
+
         data.attrs.create('DIMENSION_LIST', ((y.ref, ), (x.ref, )), dtype=h5py.ref_dtype)
 
         cell_width, cell_height = get_cell_size_from_dimensions(data)
 
         self.assertEqual(cell_width, 1)
         self.assertEqual(cell_height, 2)
+
+        h5_file.close()
+
+    def test_get_cell_size_from_dimensions_no_standard_name(self):
+        """Given an input dataset does not define a standard_name,
+           both cell_width and cell_height should return None."""
+        data_array = np.ones((3, 4))
+        x_array = np.array([1, 2, 3, 4])
+        y_array = np.array([2, 4, 6])
+
+        h5_file = h5py.File(self.test_h5_name, 'w')
+        data = h5_file.create_dataset('data', data=data_array)
+        x = h5_file.create_dataset('x', data=x_array)
+        y = h5_file.create_dataset('y', data=y_array)
+        data.attrs.create('DIMENSION_LIST', ((y.ref, ), (x.ref, )), dtype=h5py.ref_dtype)
+
+        self.assertIsNone(get_cell_size_from_dimensions(data))
 
         h5_file.close()
 
@@ -459,7 +480,10 @@ class TestH5GridProjectionInfo(TestCase):
         h5_file = h5py.File(self.test_h5_name, 'w')
         data = h5_file.create_dataset('data', data=data_array)
         x = h5_file.create_dataset('x', data=x_array)
+        x.attrs.create('standard_name', 'projection_x_coordinate')
         y = h5_file.create_dataset('y', data=y_array)
+        y.attrs.create('standard_name', 'projection_y_coordinate')
+
         data.attrs.create('DIMENSION_LIST', ((y.ref, ), (x.ref, )), dtype=h5py.ref_dtype)
 
         x_0, x_N, y_0, y_M = get_corner_points_from_dimensions(data)
@@ -487,12 +511,11 @@ class TestH5GridProjectionInfo(TestCase):
              [d, e, f],   =   [0, 3, 2.5],
              [g, h, i]]       [0, 0, 1]]
 
-            The expected transformation when the array dimensions are flipped
-            with respect to the coordinate dimensions, e.g., rows = x and
-            columns = y.
+            The expected transformation preserves the identity of rows (Y)
+            and columns (X), even when array dimensions are flipped.
 
-            [[a, b, c],      [[0, 1, 1.5],
-             [d, e, f],   =   [3, 0, 2.5],
+            [[a, b, c],      [[1, 0, 1.5],
+             [d, e, f],   =   [0, 3, 2.5],
              [g, h, i]]       [0, 0, 1]]
 
         """
@@ -537,11 +560,11 @@ class TestH5GridProjectionInfo(TestCase):
                 flipped_transform = get_transform(flipped_data, crs,
                                                   self.cf_config, self.logger)
 
-                self.assertEqual(flipped_transform.a, 0)
-                self.assertEqual(flipped_transform.b, 1)
+                self.assertEqual(flipped_transform.a, 1)
+                self.assertEqual(flipped_transform.b, 0)
                 self.assertEqual(flipped_transform.c, 1.5)
-                self.assertEqual(flipped_transform.d, 3)
-                self.assertEqual(flipped_transform.e, 0)
+                self.assertEqual(flipped_transform.d, 0)
+                self.assertEqual(flipped_transform.e, 3)
                 self.assertEqual(flipped_transform.f, 2.5)
                 self.assertEqual(flipped_transform.g, 0)
                 self.assertEqual(flipped_transform.h, 0)
@@ -805,7 +828,9 @@ class TestH5GridProjectionInfo(TestCase):
         h5_file = h5py.File(self.test_h5_name, 'w')
         dataset = h5_file.create_dataset('data', data=np.ones((3, 2)))
         dim_x = h5_file.create_dataset(dim_x_name, data=np.ones((2, )))
+        dim_x.attrs.create('standard_name', 'projection_x_coordinate')
         dim_y = h5_file.create_dataset(dim_y_name, data=np.ones((3, )))
+        dim_y.attrs.create('standard_name', 'projection_y_coordinate')
 
         with self.subTest('No DIMENSION_LIST'):
             self.assertEqual(get_dimension_datasets(dataset), None)
@@ -818,6 +843,31 @@ class TestH5GridProjectionInfo(TestCase):
             dim_x_out, dim_y_out = get_dimension_datasets(dataset)
             self.assertEqual(dim_x_out, dim_x)
             self.assertEqual(dim_y_out, dim_y)
+
+        h5_file.close()
+
+    def test_get_dimension_datasets_no_standard_name(self):
+        """Given an input dataset does not define a standard_name,
+           both dim_x_out and dim_y_out should return None.
+
+        """
+        dim_x_name = '/x'
+        dim_y_name = '/y'
+
+        h5_file = h5py.File(self.test_h5_name, 'w')
+        dataset = h5_file.create_dataset('data', data=np.ones((3, 2)))
+        dim_x = h5_file.create_dataset(dim_x_name, data=np.ones((2, )))
+        dim_y = h5_file.create_dataset(dim_y_name, data=np.ones((3, )))
+
+        with self.subTest('No DIMENSION_LIST'):
+            self.assertEqual(get_dimension_datasets(dataset), None)
+
+        with self.subTest('Valid DIMENSION_LIST'):
+            dataset.attrs.create('DIMENSION_LIST',
+                                 ((dim_y.ref, ), (dim_x.ref, )),
+                                 dtype=h5py.ref_dtype)
+
+            self.assertIsNone(get_dimension_datasets(dataset))
 
         h5_file.close()
 
@@ -871,7 +921,11 @@ class TestH5GridProjectionInfo(TestCase):
 
         h5_file = h5py.File(self.test_h5_name, 'w')
         dim_x = h5_file.create_dataset(dim_x_name, data=np.ones((3, )))
+        dim_x.attrs.create('standard_name', 'projection_x_coordinate')
+        dim_x.attrs.create('units', 'm')
         dim_y = h5_file.create_dataset(dim_y_name, data=np.ones((3, )))
+        dim_y.attrs.create('standard_name', 'projection_y_coordinate')
+        dim_y.attrs.create('units', 'm')
         dim_time = h5_file.create_dataset('/time', data=np.ones((1, )))
 
         flat_dataset = h5_file.create_dataset('flat_data',
@@ -1077,13 +1131,13 @@ class TestH5GridProjectionInfo(TestCase):
                                                dtype=h5py.ref_dtype)
 
             with self.subTest('Flipped projected data returns True'):
-                self.assertTrue(is_x_y_flipped(flipped_xy_dataset))
+                self.assertFalse(is_x_y_flipped(flipped_xy_dataset))
 
             with self.subTest('Unflipped projected data returns False'):
                 self.assertFalse(is_x_y_flipped(unflipped_xy_dataset))
 
             with self.subTest('Flipped geographic data returns True'):
-                self.assertTrue(is_x_y_flipped(flipped_geo_dataset))
+                self.assertFalse(is_x_y_flipped(flipped_geo_dataset))
 
             with self.subTest('Unflipped geographic data returns False'):
                 self.assertFalse(is_x_y_flipped(unflipped_geo_dataset))
