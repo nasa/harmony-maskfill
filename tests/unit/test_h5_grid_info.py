@@ -37,7 +37,6 @@ from maskfill.h5_grid_info import (
     get_spatial_grid_shape,
     is_projection_x_dimension,
     is_projection_y_dimension,
-    is_x_y_flipped,
     has_geographic_dimensions,
     resolve_relative_dataset_path,
 )
@@ -1081,66 +1080,6 @@ class TestH5GridProjectionInfo(TestCase):
             self.assertEqual(dim_lon_out, dim_lon)
 
         h5_file.close()
-
-    def test_is_x_y_flipped(self):
-        """ Ensure that a collection is correctly identified as being either
-            [..., y, x] or [..., x, y].
-
-            Note, Python array dimensions are [..., row, column], so will
-            appear flipped if the last two dimensions are ordered [..., x, y].
-
-        """
-        with h5py.File(self.test_h5_name, 'w') as h5_file:
-            dim_x = h5_file.create_dataset('/x', data=np.ones((2, )))
-            dim_x.attrs.create('standard_name', 'projection_x_coordinate')
-            dim_x.attrs.create('units', 'm')
-
-            dim_y = h5_file.create_dataset('/y', data=np.ones((3, )))
-            dim_y.attrs.create('standard_name', 'projection_y_coordinate')
-            dim_y.attrs.create('units', 'm')
-
-            dim_lon = h5_file.create_dataset('/lon', data=np.ones((4, )))
-            dim_lon.attrs.create('standard_name', 'longitude')
-            dim_lon.attrs.create('units', 'degrees_east')
-
-            dim_lat = h5_file.create_dataset('/lat', data=np.ones((5, )))
-            dim_lat.attrs.create('standard_name', 'latitude')
-            dim_lat.attrs.create('units', 'degrees_north')
-
-            flipped_xy_dataset = h5_file.create_dataset('flipped_data',
-                                                        data=np.ones((2, 3)))
-            flipped_xy_dataset.attrs.create('DIMENSION_LIST',
-                                            ((dim_x.ref, ), (dim_y.ref, )),
-                                            dtype=h5py.ref_dtype)
-
-            unflipped_xy_dataset = h5_file.create_dataset('unflipped_data',
-                                                          data=np.ones((3, 2)))
-            unflipped_xy_dataset.attrs.create('DIMENSION_LIST',
-                                              ((dim_y.ref, ), (dim_x.ref, )),
-                                              dtype=h5py.ref_dtype)
-
-            flipped_geo_dataset = h5_file.create_dataset('flipped_geo',
-                                                         data=np.ones((4, 5)))
-            flipped_geo_dataset.attrs.create('DIMENSION_LIST',
-                                             ((dim_lon.ref, ), (dim_lat.ref, )),
-                                             dtype=h5py.ref_dtype)
-            unflipped_geo_dataset = h5_file.create_dataset('unflipped_geo',
-                                                           data=np.ones((5, 4)))
-            unflipped_geo_dataset.attrs.create('DIMENSION_LIST',
-                                               ((dim_lat.ref, ), (dim_lon.ref, )),
-                                               dtype=h5py.ref_dtype)
-
-            with self.subTest('Flipped projected data returns True'):
-                self.assertFalse(is_x_y_flipped(flipped_xy_dataset))
-
-            with self.subTest('Unflipped projected data returns False'):
-                self.assertFalse(is_x_y_flipped(unflipped_xy_dataset))
-
-            with self.subTest('Flipped geographic data returns True'):
-                self.assertFalse(is_x_y_flipped(flipped_geo_dataset))
-
-            with self.subTest('Unflipped geographic data returns False'):
-                self.assertFalse(is_x_y_flipped(unflipped_geo_dataset))
 
     def test_is_projection_x_dimension(self):
         """ Ensure that an HDF-5 dataset is correctly determined as being an

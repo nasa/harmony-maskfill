@@ -623,7 +623,7 @@ class TestUtilities(TestCase):
                                                [-9999, 19, -9999],
                                                [-9999, 22, -9999]]])
 
-            data_3d = np.arange(24).reshape(2, 4, 3)  # shape (time, y, x)
+            data_3d = np.arange(24).reshape(2, 4, 3)  # shape (y, x, time)
             dset_3d = h5_file.create_dataset('data_3d', data=data_3d)
 
             result = apply_2d_dataset_to_multidim(dset_3d,

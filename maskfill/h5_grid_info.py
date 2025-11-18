@@ -181,28 +181,6 @@ def get_dimension_datasets(h5_dataset: Dataset) -> Optional[Tuple[Dataset, Datas
     return column_dimension, row_dimension
 
 
-def is_x_y_flipped(dataset: Dataset) -> bool:
-    """ A helper function to check if the science dataset has rows that
-        correspond to y coordinates (including latitudes) and columns that
-        correspond to x coordinates (including longitudes). This is used for
-        datasets defining their coordinates via a `DIMENSION_LIST` attribute
-        and 1-D dimension datasets.
-
-        Note, Python array dimensions are [..., row, column].
-
-    """
-    dimension_datasets = get_dimension_datasets(dataset)
-
-    if dimension_datasets:
-        column_dimension, row_dimension = dimension_datasets
-        is_flipped = (is_projection_y_dimension(column_dimension)
-                      and is_projection_x_dimension(row_dimension))
-    else:
-        is_flipped = False
-
-    return is_flipped
-
-
 def is_projection_x_dimension(dimension_dataset: Dataset) -> bool:
     """ A helper function to identify if a 1-D dimension dataset conforms to
         the CF-Conventions for a horizontal spatial dimension in the x
@@ -353,11 +331,7 @@ def get_transform(h5_dataset: Dataset, crs: CRS, cf_config: CFConfigH5,
         x_0 -= cell_width / 2.0
         y_0 -= cell_height / 2.0
 
-    if is_x_y_flipped(h5_dataset):
-        transform = Affine(0, cell_height, y_0, cell_width, 0, x_0)
-    else:
-        transform = Affine(cell_width, 0, x_0, 0, cell_height, y_0)
-    return transform
+    return Affine(cell_width, 0, x_0, 0, cell_height, y_0)
 
 
 def get_cell_size_from_dimensions(h5_dataset: Dataset) -> Tuple[int, int] | None:
