@@ -366,18 +366,18 @@ def apply_2d_dataset_to_multidim(h5_dataset: Dataset, cf_config: CFConfigH5, pro
 
     data = h5_dataset[:]
 
-    row_dimension, column_dimension = get_spatial_grid_shape(h5_dataset, cf_config)
+    row_shape, column_shape = get_spatial_grid_shape(h5_dataset, cf_config)
 
     # Ensure both required dims are present
-    if column_dimension is None or row_dimension is None:
+    if column_shape is None or row_shape is None:
         raise InsufficientDataError(f'Dimensions (row/column) have no valid data.')
 
     # Construct the desired shape: (row/Y, column/X)
-    ordered_track_shape = (row_dimension, column_dimension)
+    ordered_track_shape = (row_shape, column_shape)
 
     # Construct the non track shape: (time, land_cover_type)
     ordered_non_track_shape = [
-        shape for shape in data.shape if shape not in ordered_track_shape
+        dim_len for dim_len in data.shape if dim_len not in ordered_track_shape
     ]
 
     # Construct the new shape: (time, land_cover_type, row/Y, column/X)

@@ -360,7 +360,7 @@ def get_transform(h5_dataset: Dataset, crs: CRS, cf_config: CFConfigH5,
     return transform
 
 
-def get_cell_size_from_dimensions(h5_dataset: Dataset) -> Tuple[int, int]:
+def get_cell_size_from_dimensions(h5_dataset: Dataset) -> Tuple[int, int] | None:
     """ Gets the cell height and width of the gridded HDF-5 dataset using the
         dimension scales of the dataset.
 
@@ -439,11 +439,8 @@ def get_corner_points_from_lat_lon(h5_dataset: Dataset, crs: CRS,
     lat_fill_value = get_fill_value(lat, cf_config, logger, None)
 
     if len(lon.shape) >= 3:
-        # If there are 3 dimensions, select the first for corner point location.
+        # If there are 3 or more dimensions, select the first for corner point location
         # Using lon, assuming lat is the same.
-        # TODO: refactor MaskFill so each band in a 3-D dataset is reprojected
-        # and masked separately, instead of using coordinate data only from
-        # one band.
         logger.debug(f'lat/lon for {h5_dataset.name} is 3-D, using first '
                      'band for coordinates.')
         band = 0
@@ -550,8 +547,9 @@ def get_projected_coordinate_extent(projection: Proj, latitude: np.ndarray,
 
 
 def get_dimension_arrays(h5_dataset: Dataset) \
-        -> Tuple[List[float], List[float]]:  # projected meters - x-coordinates, y-coordinates
+        -> Tuple[List[float], List[float]] | None:
     """ Gets the dimension scales arrays of the HDF5 dataset.
+        projected meters - x-coordinates, y-coordinates
         Args:
              h5_dataset (h5py._hl.dataset.Dataset): The HDF5 dataset
         Returns:
@@ -575,8 +573,8 @@ def get_lon_lat_axes(h5_dataset: Dataset, cf_config: CFConfigH5) \
              cf_config: default collection configuration information.
         Returns:
             tuple: The x coordinate array (longitude) and the y coordinate
-               array (latitude), if the data are 3-dimensional, return the
-               first band.
+               array (latitude), if the data are 3 or more dimensional,
+               return the first band.
     """
     x, y = get_lon_lat_datasets(h5_dataset, cf_config)
     if len(x.shape) == 2:

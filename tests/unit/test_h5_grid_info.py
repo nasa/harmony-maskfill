@@ -429,7 +429,7 @@ class TestH5GridProjectionInfo(TestCase):
 
     def test_get_cell_size_from_dimensions_no_standard_name(self):
         """Given an input dataset does not define a standard_name,
-           both cell_width and cell_height should return None."""
+           get_cell_size_from_dimensions return None."""
         data_array = np.ones((3, 4))
         x_array = np.array([1, 2, 3, 4])
         y_array = np.array([2, 4, 6])
