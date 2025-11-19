@@ -18,3 +18,4 @@ htmlcov/
 
 # Test XML reports
 reports/
+test-reports/

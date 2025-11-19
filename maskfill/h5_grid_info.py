@@ -25,7 +25,7 @@ from maskfill.utilities import (
     get_decoded_attribute,
     get_default_fill_for_data_type,
     apply_2d,
-    apply_2d_yxz,
+    apply_2d_dataset_to_multidim,
 )
 
 
@@ -160,47 +160,25 @@ def get_dimension_datasets(h5_dataset: Dataset) -> Optional[Tuple[Dataset, Datas
     dimension_list = get_decoded_attribute(h5_dataset, 'DIMENSION_LIST',
                                            np.array([]))
 
-    # The following iterators begin at the end of the DIMENSION_LIST, because
-    # spatial dimensions are mostly likely at the end of that list (e.g.:
-    # (time, lat, lon). This attempts to avoid spurious matches to other
-    # dimensions (e.g., time) that happen to have the same number of elements.
-    column_dimension = next((h5_file[dimension[0]]
-                             for dimension in np.flip(dimension_list)
-                             if h5_file[dimension[0]].size == h5_dataset.shape[-1]),
-                            None)
+    # Initialize dimension variables
+    column_dimension: Optional[Dataset] = None
+    row_dimension: Optional[Dataset] = None
 
-    row_dimension = next((h5_file[dimension[0]]
-                          for dimension in np.flip(dimension_list)
-                          if h5_file[dimension[0]].size == h5_dataset.shape[-2]
-                          and h5_file[dimension[0]] != column_dimension),
-                         None)
+    for dimension in dimension_list:
+        dimension_dataset = h5_file[dimension[0]]
+        if is_projection_y_dimension(dimension_dataset):
+            row_dimension = dimension_dataset
+        elif is_projection_x_dimension(dimension_dataset):
+            column_dimension = dimension_dataset
+
+    # Final validation: check if both dimensions were found and contain non-zero data
+    if column_dimension is None or row_dimension is None:
+        return None
 
     if any(dim is None or all(value == 0.0 for value in dim) for dim in (column_dimension, row_dimension)):
         return None
-    else:
-        return column_dimension, row_dimension
 
-
-def is_x_y_flipped(dataset: Dataset) -> bool:
-    """ A helper function to check if the science dataset has rows that
-        correspond to y coordinates (including latitudes) and columns that
-        correspond to x coordinates (including longitudes). This is used for
-        datasets defining their coordinates via a `DIMENSION_LIST` attribute
-        and 1-D dimension datasets.
-
-        Note, Python array dimensions are [..., row, column].
-
-    """
-    dimension_datasets = get_dimension_datasets(dataset)
-
-    if dimension_datasets:
-        column_dimension, row_dimension = dimension_datasets
-        is_flipped = (is_projection_y_dimension(column_dimension)
-                      and is_projection_x_dimension(row_dimension))
-    else:
-        is_flipped = False
-
-    return is_flipped
+    return column_dimension, row_dimension
 
 
 def is_projection_x_dimension(dimension_dataset: Dataset) -> bool:
@@ -279,43 +257,23 @@ def get_apply_2d_process(h5_dataset: Dataset,
     based on the dimension order in the h5_dataset. Will
     throw an exception the dataset is not in the supported
     spatial dimension order
+
+    Args:
+        h5_dataset: The HDF5 dataset to check.
+        cf_config: default collection configuration information
+
+    Returns:
+        Callable: Returns the right callable method apply_2d()
+        or apply_2d_dataset_to_multidim() process.
     """
-    if is_nominal_data_shape(h5_dataset, cf_config):
+    mask_array_shape = get_spatial_grid_shape(h5_dataset, cf_config)
+
+    if h5_dataset.shape[-2:] == mask_array_shape:
         return apply_2d
-    elif is_yxz_data_shape(h5_dataset, cf_config):
-        return apply_2d_yxz
+    elif h5_dataset.ndim >= 3 and mask_array_shape:
+        return apply_2d_dataset_to_multidim
     else:
         raise NotSupportedData(h5_dataset.name)
-
-
-def is_nominal_data_shape(h5_dataset: Dataset,
-                          cf_config: CFConfigH5
-                          ) -> bool:
-    """ This function returns True if the dimensions/coordinates are in
-    the yx order with the spatial dimensions as the two
-    lowest dimensions (rightmost dimensions) or returns false.
-    """
-    mask_array_shape = get_spatial_grid_shape(h5_dataset,
-                                              cf_config)
-    if h5_dataset.shape[-2:] == mask_array_shape:
-        return True
-    else:
-        return False
-
-
-def is_yxz_data_shape(h5_dataset: Dataset,
-                      cf_config: CFConfigH5
-                      ) -> bool:
-    """ This function returns True if the spatial dimensions are
-    the two left most dimensions or the highest dimensions and if the
-    dataset is three-dimensional.
-    """
-    mask_array_shape = get_spatial_grid_shape(h5_dataset,
-                                              cf_config)
-    if h5_dataset.ndim == 3 and h5_dataset.shape[:2] == mask_array_shape:
-        return True
-    else:
-        return False
 
 
 def get_spatial_grid_shape(h5_dataset: Dataset,
@@ -373,14 +331,10 @@ def get_transform(h5_dataset: Dataset, crs: CRS, cf_config: CFConfigH5,
         x_0 -= cell_width / 2.0
         y_0 -= cell_height / 2.0
 
-    if is_x_y_flipped(h5_dataset):
-        transform = Affine(0, cell_height, y_0, cell_width, 0, x_0)
-    else:
-        transform = Affine(cell_width, 0, x_0, 0, cell_height, y_0)
-    return transform
+    return Affine(cell_width, 0, x_0, 0, cell_height, y_0)
 
 
-def get_cell_size_from_dimensions(h5_dataset: Dataset) -> Tuple[int, int]:
+def get_cell_size_from_dimensions(h5_dataset: Dataset) -> Tuple[int, int] | None:
     """ Gets the cell height and width of the gridded HDF-5 dataset using the
         dimension scales of the dataset.
 
@@ -392,10 +346,16 @@ def get_cell_size_from_dimensions(h5_dataset: Dataset) -> Tuple[int, int]:
         Returns:
             tuple: cell width, cell height
     """
-    column_dimension, row_dimension = get_dimension_arrays(h5_dataset)
-    cell_width = column_dimension[1] - column_dimension[0]
-    cell_height = row_dimension[1] - row_dimension[0]
-    return cell_width, cell_height
+    dimension_datasets = get_dimension_arrays(h5_dataset)
+
+    if dimension_datasets:
+        column_dimension, row_dimension = dimension_datasets
+        cell_width = column_dimension[1] - column_dimension[0]
+        cell_height = row_dimension[1] - row_dimension[0]
+
+        return cell_width, cell_height
+    else:
+        return None
 
 
 def get_cell_size_from_lat_lon_extents(h5_dataset: Dataset, x_0: float,
@@ -452,12 +412,9 @@ def get_corner_points_from_lat_lon(h5_dataset: Dataset, crs: CRS,
     lon_fill_value = get_fill_value(lon, cf_config, logger, None)
     lat_fill_value = get_fill_value(lat, cf_config, logger, None)
 
-    if len(lon.shape) == 3:
-        # If there are 3 dimensions, select the first for corner point location.
+    if len(lon.shape) >= 3:
+        # If there are 3 or more dimensions, select the first for corner point location
         # Using lon, assuming lat is the same.
-        # TODO: refactor MaskFill so each band in a 3-D dataset is reprojected
-        # and masked separately, instead of using coordinate data only from
-        # one band.
         logger.debug(f'lat/lon for {h5_dataset.name} is 3-D, using first '
                      'band for coordinates.')
         band = 0
@@ -564,15 +521,21 @@ def get_projected_coordinate_extent(projection: Proj, latitude: np.ndarray,
 
 
 def get_dimension_arrays(h5_dataset: Dataset) \
-        -> Tuple[List[float], List[float]]:  # projected meters - x-coordinates, y-coordinates
+        -> Tuple[List[float], List[float]] | None:
     """ Gets the dimension scales arrays of the HDF5 dataset.
+        projected meters - x-coordinates, y-coordinates
         Args:
              h5_dataset (h5py._hl.dataset.Dataset): The HDF5 dataset
         Returns:
             tuple: The column coordinate array and the row coordinate array
     """
-    column_dimension, row_dimension = get_dimension_datasets(h5_dataset)
-    return column_dimension[:], row_dimension[:]
+    dimension_datasets = get_dimension_datasets(h5_dataset)
+
+    if dimension_datasets:
+        column_dimension, row_dimension = dimension_datasets
+        return column_dimension[:], row_dimension[:]
+    else:
+        return None
 
 
 def get_lon_lat_axes(h5_dataset: Dataset, cf_config: CFConfigH5) \
@@ -584,13 +547,13 @@ def get_lon_lat_axes(h5_dataset: Dataset, cf_config: CFConfigH5) \
              cf_config: default collection configuration information.
         Returns:
             tuple: The x coordinate array (longitude) and the y coordinate
-               array (latitude), if the data are 3-dimensional, return the
-               first band.
+               array (latitude), if the data are 3 or more dimensional,
+               return the first band.
     """
     x, y = get_lon_lat_datasets(h5_dataset, cf_config)
     if len(x.shape) == 2:
         return x[0], y[:, 0]
-    elif len(x.shape) == 3:
+    elif len(x.shape) >= 3:
         return x[0][0], y[0][:, 0]
 
 

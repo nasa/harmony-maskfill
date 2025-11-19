@@ -153,8 +153,8 @@ def mask_fill(h5_dataset: h5py.Dataset, shape_path: str, cache_dir: str,
                                           logger,
                                           default_fill_value):
                     logger.info(f"The dataset {h5_dataset.name}'s coordinate "
-                                " {coordinate} contains only fill values, so "
-                                " the dataset cannot be masked")
+                                f" {coordinate} contains only fill values, so "
+                                f" the dataset cannot be masked")
                     return
         except MissingCoordinateDataset:
             pass  # Input file does not contain latitude or longitude datasets.
@@ -170,7 +170,7 @@ def mask_fill(h5_dataset: h5py.Dataset, shape_path: str, cache_dir: str,
         fill_value = get_fill_value(h5_dataset, cf_config, logger,
                                     default_fill_value)
         apply_2d_process = get_apply_2d_process(h5_dataset, cf_config)
-        mask_filled_data = apply_2d_process(h5_dataset[:],
+        mask_filled_data = apply_2d_process(h5_dataset, cf_config,
                                             utilities.mask_fill_array,
                                             mask_array, fill_value)
         h5_dataset.write_direct(mask_filled_data)
