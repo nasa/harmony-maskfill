@@ -15,7 +15,7 @@ conda virtual environment and install all the needed packages:
 
 ```bash
 conda create --name maskfill --file conda_requirements.txt \
-  python=3.12 --channel conda-forge --override-channels
+  python=3.13 --channel conda-forge --override-channels
 conda activate maskfill
 pip install -r pip_requirements.txt
 ```

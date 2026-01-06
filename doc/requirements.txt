@@ -1,7 +1,7 @@
 #
 # To create a conda environment to run the Jupyter notebook documentation:
 #
-# conda create --name maskfill-docs python=3.12 --channel conda-forge --override-channels -y
+# conda create --name maskfill-docs python=3.13 --channel conda-forge --override-channels -y
 # conda activate maskfill-docs
 # conda install geos
 # pip install -r requirements.txt
