@@ -15,7 +15,7 @@ conda virtual environment and install all the needed packages:
 
 ```bash
 conda create --name maskfill --file conda_requirements.txt \
-  python=3.12 --channel conda-forge --override-channels
+  python=3.13 --channel conda-forge --override-channels
 conda activate maskfill
 pip install -r pip_requirements.txt
 ```
@@ -48,6 +48,14 @@ The general rules for iterating a semantic version number are:
 
 When the Docker image is built, it will be tagged with the semantic version
 number as stored in `docker/service_version.txt`.
+
+### snyk
+
+  `.snyk` - this file is used by the Snyk webhook to ensure the correct version
+  of Python is used when installing the full dependency tree for the
+  project. This file is duplicated in each directory that contains a
+  requirements file. (`./doc`, `./tests`) **This file, and all copies, must be
+  updated when the version of Python is updated in the service Docker image.**
 
 ### CI/CD:
 
