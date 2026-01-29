@@ -22,7 +22,7 @@ from maskfill.utilities import get_default_fill_for_data_type, get_geotiff_crs
 def produce_masked_geotiff(geotiff_path: str, shape_path: str, output_dir: str,
                            cache_dir: str, mask_grid_cache: str,
                            default_fill_value: float, logger: Logger) -> str:
-    """ Performs a mask fill on the given GeoTIFF using the shapes in the giveni
+    """ Performs a mask fill on the given GeoTIFF using the shapes in the given
         shape file. If the variable is a coordinate, or EASE-2 grid index, then
         the input file is copied directly to the output, unmasked.
 

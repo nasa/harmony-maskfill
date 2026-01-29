@@ -55,6 +55,7 @@ from maskfill.exceptions import (
 )
 from maskfill import geotiff_maskfill
 from maskfill import h5_maskfill
+from maskfill import history
 
 
 DEFAULT_MASK_GRID_CACHE = 'ignore_and_delete'
@@ -91,6 +92,13 @@ def mask_fill(input_file: str, shape_file: str, output_dir: str,
         output_file = h5_maskfill.produce_masked_hdf(
             input_file, shape_file, output_dir, output_dir,
             mask_grid_cache, fill_value, logger
+        )
+
+        history.update_history_metadata(
+            output_file,
+            shape_file,
+            mask_grid_cache,
+            fill_value,
         )
 
     return output_file
