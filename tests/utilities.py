@@ -15,6 +15,12 @@ from pystac import Asset as StacAsset, Catalog as StacCatalog, Item as StacItem
 import h5py
 
 
+HISTORY_ATTRIBUTES = [
+    'history', 'History', 'HISTORY',
+    'history_json', 'HISTORY_JSON'
+]
+
+
 def create_input_stac(granule_url: str, media_type: str) -> StacCatalog:
     """ A helper function to create a STAC catalog to be used as input when
         invoking the MaskFillAdapter.
@@ -185,7 +191,8 @@ class MaskFillTestCase(TestCase):
             key_prefix = f'/{h5py_object.name}'
 
         for attr_key, attr_value in h5py_object.attrs.items():
-            attribute_dictionary[f'{key_prefix}/{attr_key}'] = attr_value
+            if attr_key not in HISTORY_ATTRIBUTES:
+                attribute_dictionary[f'{key_prefix}/{attr_key}'] = attr_value
 
         for iterable_object in h5py_object.values():
             if isinstance(iterable_object, h5py.Dataset):
