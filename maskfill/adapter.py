@@ -88,6 +88,7 @@ class MaskFillAdapter(BaseHarmonyAdapter):
             self.logger.info('Granule data copied')
             self.validate_input_granule(input_filename)
 
+            bounding_box = []
             # Get the shape file data
             if self.message_has_valid_shape_file():
                 shape_filename = self.download_from_remote(
@@ -95,6 +96,7 @@ class MaskFillAdapter(BaseHarmonyAdapter):
                 )
                 self.logger.info('Shape file downloaded')
             else:
+                bounding_box = self.message.subset.process('bbox')
                 shape_filename = create_bounding_box_shape_file(
                     self.message.subset.process('bbox'), working_dir
                 )
@@ -103,7 +105,7 @@ class MaskFillAdapter(BaseHarmonyAdapter):
             # Call MaskFill utility
             working_filename = mask_fill(input_filename, shape_filename,
                                          working_dir, DEFAULT_MASK_GRID_CACHE,
-                                         None, self.logger)
+                                         None, self.logger, bounding_box)
 
             # Stage the output file with a conventional filename
             output_filename = generate_output_filename(asset.href,

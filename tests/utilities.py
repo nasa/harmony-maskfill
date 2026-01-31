@@ -90,7 +90,19 @@ class MaskFillTestCase(TestCase):
         band_two = np.array(dataset_two.ReadAsArray())
         self.assertEqual(band_one.shape, band_two.shape)
         self.assertTrue(np.array_equal(band_one, band_two))
-        self.assertEqual(dataset_one.GetMetadata(), dataset_two.GetMetadata())
+
+        # Retrieve metadata dictionaries
+        remove_history_metadata_one = dataset_one.GetMetadata()
+
+        # Remove history attributes from dataset_one before comparison
+        # Maskfill version in history_joson will change per release.
+        # Exclude history and history_json from compare
+        remove_history_metadata_one.pop("history", None)
+        remove_history_metadata_one.pop("history_json", None)
+        self.assertEqual(
+            remove_history_metadata_one,
+            dataset_two.GetMetadata()
+        )
 
     def compare_h5_files(self, file_one_name, file_two_name):
         """Check all Attributes, Datasets and Groups within two HDF-5 files are

@@ -27,7 +27,7 @@ class TestHistory(TestCase):
         """Set up test-specific resources."""
         self.tmp_dir = tempfile.mkdtemp()
         self.shape_file = 'tests/data/USA.geo.json'
-        self.mask_grid_cache = 'maskgrid_only'
+        self.bounding_box = []
         self.fillvalue = -9999.0
         self.version = get_semantic_version()
 
@@ -41,8 +41,13 @@ class TestHistory(TestCase):
         shutil.copy2(source_path, dest_path)
         return dest_path
 
-    def get_base_json(self, input_file):
+    def get_base_json(self, input_file, bounding_box=None):
         """Returns the standard JSON structure for history metadata."""
+        shape, shape_value = (
+            ('bbox', bounding_box) if bounding_box
+            else ('shape_file_hash', SHAPE_HASH)
+        )
+
         return {
             '$schema': (
                 'https://harmony.earthdata.nasa.gov/schemas/history/'
@@ -52,10 +57,8 @@ class TestHistory(TestCase):
             'program': PROGRAM,
             'version': self.version,
             'parameters': {
-                'shape_file_hash': SHAPE_HASH,
-                'mask_grid_cache': self.mask_grid_cache,
+                shape: shape_value,
                 'fill_value': self.fillvalue,
-                'input_file': input_file
             },
             'derived_from': input_file,
             'program_ref': PROGRAM_REF,
@@ -78,17 +81,16 @@ class TestHistory(TestCase):
         source = 'tests/data/GPM_3IMERGHH_input.nc4'
         dest = self.prepare_file(source)
 
-        expected_txt = (
+        expected_history = (
             f'{FROZEN_TIME}+00:00 Harmony Maskfill {self.version} {{'
             f'"shape_file_hash": "{SHAPE_HASH}", '
-            f'"mask_grid_cache": "{self.mask_grid_cache}", '
             f'"fill_value": {self.fillvalue}}}'
         )
 
         update_history_metadata(
-            dest, self.shape_file, self.mask_grid_cache, self.fillvalue
+            dest, self.shape_file, self.fillvalue, self.bounding_box
         )
-        self.assert_history(dest, expected_txt, self.get_base_json(dest))
+        self.assert_history(dest, expected_history, self.get_base_json(dest))
 
     @freeze_time(FROZEN_TIME)
     def test_update_history_metadata_append_history(self):
@@ -109,20 +111,19 @@ class TestHistory(TestCase):
             '%5B%5D'
         )
 
-        expected_txt = (
+        expected_history = (
             f'{prev}\n\n{FROZEN_TIME}+00:00 Harmony Maskfill {self.version} '
             f'{{"shape_file_hash": "{SHAPE_HASH}", '
-            f'"mask_grid_cache": "{self.mask_grid_cache}", '
             f'"fill_value": {self.fillvalue}}}'
         )
 
-        expected_json = self.get_base_json(url)
-        expected_json['cf_history'] = [prev]
+        expected_history_json = self.get_base_json(url)
+        expected_history_json['cf_history'] = [prev]
 
         update_history_metadata(
-            dest, self.shape_file, self.mask_grid_cache, self.fillvalue
+            dest, self.shape_file, self.fillvalue, self.bounding_box
         )
-        self.assert_history(dest, expected_txt, expected_json)
+        self.assert_history(dest, expected_history, expected_history_json)
 
     @freeze_time(FROZEN_TIME)
     def test_update_history_metadata_capital_history(self):
@@ -131,20 +132,19 @@ class TestHistory(TestCase):
         dest = self.prepare_file(source)
         prev = 'File written by ldas2daac.x'
 
-        expected_txt = (
+        expected_history = (
             f'{prev}\n{FROZEN_TIME}+00:00 Harmony Maskfill {self.version} '
             f'{{"shape_file_hash": "{SHAPE_HASH}", '
-            f'"mask_grid_cache": "{self.mask_grid_cache}", '
             f'"fill_value": {self.fillvalue}}}'
         )
 
-        expected_json = self.get_base_json(dest)
-        expected_json['cf_history'] = [prev]
+        expected_history_json = self.get_base_json(dest)
+        expected_history_json['cf_history'] = [prev]
 
         update_history_metadata(
-            dest, self.shape_file, self.mask_grid_cache, self.fillvalue
+            dest, self.shape_file, self.fillvalue, self.bounding_box
         )
-        self.assert_history(dest, expected_txt, expected_json, key="History")
+        self.assert_history(dest, expected_history, expected_history_json, key="History")
 
     @freeze_time(FROZEN_TIME)
     def test_update_history_metadata_annotator_service(self):
@@ -171,18 +171,52 @@ class TestHistory(TestCase):
             '2025-05-08T19:14:18.390538+00:00 Harmony Metadata Annotator 0.0.1'
         ]
 
-        expected_txt = (
+        expected_history = (
             f'{prev_parts[0]}\n\n{prev_parts[1]}\n'
             f'{FROZEN_TIME}+00:00 Harmony Maskfill {self.version} '
             f'{{"shape_file_hash": "{SHAPE_HASH}", '
-            f'"mask_grid_cache": "{self.mask_grid_cache}", '
             f'"fill_value": {self.fillvalue}}}'
         )
 
-        expected_json = self.get_base_json(url)
-        expected_json['cf_history'] = [prev_parts[0], '', prev_parts[1]]
+        expected_history_json = self.get_base_json(url)
+        expected_history_json['cf_history'] = [prev_parts[0], '', prev_parts[1]]
 
         update_history_metadata(
-            dest, self.shape_file, self.mask_grid_cache, self.fillvalue
+            dest, self.shape_file, self.fillvalue, self.bounding_box
         )
-        self.assert_history(dest, expected_txt, expected_json)
+        self.assert_history(dest, expected_history, expected_history_json)
+
+    @freeze_time(FROZEN_TIME)
+    def test_update_history_metadata_append_history_bounding_box(self):
+        """Test appending to existing history and history_json."""
+        source = 'tests/data/SC_SPL3SMP_subsetted_with_maskfill_mf.nc4'
+        dest = self.prepare_file(source)
+        url = (
+            'https://opendap.uat.earthdata.nasa.gov/collections/'
+            'C1268452365-EEDTEST/granules/SC:SPL3SMP.008:240468423.dap.nc4'
+        )
+        prev = (
+            f'2025-03-03 20:49:33 GMT hyrax-1.17.1-63 {url}'
+            '?A-api-request-uuid=bd99a1e3-f5ca-43c7-9d21-a3a95eea0cd9,'
+            'dap4.ce=%2FSoil_Moisture_Retrieval_Data_AM%2Flatitude%5B0%3A26'
+            '%5D%5B294%3A455%5D%3B%2FSoil_Moisture_Retrieval_Data_AM%2Flong'
+            'itude%5B0%3A26%5D%5B294%3A455%5D%3B%2FSoil_Moisture_Retrieval_'
+            'Data_AM%2Flandcover_class_fraction%5B0%3A26%5D%5B294%3A455%5D'
+            '%5B%5D'
+        )
+
+        bounding_box = [0, 54, 44, 72]
+
+        expected_history = (
+            f'{prev}\n\n{FROZEN_TIME}+00:00 Harmony Maskfill {self.version} '
+            f'{{"bbox": {bounding_box}, '
+            f'"fill_value": {self.fillvalue}}}'
+        )
+
+        expected_history_json = self.get_base_json(url, bounding_box)
+        expected_history_json['cf_history'] = [prev]
+
+        update_history_metadata(
+            dest, self.shape_file, self.fillvalue, bounding_box
+        )
+        self.assert_history(dest, expected_history, expected_history_json)

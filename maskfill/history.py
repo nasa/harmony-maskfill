@@ -21,8 +21,10 @@ PROGRAM_REF = 'https://github.com/nasa/harmony-maskfill'
 
 
 def update_history_metadata(
-    input_file: str, shape_file: str,
-    mask_grid_cache: str, fill_value: Union[int, float]
+    input_file: str,
+    shape_file: str,
+    fill_value: Union[int, float, None],
+    bounding_box: List,
 ) -> None:
     """Update the history-related metadata of an HDF5 or NetCDF4 output file.
 
@@ -47,11 +49,10 @@ def update_history_metadata(
         should be updated.
     shape_file : str
         Path to the user‑provided shape file.
-    mask_grid_cache : str
-        Value determining how the mask arrays used in the mask fill
-        are cached and used.
-    fill_value : int or float
+    fill_value : int, float, or None
         The fill value applied to masked pixels during Maskfill processing.
+    bounding_box : List
+        bounding box in the format of [W, S, E, N]
 
     Returns
     -------
@@ -67,10 +68,9 @@ def update_history_metadata(
         request_url = get_request_url_attribute(h5_input_file)
 
         maskfill_parameters = get_maskfill_parameters(
-            request_url,
             shape_file,
-            mask_grid_cache,
-            fill_value
+            fill_value,
+            bounding_box
         )
 
         # Create new history_json attribute and append existing_history
@@ -281,10 +281,9 @@ def get_semantic_version() -> str:
 
 
 def get_maskfill_parameters(
-        granule_url: str,
         shape_file: str,
-        mask_grid_cache: str,
-        fill_value: Union[int, float]
+        fill_value: Union[int, float, None],
+        bounding_box: List
 ) -> Dict:
     """Build and return the parameter dictionary used for a Maskfill operation.
 
@@ -294,16 +293,13 @@ def get_maskfill_parameters(
 
     Parameters
     ----------
-    granule_url : str
-        The URL of the input granule being processed.
     shape_file : str
         Path to the shape file used for spatial masking. If provided, a
         SHA‑224 hash of the file path is stored as `shape_file_hash`.
-    mask_grid_cache : str
-        Value determining how the mask arrays used in the mask fill
-        are cached and used.
     fill_value : int or float
         The fill value applied to masked pixels.
+    bounding_box : List
+        bounding box in the format of [W, S, E, N]
 
     Returns
     -------
@@ -314,16 +310,13 @@ def get_maskfill_parameters(
     """
     maskfill_parameters = {}
 
-    if shape_file:
+    if bounding_box:
+        maskfill_parameters['bbox'] = bounding_box
+    else:
         mask_id = hashlib.sha224(f'{shape_file}'.encode()).hexdigest()
         maskfill_parameters['shape_file_hash'] = mask_id
 
-    if mask_grid_cache:
-        maskfill_parameters['mask_grid_cache'] = mask_grid_cache
-
     if fill_value:
         maskfill_parameters['fill_value'] = fill_value
-
-    maskfill_parameters['input_file'] = granule_url
 
     return maskfill_parameters
