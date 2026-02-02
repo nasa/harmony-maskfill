@@ -35,18 +35,19 @@ class TestHistory(TestCase):
         """Clean up resources after tests."""
         shutil.rmtree(self.tmp_dir)
 
-    def prepare_file(self, source_path):
+    def copy_source_file_to_temp_dir(self, source_path):
         """Helper to copy source file to temp directory."""
         dest_path = os.path.join(self.tmp_dir, os.path.basename(source_path))
         shutil.copy2(source_path, dest_path)
         return dest_path
 
-    def get_base_json(self, input_file, bounding_box=None):
+    def get_history_json_record(self, input_file, bounding_box=None):
         """Returns the standard JSON structure for history metadata."""
-        shape, shape_value = (
-            ('bbox', bounding_box) if bounding_box
-            else ('shape_file_hash', SHAPE_HASH)
-        )
+
+        if bounding_box:
+            shape, shape_value = ('bbox', bounding_box)
+        else:
+            shape, shape_value = ('shape_file_hash', SHAPE_HASH)
 
         return {
             '$schema': (
@@ -64,22 +65,24 @@ class TestHistory(TestCase):
             'program_ref': PROGRAM_REF,
         }
 
-    def assert_history(self, file_path, exp_txt, exp_json, key="history"):
+    def assert_history(self, input_filename, history, history_json, key="history"):
         """Centralized assertion logic for history attributes."""
-        with h5py.File(file_path, 'r') as output_file:
-            other_key = "History" if key == "history" else "history"
-            self.assertIn(key, output_file.attrs)
-            self.assertNotIn(other_key, output_file.attrs)
+        with h5py.File(input_filename, 'r') as h5_input_file:
+            history_key = "History" if key == "history" else "history"
+            self.assertIn(key, h5_input_file.attrs)
+            self.assertNotIn(history_key, h5_input_file.attrs)
 
-            self.assertEqual(output_file.attrs[key], exp_txt)
-            actual_json = json.loads(output_file.attrs["history_json"])
-            self.assertEqual(actual_json, exp_json)
+            self.assertEqual(h5_input_file.attrs[key], history)
+            actual_history_json = json.loads(
+                h5_input_file.attrs["history_json"]
+            )
+            self.assertEqual(actual_history_json, history_json)
 
     @freeze_time(FROZEN_TIME)
     def test_update_history_metadata_no_history(self):
         """Test creating a new history attribute when none exists."""
         source = 'tests/data/GPM_3IMERGHH_input.nc4'
-        dest = self.prepare_file(source)
+        input_filename = self.copy_source_file_to_temp_dir(source)
 
         expected_history = (
             f'{FROZEN_TIME}+00:00 Harmony Maskfill {self.version} {{'
@@ -87,18 +90,22 @@ class TestHistory(TestCase):
             f'"fill_value": {self.fillvalue}}}'
         )
 
-        expected_history_json = [self.get_base_json(dest)]
+        expected_history_json = [self.get_history_json_record(input_filename)]
 
         update_history_metadata(
-            dest, self.shape_file, self.fillvalue, self.bounding_box
+            input_filename, self.shape_file, self.fillvalue, self.bounding_box
         )
-        self.assert_history(dest, expected_history, expected_history_json)
+        self.assert_history(
+            input_filename,
+            expected_history,
+            expected_history_json
+        )
 
     @freeze_time(FROZEN_TIME)
     def test_update_history_metadata_append_history(self):
         """Test appending to existing history and history_json."""
         source = 'tests/data/SC_SPL3SMP_subsetted_with_maskfill_mf.nc4'
-        dest = self.prepare_file(source)
+        input_filename = self.copy_source_file_to_temp_dir(source)
         url = (
             'https://opendap.uat.earthdata.nasa.gov/collections/'
             'C1268452365-EEDTEST/granules/SC:SPL3SMP.008:240468423.dap.nc4'
@@ -159,39 +166,48 @@ class TestHistory(TestCase):
             f'"fill_value": {self.fillvalue}}}'
         )
 
-        new_history_json = self.get_base_json(url)
+        new_history_json = self.get_history_json_record(url)
         expected_history_json.append(new_history_json)
 
         update_history_metadata(
-            dest, self.shape_file, self.fillvalue, self.bounding_box
+            input_filename, self.shape_file, self.fillvalue, self.bounding_box
         )
-        self.assert_history(dest, expected_history, expected_history_json)
+        self.assert_history(
+            input_filename,
+            expected_history,
+            expected_history_json
+        )
 
     @freeze_time(FROZEN_TIME)
     def test_update_history_metadata_capital_history(self):
         """Test appending to a capitalized "History" attribute."""
         source = 'tests/data/SMAP_L4_SM_aup_UTM_output.h5'
-        dest = self.prepare_file(source)
+        input_filename = self.copy_source_file_to_temp_dir(source)
         previous_history = 'File written by ldas2daac.x'
 
         expected_history = (
-            f'{previous_history}\n{FROZEN_TIME}+00:00 Harmony Maskfill {self.version} '
-            f'{{"shape_file_hash": "{SHAPE_HASH}", '
+            f'{previous_history}\n{FROZEN_TIME}+00:00 Harmony Maskfill '
+            f'{self.version} {{"shape_file_hash": "{SHAPE_HASH}", '
             f'"fill_value": {self.fillvalue}}}'
         )
 
-        expected_history_json = [self.get_base_json(dest)]
+        expected_history_json = [self.get_history_json_record(input_filename)]
 
         update_history_metadata(
-            dest, self.shape_file, self.fillvalue, self.bounding_box
+            input_filename, self.shape_file, self.fillvalue, self.bounding_box
         )
-        self.assert_history(dest, expected_history, expected_history_json, key="History")
+        self.assert_history(
+            input_filename,
+            expected_history,
+            expected_history_json,
+            key="History"
+        )
 
     @freeze_time(FROZEN_TIME)
     def test_update_history_metadata_annotator_service(self):
         """Test appending history from Metadata Annotator Service."""
         source = 'tests/data/SC_SPL2SMAP_S_subsetted_annotated.nc4'
-        dest = self.prepare_file(source)
+        input_filename = self.copy_source_file_to_temp_dir(source)
         url = (
             'https://opendap.uat.earthdata.nasa.gov/collections/'
             'C1268429762-EEDTEST/granules/SC:SPL2SMAP_S.003:241398946.dap.nc4'
@@ -267,19 +283,23 @@ class TestHistory(TestCase):
             f'"fill_value": {self.fillvalue}}}'
         )
 
-        new_history_json = self.get_base_json(url)
+        new_history_json = self.get_history_json_record(url)
         expected_history_json.append(new_history_json)
 
         update_history_metadata(
-            dest, self.shape_file, self.fillvalue, self.bounding_box
+            input_filename, self.shape_file, self.fillvalue, self.bounding_box
         )
-        self.assert_history(dest, expected_history, expected_history_json)
+        self.assert_history(
+            input_filename,
+            expected_history,
+            expected_history_json
+        )
 
     @freeze_time(FROZEN_TIME)
     def test_update_history_metadata_append_history_bounding_box(self):
         """Test appending to existing history and history_json."""
         source = 'tests/data/SC_SPL3SMP_subsetted_with_maskfill_mf.nc4'
-        dest = self.prepare_file(source)
+        input_filename = self.copy_source_file_to_temp_dir(source)
         url = (
             'https://opendap.uat.earthdata.nasa.gov/collections/'
             'C1268452365-EEDTEST/granules/SC:SPL3SMP.008:240468423.dap.nc4'
@@ -297,8 +317,8 @@ class TestHistory(TestCase):
         bounding_box = [0, 54, 44, 72]
 
         expected_history = (
-            f'{previous_history}\n\n{FROZEN_TIME}+00:00 Harmony Maskfill {self.version} '
-            f'{{"bbox": {bounding_box}, '
+            f'{previous_history}\n\n{FROZEN_TIME}+00:00 Harmony Maskfill '
+            f'{self.version} {{"bbox": {bounding_box}, '
             f'"fill_value": {self.fillvalue}}}'
         )
 
@@ -341,10 +361,14 @@ class TestHistory(TestCase):
             }
         ]
 
-        new_history_json = self.get_base_json(url, bounding_box)
+        new_history_json = self.get_history_json_record(url, bounding_box)
         expected_history_json.append(new_history_json)
 
         update_history_metadata(
-            dest, self.shape_file, self.fillvalue, bounding_box
+            input_filename, self.shape_file, self.fillvalue, bounding_box
         )
-        self.assert_history(dest, expected_history, expected_history_json)
+        self.assert_history(
+            input_filename,
+            expected_history,
+            expected_history_json
+        )

@@ -32,8 +32,8 @@ def update_history_metadata(
     metadata:
 
     • The 'history_json' attribute is updated by appending a new structured
-      record describing the current Maskfill operation, including the timestamp,
-      program name, version, request URL, and processing parameters.
+      record describing the current Maskfill operation, including the
+      timestamp, program name, version, request URL, and processing parameters.
 
     • The human‑readable `history` (or `History`) global attribute is updated
       by appending a new line summarizing the Maskfill execution. If no
