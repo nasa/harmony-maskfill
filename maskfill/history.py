@@ -31,8 +31,8 @@ def update_history_metadata(
     This method opens the target file and updates two forms of history
     metadata:
 
-    • The `history_json` attribute is replaced with a new structured record
-      describing the current Maskfill operation, including the timestamp,
+    • The 'history_json' attribute is updated by appending a new structured
+      record describing the current Maskfill operation, including the timestamp,
       program name, version, request URL, and processing parameters.
 
     • The human‑readable `history` (or `History`) global attribute is updated
