@@ -74,25 +74,22 @@ def update_history_metadata(
         )
 
         # Create new history_json attribute and append existing_history
-        new_history_json_record = create_history_record(
-            existing_history,
+        new_history_json_record = create_history_json_record(
             request_url,
             maskfill_parameters
         )
 
+        output_history_json = read_history_json_attrs(h5_input_file)
+
+        # Append `history_json_record` to the existing `history_json` array:
+        output_history_json.append(new_history_json_record)
+
         # Update existing `history_json` array:
         h5_input_file.attrs['history_json'] = json.dumps(
-            new_history_json_record
+            output_history_json
         )
 
-        # Create history parameter attribute without input_file
-        history_parameters = {
-            parameter_name: parameter_value
-            for parameter_name, parameter_value in new_history_json_record[
-                'parameters'
-            ].items()
-            if parameter_name != 'input_file'
-        }
+        history_parameters = dict(new_history_json_record['parameters'])
 
         # Create a new history for Harmony Maskfill
         new_history_line = ' '.join(
@@ -157,6 +154,43 @@ def read_history_attrs(h5_input_file: h5py.File) -> tuple[str, str | None]:
     return history_attribute_name, existing_history
 
 
+def read_history_json_attrs(h5_input_file: h5py.File) -> List:
+    """
+    Retrieve and normalize the `history_json` global attribute from an
+    HDF5 or NetCDF4 file.
+
+    This function checks whether the file contains a `history_json`
+    attribute. If present, the JSON content is parsed and returned as a
+    list of history records. The attribute may contain either a single
+    JSON object or a list of objects; in both cases, the return value is
+    normalized to a list. If the attribute does not exist, an empty list
+    is returned.
+
+    Parameters
+    ----------
+    h5_input_file : h5py.File
+        An open HDF5 or NetCDF4 file object from which the
+        `history_json` attribute should be read.
+
+    Returns
+    -------
+    List
+        A list of parsed `history_json` records. Returns an empty list
+        when the file does not contain a `history_json` attribute.
+    """
+    output_history_json = []
+
+    if 'history_json' in h5_input_file.attrs:
+        old_history_json = json.loads(h5_input_file.attrs['history_json'])
+        if isinstance(old_history_json, list):
+            output_history_json = old_history_json
+        else:
+            # Single `history_json_record` element.
+            output_history_json = [old_history_json]
+
+    return output_history_json
+
+
 def get_request_url_attribute(h5_input_file: h5py.File) -> str:
     """Extract the request URL from the file's `history_json` attribute.
 
@@ -202,8 +236,7 @@ def get_request_url_attribute(h5_input_file: h5py.File) -> str:
     return h5_input_file.filename
 
 
-def create_history_record(
-        input_history: str,
+def create_history_json_record(
         granule_url: str,
         maskfill_parameters: dict
 ) -> Dict:
@@ -233,7 +266,7 @@ def create_history_record(
         ready to be serialized and written to the output file.
 
     """
-    history_record = {
+    history_json_record = {
         '$schema': HISTORY_JSON_SCHEMA,
         'date_time': datetime.utcnow().replace(tzinfo=timezone.utc).isoformat(),
         'program': PROGRAM,
@@ -243,12 +276,7 @@ def create_history_record(
         'program_ref': PROGRAM_REF,
     }
 
-    if isinstance(input_history, str):
-        history_record['cf_history'] = input_history.splitlines()
-    elif isinstance(input_history, list):
-        history_record['cf_history'] = input_history
-
-    return history_record
+    return history_json_record
 
 
 def get_semantic_version() -> str:
