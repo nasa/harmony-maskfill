@@ -15,6 +15,12 @@ from pystac import Asset as StacAsset, Catalog as StacCatalog, Item as StacItem
 import h5py
 
 
+HISTORY_ATTRIBUTES = [
+    'history', 'History', 'HISTORY',
+    'history_json', 'HISTORY_JSON'
+]
+
+
 def create_input_stac(granule_url: str, media_type: str) -> StacCatalog:
     """ A helper function to create a STAC catalog to be used as input when
         invoking the MaskFillAdapter.
@@ -84,7 +90,19 @@ class MaskFillTestCase(TestCase):
         band_two = np.array(dataset_two.ReadAsArray())
         self.assertEqual(band_one.shape, band_two.shape)
         self.assertTrue(np.array_equal(band_one, band_two))
-        self.assertEqual(dataset_one.GetMetadata(), dataset_two.GetMetadata())
+
+        # Retrieve metadata dictionaries
+        remove_history_metadata_one = dataset_one.GetMetadata()
+
+        # Remove history attributes from dataset_one before comparison
+        # Maskfill version in history_joson will change per release.
+        # Exclude history and history_json from compare
+        remove_history_metadata_one.pop("history", None)
+        remove_history_metadata_one.pop("history_json", None)
+        self.assertEqual(
+            remove_history_metadata_one,
+            dataset_two.GetMetadata()
+        )
 
     def compare_h5_files(self, file_one_name, file_two_name):
         """Check all Attributes, Datasets and Groups within two HDF-5 files are
@@ -185,7 +203,8 @@ class MaskFillTestCase(TestCase):
             key_prefix = f'/{h5py_object.name}'
 
         for attr_key, attr_value in h5py_object.attrs.items():
-            attribute_dictionary[f'{key_prefix}/{attr_key}'] = attr_value
+            if attr_key not in HISTORY_ATTRIBUTES:
+                attribute_dictionary[f'{key_prefix}/{attr_key}'] = attr_value
 
         for iterable_object in h5py_object.values():
             if isinstance(iterable_object, h5py.Dataset):

@@ -55,6 +55,7 @@ from maskfill.exceptions import (
 )
 from maskfill import geotiff_maskfill
 from maskfill import h5_maskfill
+from maskfill import history
 
 
 DEFAULT_MASK_GRID_CACHE = 'ignore_and_delete'
@@ -65,8 +66,8 @@ VALID_INPUT_EXTENSIONS = ('.tif', '.h5', '.hdf5', '.nc4')
 
 
 def mask_fill(input_file: str, shape_file: str, output_dir: str,
-              mask_grid_cache: str, fill_value: Union[int, float],
-              logger: logging.Logger) -> str:
+              mask_grid_cache: str, fill_value: Union[int, float, None],
+              logger: logging.Logger, bounding_box=None) -> str:
     """ Performs a mask fill on the given data file using RQS agent call input
         parameters.
 
@@ -91,6 +92,13 @@ def mask_fill(input_file: str, shape_file: str, output_dir: str,
         output_file = h5_maskfill.produce_masked_hdf(
             input_file, shape_file, output_dir, output_dir,
             mask_grid_cache, fill_value, logger
+        )
+
+        history.update_history_metadata(
+            output_file,
+            shape_file,
+            fill_value,
+            bounding_box
         )
 
     return output_file
