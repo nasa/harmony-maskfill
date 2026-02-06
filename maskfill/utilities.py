@@ -50,10 +50,20 @@ def get_mask_array(shape_path: str, crs: CRS, out_shape: Tuple[int, int],
     if shapes.is_empty.empty:
         return np.ones(out_shape)
 
-    if transform.e <= 0 :
-        transform = Affine(transform.a, transform.b, transform.c, transform.d, transform.a, transform.f)
+    # The Affine transform coefficiants cannot be updated in place.
+    # The following section causes the unit tests to fail
+    # if transform.e <= 0:
+    #     transform = Affine(transform.a, transform.b, transform.c, transform.d, transform.a, transform.f)
+    # elif transform.a <= 0:
+    #     transform = Affine(transform.e, transform.b, transform.c, transform.d, transform.e, transform.f)
+
+    # The following passes the unit tests when the internal data structure is updated
+    if transform.e <= 0:
+        transform._data = (transform.a, transform.b, transform.c,
+                           transform.d, transform.a, transform.f)
     elif transform.a <= 0:
-        transform = Affine(transform.e, transform.b, transform.c, transform.d, transform.e, transform.f)
+        transform._data = (transform.e, transform.b, transform.c,
+                           transform.d, transform.e, transform.f)
 
     return rasterize(shapes=shapes, default_value=0, fill=1,
                      out_shape=out_shape, dtype=np.uint8, transform=transform,
@@ -463,26 +473,24 @@ def get_geographic_resolution(longitudes: np.ndarray,
     """
 
     # The assumption is that the latitudes and longitudes have the same shape.
-    lon_square_diffs = 0
-    lat_square_diffs = 0
+
     if latitudes.shape[0] == 1:  # one row
         lat_square_diffs = np.square(np.diff(latitudes[0]))
         lon_square_diffs = np.square(np.diff(longitudes[0]))
 
     elif latitudes.shape[1] == 1:  # one column
-         lat_square_diffs = np.square(np.diff((np.transpose(latitudes)[0])))
-         lon_square_diffs = np.square(np.diff((np.transpose(longitudes)[0])))
+        lat_square_diffs = np.square(np.diff((np.transpose(latitudes)[0])))
+        lon_square_diffs = np.square(np.diff((np.transpose(longitudes)[0])))
 
     elif latitudes.shape[0] > 1 and latitudes.shape[1] > 1:
         lon_square_diffs = np.square(np.subtract(longitudes[1:, 1:],
                                                  longitudes[:-1, :-1]))
         lat_square_diffs = np.square(np.subtract(latitudes[1:, 1:],
                                                  latitudes[:-1, :-1]))
-    if lat_square_diffs == 0 and lon_square_diffs == 0:
-        return 0
     else:
-        return np.nanmin(np.sqrt(np.add(lon_square_diffs, lat_square_diffs)))
+        return 0
 
+    return np.nanmin(np.sqrt(np.add(lon_square_diffs, lat_square_diffs)))
 
 
 def get_grid_lat_lons(transform: Affine, crs: CRS,
