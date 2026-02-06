@@ -467,12 +467,12 @@ def get_geographic_resolution(longitudes: np.ndarray,
     # The assumption is that the latitudes and longitudes have the same shape.
 
     if latitudes.shape[0] == 1:  # one row
-        lat_square_diffs = np.square(np.diff(latitudes[0]))
-        lon_square_diffs = np.square(np.diff(longitudes[0]))
+        lat_square_diffs = np.square(np.diff(latitudes[0:]))
+        lon_square_diffs = np.square(np.diff(longitudes[0:]))
 
     elif latitudes.shape[1] == 1:  # one column
-        lat_square_diffs = np.square(np.diff((np.transpose(latitudes)[0])))
-        lon_square_diffs = np.square(np.diff((np.transpose(longitudes)[0])))
+        lat_square_diffs = np.square(np.diff((np.transpose(latitudes)[0:])))
+        lon_square_diffs = np.square(np.diff((np.transpose(longitudes)[0:])))
 
     elif latitudes.shape[0] > 1 and latitudes.shape[1] > 1:
         lon_square_diffs = np.square(np.subtract(longitudes[1:, 1:],
