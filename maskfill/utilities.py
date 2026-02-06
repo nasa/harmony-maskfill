@@ -52,18 +52,18 @@ def get_mask_array(shape_path: str, crs: CRS, out_shape: Tuple[int, int],
 
     # The Affine transform coefficiants cannot be updated in place.
     # The following section causes the unit tests to fail
-    # if transform.e <= 0:
-    #     transform = Affine(transform.a, transform.b, transform.c, transform.d, transform.a, transform.f)
-    # elif transform.a <= 0:
-    #     transform = Affine(transform.e, transform.b, transform.c, transform.d, transform.e, transform.f)
+    if transform.e <= 0:
+        transform = Affine(transform.a, transform.b, transform.c, transform.d, transform.a, transform.f)
+    elif transform.a <= 0:
+        transform = Affine(transform.e, transform.b, transform.c, transform.d, transform.e, transform.f)
 
     # The following passes the unit tests when the internal data structure is updated
-    if transform.e <= 0:
-        transform._data = (transform.a, transform.b, transform.c,
-                           transform.d, transform.a, transform.f)
-    elif transform.a <= 0:
-        transform._data = (transform.e, transform.b, transform.c,
-                           transform.d, transform.e, transform.f)
+    # if transform.e <= 0:
+    #     transform._data = (transform.a, transform.b, transform.c,
+    #                        transform.d, transform.a, transform.f)
+    # elif transform.a <= 0:
+    #     transform._data = (transform.e, transform.b, transform.c,
+    #                        transform.d, transform.e, transform.f)
 
     return rasterize(shapes=shapes, default_value=0, fill=1,
                      out_shape=out_shape, dtype=np.uint8, transform=transform,
