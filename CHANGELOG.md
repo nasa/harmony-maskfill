@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-MaskFill handles cases where where the spatial mask is one row or column without 
-causing an exception. 
+MaskFill handles cases where where the spatial mask is one row or column without
+causing an exception.
 
 ## [v1.3.0] - 2026-01-29
 
