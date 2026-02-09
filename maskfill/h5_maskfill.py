@@ -164,7 +164,6 @@ def mask_fill(h5_dataset: h5py.Dataset, shape_path: str, cache_dir: str,
                                 mask_grid_cache, saved_mask_arrays, cf_config,
                                 logger)
     if mask_array is None:
-        logger.info(f"The dataset {h5_dataset.name} cannot be masked")
         return
 
     # Perform mask fill and write the new mask filled data to the dataset,
