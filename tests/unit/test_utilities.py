@@ -524,7 +524,7 @@ class TestUtilities(TestCase):
         latitudes = np.array([[10, 10, 10], [15, 15, 15], [25, 25, 25]])
         longitudes = np.array([[10, 15, 25], [10, 15, 25], [10, 15, 25]])
         expected_resolution = 7.071
-        self.assertAlmostEqual(get_geographic_resolution(latitudes, longitudes),
+        self.assertAlmostEqual(get_geographic_resolution(longitudes, latitudes),
                                expected_resolution, places=3)
 
     def test_get_geographic_resolution_one_row(self):
@@ -539,7 +539,7 @@ class TestUtilities(TestCase):
         latitudes = np.array([[25, 25, 25]])
         longitudes = np.array([[10, 15, 25]])
         expected_resolution = 5
-        self.assertAlmostEqual(get_geographic_resolution(latitudes, longitudes),
+        self.assertAlmostEqual(get_geographic_resolution(longitudes, latitudes),
                                expected_resolution, places=3)
 
     def test_get_geographic_resolution_one_column(self):
@@ -554,7 +554,7 @@ class TestUtilities(TestCase):
         latitudes = np.array([[10], [15], [25]])
         longitudes = np.array([[15], [15], [15]])
         expected_resolution = 5
-        self.assertAlmostEqual(get_geographic_resolution(latitudes, longitudes),
+        self.assertAlmostEqual(get_geographic_resolution(longitudes, latitudes),
                                expected_resolution, places=3)
 
     def test_get_decoded_attribute(self):
