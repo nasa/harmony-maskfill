@@ -126,47 +126,6 @@ class TestUtilities(TestCase):
             self.assertEqual(mask_id_two, expected_mask_id_two)
             h5_file.close()
 
-    # def test_get_mask_array(self):
-    #     """ Ensure that for datasets either with or without a DIMENSION_LIST
-    #         attribute the expect hash is returned. Datasets that share
-    #         projected coordinates should return the same hash. Datasets within
-    #         the same file, with different projected coordinates should have
-    #         different hashes.
-
-    #         All variables being tested use the EASE-2 Grid Global.
-
-    #     """
-    #     shape_path = 'tests/data/USA.geo.json'
-    #     crs = CRS.from_epsg(6933)
-
-    #     with self.subTest('DIMENSION_LIST present, shared dimensions'):
-    #         expected_id = '22336df3ff475d45e5b0a91c18161323c089f697fc4c70d702937abd'
-    #         h5_file = h5py.File('tests/data/SMAP_L4_SM_aup_input.h5', 'r')
-    #         dataset_one = h5_file['/Analysis_Data/sm_profile_analysis']
-    #         dataset_two = h5_file['/Analysis_Data/sm_surface_analysis']
-
-    #         mask_id_one = get_h5_mask_array_id(dataset_one, crs, shape_path)
-    #         mask_id_two = get_h5_mask_array_id(dataset_two, crs, shape_path)
-
-    #         self.assertEqual(mask_id_one, expected_id)
-    #         self.assertEqual(mask_id_two, expected_id)
-    #         h5_file.close()
-
-    #     with self.subTest('DIMENSION_LIST absent, different coordinates'):
-    #         expected_mask_id_one = '1f689a7016523c01a6436da39fba978f26d73ee4200fbd3a0ccd613e'
-    #         expected_mask_id_two = '95aa4fb28d44ae780450d85e362385a762ed917d48dc8ccf6e4ae293'
-    #         group = '/Freeze_Thaw_Retrieval_Data_Global'
-    #         h5_file = h5py.File('tests/data/SMAP_L3_FT_P_corners_input.h5', 'r')
-    #         dataset_one = h5_file[f'{group}/altitude_dem.Bands_01']
-    #         dataset_two = h5_file[f'{group}/altitude_dem.Bands_02']
-
-    #         mask_id_one = get_h5_mask_array_id(dataset_one, crs, shape_path)
-    #         mask_id_two = get_h5_mask_array_id(dataset_two, crs, shape_path)
-
-    #         self.assertEqual(mask_id_one, expected_mask_id_one)
-    #         self.assertEqual(mask_id_two, expected_mask_id_two)
-    #         h5_file.close()
-
     def test_get_geotiff_crs(self):
         """ Ensure that a `pyproj.crs.CRS` object can be extracted from a
             GeoTIFF file, and that it contains the correct projection
