@@ -163,6 +163,8 @@ def mask_fill(h5_dataset: h5py.Dataset, shape_path: str, cache_dir: str,
     mask_array = get_mask_array(h5_dataset, shape_path, cache_dir,
                                 mask_grid_cache, saved_mask_arrays, cf_config,
                                 logger)
+    if mask_array is None:
+        return
 
     # Perform mask fill and write the new mask filled data to the dataset,
     # unless the mask_grid_cache value only requires us to create a mask array
@@ -252,8 +254,9 @@ def get_mask_array(h5_dataset: h5py.Dataset, shape_path: str,
         logger.debug(f'{h5_dataset.name}: Creating new mask.')
         mask_array = create_mask_array(h5_dataset, crs, shape_path, cf_config,
                                        logger)
-    # Save and return the mask array
-    saved_mask_arrays[mask_id] = mask_array
+    if mask_array is not None:
+        # Save and return the mask array
+        saved_mask_arrays[mask_id] = mask_array
     return mask_array
 
 
@@ -269,6 +272,10 @@ def create_mask_array(h5_dataset: h5py.Dataset, crs: CRS, shape_path: str,
             numpy.ndarray: The mask array
     """
     transform = get_transform(h5_dataset, crs, cf_config, logger)
+    if transform.a == 0 and transform.e == 0:
+        logger.info(f"The dataset {h5_dataset.name}'s spatial cell width and"
+                    "height is too small and will not be masked")
+        return None
     spatial_grid_shape = get_spatial_grid_shape(h5_dataset, cf_config)
     return utilities.get_mask_array(
         shape_path, crs, spatial_grid_shape, transform,

@@ -350,8 +350,14 @@ def get_cell_size_from_dimensions(h5_dataset: Dataset) -> Tuple[int, int] | None
 
     if dimension_datasets:
         column_dimension, row_dimension = dimension_datasets
-        cell_width = column_dimension[1] - column_dimension[0]
-        cell_height = row_dimension[1] - row_dimension[0]
+        if column_dimension.size > 1:
+            cell_width = column_dimension[1] - column_dimension[0]
+        else:
+            cell_width = 0
+        if row_dimension.size > 1:
+            cell_height = row_dimension[1] - row_dimension[0]
+        else:
+            cell_height = 0
 
         return cell_width, cell_height
     else:
