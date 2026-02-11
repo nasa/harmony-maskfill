@@ -28,7 +28,6 @@ from maskfill.utilities import (
     get_geotiff_info,
     get_grid_lat_lons,
     get_h5_mask_array_id,
-    get_mask_array,
     get_resolved_dataframe,
     get_resolved_line,
     get_resolved_polygon,
