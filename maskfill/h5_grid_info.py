@@ -348,20 +348,16 @@ def get_cell_size_from_dimensions(h5_dataset: Dataset) -> Tuple[int, int] | None
     """
     dimension_datasets = get_dimension_arrays(h5_dataset)
 
-    if dimension_datasets:
-        column_dimension, row_dimension = dimension_datasets
-        if column_dimension.size > 1:
-            cell_width = column_dimension[1] - column_dimension[0]
-        else:
-            cell_width = 0
-        if row_dimension.size > 1:
-            cell_height = row_dimension[1] - row_dimension[0]
-        else:
-            cell_height = 0
-
-        return cell_width, cell_height
-    else:
+    if not dimension_datasets:
         return None
+    column_dimension, row_dimension = dimension_datasets
+    cell_width = cell_height = 0
+    if column_dimension.size > 1:
+        cell_width = column_dimension[1] - column_dimension[0]
+    if row_dimension.size > 1:
+        cell_height = row_dimension[1] - row_dimension[0]
+
+    return cell_width, cell_height
 
 
 def get_cell_size_from_lat_lon_extents(h5_dataset: Dataset, x_0: float,
