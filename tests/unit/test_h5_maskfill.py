@@ -14,6 +14,7 @@ from maskfill.h5_maskfill import (
     get_coordinates,
     get_exclusions,
     get_string_variables,
+    create_mask_array
 )
 from maskfill.cf_config import CFConfigH5
 
@@ -294,3 +295,60 @@ class TestH5MaskFill(MaskFillTestCase):
             expected_strings = []
             actual_strings = get_string_variables(input_file)
             self.assertEqual(expected_strings, actual_strings)
+
+    def test_create_mask_array(self):
+        """Test that the right mask array is created when the spatial subset is
+        multiple rows and columns, one row, one column and does not cause an
+        exception even for a 1 pixel subset
+
+        """
+        crs = CRS.from_cf({'false_easting': 0,
+                           'false_northing': 0,
+                           'grid_mapping_name': 'lambert_cylindrical_equal_area',
+                           'longitude_of_central_meridian': 0,
+                           'standard_parallel': 30,
+                           'unit': 'm'})
+
+        with self.subTest('Multiple Row Col subset'):
+            h5_file = h5py.File('tests/data/SPL2SMAP_S_subset.nc4', 'r')
+            dataset = h5_file['/Soil_Moisture_Retrieval_Data_1km/surface_temperature_1km']
+            expected_mask = np.zeros((48, 53))
+
+            mask_array = create_mask_array(dataset, crs,
+                                           'tests/data/EraNationalPark.geojson',
+                                           self.cf_config,
+                                           self.logger)
+            np.testing.assert_array_equal(mask_array, expected_mask)
+            h5_file.close()
+        with self.subTest('One Row subset'):
+            h5_file = h5py.File('tests/data/SPL2SMAP_S_one_row.nc4', 'r')
+            dataset = h5_file['/Soil_Moisture_Retrieval_Data_1km/surface_temperature_1km']
+            expected_mask = np.zeros((1, 16))
+
+            mask_array = create_mask_array(dataset, crs,
+                                           'tests/data/one_row.geojson',
+                                           self.cf_config,
+                                           self.logger)
+            np.testing.assert_array_equal(mask_array, expected_mask)
+            h5_file.close()
+        with self.subTest('One Col mask)'):
+            h5_file = h5py.File('tests/data/SPL2SMAP_S_one_col.nc4', 'r')
+            dataset = h5_file['/Soil_Moisture_Retrieval_Data_1km/surface_temperature_1km']
+            expected_mask = np.zeros((25, 1))
+
+            mask_array = create_mask_array(dataset, crs,
+                                           'tests/data/one_col.geojson',
+                                           self.cf_config,
+                                           self.logger)
+            np.testing.assert_array_equal(mask_array, expected_mask)
+            h5_file.close()
+        with self.subTest('One Pixel mask)'):
+            h5_file = h5py.File('tests/data/SPL2SMAP_S_one_pixel.nc4', 'r')
+            dataset = h5_file['/Soil_Moisture_Retrieval_Data_1km/surface_temperature_1km']
+
+            mask_array = create_mask_array(dataset, crs,
+                                           'tests/data/one_pixel.geojson',
+                                           self.cf_config,
+                                           self.logger)
+            self.assertIsNone(mask_array)
+            h5_file.close()
