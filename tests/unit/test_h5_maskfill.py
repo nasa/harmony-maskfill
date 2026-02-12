@@ -320,7 +320,7 @@ class TestH5MaskFill(MaskFillTestCase):
                                            self.logger)
             np.testing.assert_array_equal(mask_array, expected_mask)
             h5_file.close()
-        with self.subTest('One Row subset'):
+        with self.subTest('Subset has one row, multiple columns'):
             h5_file = h5py.File('tests/data/SPL2SMAP_S_one_row.nc4', 'r')
             dataset = h5_file['/Soil_Moisture_Retrieval_Data_1km/surface_temperature_1km']
             expected_mask = np.zeros((1, 16))
@@ -331,7 +331,7 @@ class TestH5MaskFill(MaskFillTestCase):
                                            self.logger)
             np.testing.assert_array_equal(mask_array, expected_mask)
             h5_file.close()
-        with self.subTest('One Col mask)'):
+        with self.subTest('Subset has one column, multiple rows'):
             h5_file = h5py.File('tests/data/SPL2SMAP_S_one_col.nc4', 'r')
             dataset = h5_file['/Soil_Moisture_Retrieval_Data_1km/surface_temperature_1km']
             expected_mask = np.zeros((25, 1))
@@ -342,7 +342,7 @@ class TestH5MaskFill(MaskFillTestCase):
                                            self.logger)
             np.testing.assert_array_equal(mask_array, expected_mask)
             h5_file.close()
-        with self.subTest('One Pixel mask)'):
+        with self.subTest('Subset only has a single pixel'):
             h5_file = h5py.File('tests/data/SPL2SMAP_S_one_pixel.nc4', 'r')
             dataset = h5_file['/Soil_Moisture_Retrieval_Data_1km/surface_temperature_1km']
 

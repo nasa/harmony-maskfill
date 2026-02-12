@@ -52,8 +52,10 @@ def get_mask_array(shape_path: str, crs: CRS, out_shape: Tuple[int, int],
 
     # if either row or column delta is zero, assume square pixels as an approximation
     # use the other delta value
+    # Row height is zero, assign column width.
     if transform.e == 0.0:
         transform = Affine(transform.a, transform.b, transform.c, transform.d, transform.a, transform.f)
+    # Column width is zero, assign row height.
     elif transform.a == 0.0:
         transform = Affine(transform.e, transform.b, transform.c, transform.d, transform.e, transform.f)
 
