@@ -273,9 +273,10 @@ def create_mask_array(h5_dataset: h5py.Dataset, crs: CRS, shape_path: str,
     """
     transform = get_transform(h5_dataset, crs, cf_config, logger)
     if transform.a == 0 and transform.e == 0:
-        logger.info(f"The dataset {h5_dataset.name}'s spatial cell width and"
-                    "height is too small and will not be masked")
+        logger.info(f"The dataset {h5_dataset.name}'s spatial mask is a single"
+                    "pixel and will not be masked")
         return None
+
     spatial_grid_shape = get_spatial_grid_shape(h5_dataset, cf_config)
     return utilities.get_mask_array(
         shape_path, crs, spatial_grid_shape, transform,
