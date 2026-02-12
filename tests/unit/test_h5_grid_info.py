@@ -427,7 +427,7 @@ class TestH5GridProjectionInfo(TestCase):
         h5_file.close()
 
     def test_get_cell_size_from_dimensions_1_row(self):
-        """Given an input dataset, check the returned cell_width and cell_height."""
+        """Given 1 row dataset check the cell_height is 0."""
         data_array = np.ones((1, 4))
         x_array = np.array([1, 2, 3, 4])
         y_array = np.array([5])
@@ -450,7 +450,7 @@ class TestH5GridProjectionInfo(TestCase):
         h5_file.close()
 
     def test_get_cell_size_from_dimensions_1_column(self):
-        """Given an input dataset, check the returned cell_width and cell_height."""
+        """Given an 1 column dataset, check cell_width is 0"""
         data_array = np.ones((3, 1))
         x_array = np.array([4])
         y_array = np.array([2, 4, 6])
