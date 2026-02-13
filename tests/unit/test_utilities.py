@@ -482,7 +482,37 @@ class TestUtilities(TestCase):
         latitudes = np.array([[10, 10, 10], [15, 15, 15], [25, 25, 25]])
         longitudes = np.array([[10, 15, 25], [10, 15, 25], [10, 15, 25]])
         expected_resolution = 7.071
-        self.assertAlmostEqual(get_geographic_resolution(latitudes, longitudes),
+        self.assertAlmostEqual(get_geographic_resolution(longitudes, latitudes),
+                               expected_resolution, places=3)
+
+    def test_get_geographic_resolution_one_row(self):
+        """ Ensure the calculated resolution does not fail when there is just
+            one row in the spatial coordinates.
+
+            The example coordinates below have the shortest diagonal difference
+            between (10, 10) and (15, 15), resulting in a resolution of
+            (5^2 + 5^2)^0.5 = 50^0.5 ~= 7.07.
+
+        """
+        latitudes = np.array([[25, 25, 25]])
+        longitudes = np.array([[10, 15, 25]])
+        expected_resolution = 5
+        self.assertAlmostEqual(get_geographic_resolution(longitudes, latitudes),
+                               expected_resolution, places=3)
+
+    def test_get_geographic_resolution_one_column(self):
+        """ Ensure the calculated resolution does not fail when there is just
+            one column in the spatial coordinates.
+
+            The example coordinates below have the shortest diagonal difference
+            between (10, 10) and (15, 15), resulting in a resolution of
+            (5^2 + 5^2)^0.5 = 50^0.5 ~= 7.07.
+
+        """
+        latitudes = np.array([[10], [15], [25]])
+        longitudes = np.array([[15], [15], [15]])
+        expected_resolution = 5
+        self.assertAlmostEqual(get_geographic_resolution(longitudes, latitudes),
                                expected_resolution, places=3)
 
     def test_get_decoded_attribute(self):

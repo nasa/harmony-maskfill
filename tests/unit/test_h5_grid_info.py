@@ -426,6 +426,52 @@ class TestH5GridProjectionInfo(TestCase):
 
         h5_file.close()
 
+    def test_get_cell_size_from_dimensions_1_row(self):
+        """Given 1 row dataset check the cell_height is 0."""
+        data_array = np.ones((1, 4))
+        x_array = np.array([1, 2, 3, 4])
+        y_array = np.array([5])
+
+        h5_file = h5py.File(self.test_h5_name, 'w')
+        data = h5_file.create_dataset('data', data=data_array)
+        x = h5_file.create_dataset('x', data=x_array)
+        x.attrs.create('standard_name', 'projection_x_coordinate')
+
+        y = h5_file.create_dataset('y', data=y_array)
+        y.attrs.create('standard_name', 'projection_y_coordinate')
+
+        data.attrs.create('DIMENSION_LIST', ((y.ref, ), (x.ref, )), dtype=h5py.ref_dtype)
+
+        cell_width, cell_height = get_cell_size_from_dimensions(data)
+
+        self.assertEqual(cell_width, 1)
+        self.assertEqual(cell_height, 0)
+
+        h5_file.close()
+
+    def test_get_cell_size_from_dimensions_1_column(self):
+        """Given an 1 column dataset, check cell_width is 0"""
+        data_array = np.ones((3, 1))
+        x_array = np.array([4])
+        y_array = np.array([2, 4, 6])
+
+        h5_file = h5py.File(self.test_h5_name, 'w')
+        data = h5_file.create_dataset('data', data=data_array)
+        x = h5_file.create_dataset('x', data=x_array)
+        x.attrs.create('standard_name', 'projection_x_coordinate')
+
+        y = h5_file.create_dataset('y', data=y_array)
+        y.attrs.create('standard_name', 'projection_y_coordinate')
+
+        data.attrs.create('DIMENSION_LIST', ((y.ref, ), (x.ref, )), dtype=h5py.ref_dtype)
+
+        cell_width, cell_height = get_cell_size_from_dimensions(data)
+
+        self.assertEqual(cell_width, 0)
+        self.assertEqual(cell_height, 2)
+
+        h5_file.close()
+
     def test_get_cell_size_from_dimensions_no_standard_name(self):
         """Given an input dataset does not define a standard_name,
            get_cell_size_from_dimensions return None."""
