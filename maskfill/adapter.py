@@ -7,16 +7,22 @@ import os
 from pystac import Asset, Item
 from harmony_service_lib import BaseHarmonyAdapter
 from harmony_service_lib.message import Source as MessageSource
+
+from harmony_service_lib.exceptions import (
+    HarmonyException,
+    NoRetryException,
+)
+
 from harmony_service_lib.util import (
     download,
     generate_output_filename,
-    HarmonyException,
     stage,
 )
 
+
 from maskfill.maskfill import DEFAULT_MASK_GRID_CACHE, mask_fill
 from maskfill.utilities import create_bounding_box_shape_file
-
+from maskfill.exceptions import CustomNoRetryError
 
 EXTENSION_MIMETYPES = {'.h5': 'application/x-hdf5',
                        '.hdf5': 'application/x-hdf5',
@@ -129,6 +135,12 @@ class MaskFillAdapter(BaseHarmonyAdapter):
 
             return result
 
+        except NoRetryException as err:
+            self.logger.error('MaskFill failed: ' + str(err), exc_info=1)
+            raise
+        except CustomNoRetryError as err:
+            self.logger.error('MaskFill failed: ' + str(err), exc_info=1)
+            raise NoRetryException('MaskFill failed with error: ' + str(err)) from err
         except Exception as err:
             self.logger.error('MaskFill failed: ' + str(err), exc_info=1)
             raise HarmonyException('MaskFill failed with error: ' + str(err)) from err
@@ -172,7 +184,7 @@ class MaskFillAdapter(BaseHarmonyAdapter):
 
         """
         if not hasattr(self, 'message') or self.message is None:
-            raise HarmonyException('No message request')
+            raise NoRetryException('No message request')
 
         has_granules = (hasattr(self.message, 'granules')
                         and self.message.granules)
@@ -183,10 +195,10 @@ class MaskFillAdapter(BaseHarmonyAdapter):
             has_items = False
 
         if not has_granules and not has_items:
-            raise HarmonyException('No granules specified for reprojection')
+            raise NoRetryException('No granules specified for reprojection')
 
         if not isinstance(self.message.granules, list):
-            raise HarmonyException('Invalid granule list')
+            raise NoRetryException('Invalid granule list')
 
         # Ensure that either a GeoJSON shape file or a bounding box is
         # specified in the Harmony message.
@@ -194,7 +206,7 @@ class MaskFillAdapter(BaseHarmonyAdapter):
             not self.message_has_valid_shape_file()
             and not self.message_has_valid_bounding_box()
         ):
-            raise HarmonyException('MaskFill requires a shape file or bounding'
+            raise NoRetryException('MaskFill requires a shape file or bounding'
                                    ' box that describes a mask.')
 
     def message_has_valid_shape_file(self):
@@ -205,9 +217,9 @@ class MaskFillAdapter(BaseHarmonyAdapter):
         """
         if getattr(self.message.subset, 'shape', None) is not None:
             if self.message.subset.shape.href is None:
-                raise HarmonyException('Shape file must specify resource URL.')
+                raise NoRetryException('Shape file must specify resource URL.')
             elif self.message.subset.shape.type != 'application/geo+json':
-                raise HarmonyException('Shape file must be GeoJSON format.')
+                raise NoRetryException('Shape file must be GeoJSON format.')
             else:
                 has_valid_shape = True
         else:
@@ -230,7 +242,7 @@ class MaskFillAdapter(BaseHarmonyAdapter):
             ):
                 has_valid_bbox = True
             else:
-                raise HarmonyException('Bounding box must be 4-element list.')
+                raise NoRetryException('Bounding box must be 4-element list.')
         else:
             has_valid_bbox = False
 
@@ -250,7 +262,7 @@ class MaskFillAdapter(BaseHarmonyAdapter):
             else:
                 input_format = input_mimetype
 
-            raise HarmonyException(f'Invalid granule format: {input_format}')
+            raise NoRetryException(f'Invalid granule format: {input_format}')
 
     @staticmethod
     def get_file_mimetype(file_name):

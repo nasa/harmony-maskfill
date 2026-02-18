@@ -1,3 +1,18 @@
+class CustomNoRetryError(Exception):
+    """Base class for No Retry exceptions.
+
+    This Exception should be subclassed and raised for any maskfill errors that
+    cannot be resolved with a simple retry.
+
+    """
+
+    def __init__(self, exception_type, message, exit_status=None):
+        self.exception_type = exception_type
+        self.exit_status = exit_status
+        self.message = message
+        super().__init__(self.message)
+
+
 class CustomError(Exception):
     """Base class for exceptions in this module."""
     def __init__(self, exception_type, message, exit_status=None):
@@ -6,7 +21,7 @@ class CustomError(Exception):
         self.message = message
 
 
-class InsufficientDataError(CustomError):
+class InsufficientDataError(CustomNoRetryError):
     """Exception raised for input datasets not containing sufficient data, for
     example, the dataset could have only a single pixel that has valid non-fill
     values. Alternatively, non-fill values may appear in only a single row or
@@ -17,7 +32,7 @@ class InsufficientDataError(CustomError):
         super().__init__('InsufficientDataError', message)
 
 
-class InsufficientProjectionInformation(CustomError):
+class InsufficientProjectionInformation(CustomNoRetryError):
     """Exception raised when there is no projection information in an input
     granule, and the granule's collection does not have default projection
     information in the global MaskFill configuration file.
@@ -39,7 +54,7 @@ class InternalError(CustomError):
         super().__init__('InternalError', message)
 
 
-class InvalidParameterValue(CustomError):
+class InvalidParameterValue(CustomNoRetryError):
     """Exception raised when an input parameter cannot be parsed as expected.
     This Exception is used in output error messages.
 
@@ -48,7 +63,7 @@ class InvalidParameterValue(CustomError):
         super().__init__('InvalidParameterValue', message, 1)
 
 
-class InvalidMetadata(CustomError):
+class InvalidMetadata(CustomNoRetryError):
     """ Exception raised when metadata contained in a dataset's attributes is
         invalid. For example, if a reference to a grid mapping or coordinate
         variable has a relative path that suggests that the origin of the
@@ -68,7 +83,7 @@ class InvalidMetadata(CustomError):
         super().__init__('InvalidMetadata', combined_message, 6)
 
 
-class MissingCoordinateDataset(CustomError):
+class MissingCoordinateDataset(CustomNoRetryError):
     """ Exception raised when a science dataset refers to a coordinate dataset,
         within its `coordinates` attribute, that is not present in the granule.
         This Exception is used in output error messages.
@@ -79,7 +94,7 @@ class MissingCoordinateDataset(CustomError):
                          f'Cannot find "{dataset}" in "{file_name}".', 4)
 
 
-class MissingParameterValue(CustomError):
+class MissingParameterValue(CustomNoRetryError):
     """Exception raised when a required input parameter is not given to MaskFill.
     This Exception is used in output error messages.
 
@@ -88,7 +103,7 @@ class MissingParameterValue(CustomError):
         super().__init__('MissingParameterValue', message, 2)
 
 
-class NotSupportedData(CustomError):
+class NotSupportedData(CustomNoRetryError):
     """This Exception is raised when the spatial dimension or coordinates
     are not in the supported '..zyx' or 'yxz' order
 
@@ -98,7 +113,7 @@ class NotSupportedData(CustomError):
                          f'"{dataset}" is not in nominal or supported spatial order', 7)
 
 
-class NoMatchingData(CustomError):
+class NoMatchingData(CustomNoRetryError):
     """This Exception is used in output error messages. Currently is not raised
     within MaskFill.
 

@@ -10,8 +10,9 @@ from tempfile import mkdtemp
 from unittest import TestCase
 from unittest.mock import patch
 
+from harmony_service_lib.exceptions import NoRetryException
 from harmony_service_lib.message import Message
-from harmony_service_lib.util import config, HarmonyException
+from harmony_service_lib.util import config
 
 from maskfill.adapter import MaskFillAdapter
 from tests.test_adapter import TestLogHandler
@@ -93,14 +94,14 @@ class TestHarmonyMaskFill(TestCase):
             self.harmony_adapter.validate_input_granule(self.input_geotiff)
 
         with self.subTest('Inferred MIME type of None fails validation'):
-            with self.assertRaises(HarmonyException) as context:
+            with self.assertRaises(NoRetryException) as context:
                 self.harmony_adapter.validate_input_granule('file.unknown')
 
             self.assertEqual(context.exception.message,
                              'Invalid granule format: .unknown')
 
         with self.subTest('Unexpected MIME type fails validation'):
-            with self.assertRaises(HarmonyException) as context:
+            with self.assertRaises(NoRetryException) as context:
                 self.harmony_adapter.validate_input_granule('file.json')
 
             self.assertEqual(context.exception.message,
@@ -202,7 +203,7 @@ class TestHarmonyMaskFill(TestCase):
             harmony_adapter = MaskFillAdapter(message, config=config(False),
                                               catalog=self.input_stac)
 
-            with self.assertRaises(HarmonyException) as context_manager:
+            with self.assertRaises(NoRetryException) as context_manager:
                 harmony_adapter.message_has_valid_shape_file()
 
             self.assertEqual(str(context_manager.exception),
@@ -218,7 +219,7 @@ class TestHarmonyMaskFill(TestCase):
                 catalog=self.input_stac,
             )
 
-            with self.assertRaises(HarmonyException) as context_manager:
+            with self.assertRaises(NoRetryException) as context_manager:
                 harmony_adapter.message_has_valid_shape_file()
 
             self.assertEqual(context_manager.exception.message,
@@ -235,7 +236,7 @@ class TestHarmonyMaskFill(TestCase):
                 catalog=self.input_stac,
             )
 
-            with self.assertRaises(HarmonyException) as context_manager:
+            with self.assertRaises(NoRetryException) as context_manager:
                 harmony_adapter.message_has_valid_shape_file()
 
             self.assertEqual(context_manager.exception.message,
@@ -281,7 +282,7 @@ class TestHarmonyMaskFill(TestCase):
                 catalog=self.input_stac,
             )
 
-            with self.assertRaises(HarmonyException) as context_manager:
+            with self.assertRaises(NoRetryException) as context_manager:
                 harmony_adapter.message_has_valid_bounding_box()
 
             self.assertEqual(context_manager.exception.message,
@@ -295,7 +296,7 @@ class TestHarmonyMaskFill(TestCase):
                 catalog=self.input_stac,
             )
 
-            with self.assertRaises(HarmonyException) as context_manager:
+            with self.assertRaises(NoRetryException) as context_manager:
                 harmony_adapter.message_has_valid_bounding_box()
 
             self.assertEqual(context_manager.exception.message,
