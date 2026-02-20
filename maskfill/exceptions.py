@@ -120,3 +120,12 @@ class NoMatchingData(CustomNoRetryError):
     """
     def __init__(self, message='No data found that matched the subset constraints.'):
         super().__init__('NoMatchingData', message, 3)
+
+
+class MaskfillProcessingFailure(CustomNoRetryError):
+    """This Exception is used as a catch any unhandled exception
+    during maskfill processing.
+
+    """
+    def __init__(self, message):
+        super().__init__('MaskFillProcessingFailure', message, 8)

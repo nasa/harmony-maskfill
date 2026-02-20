@@ -22,7 +22,7 @@ from harmony_service_lib.util import (
 
 from maskfill.maskfill import DEFAULT_MASK_GRID_CACHE, mask_fill
 from maskfill.utilities import create_bounding_box_shape_file
-from maskfill.exceptions import CustomNoRetryError
+from maskfill.exceptions import CustomNoRetryError, MaskfillProcessingFailure
 
 EXTENSION_MIMETYPES = {'.h5': 'application/x-hdf5',
                        '.hdf5': 'application/x-hdf5',
@@ -107,12 +107,19 @@ class MaskFillAdapter(BaseHarmonyAdapter):
                     self.message.subset.process('bbox'), working_dir
                 )
                 self.logger.info('Shape file constructed from bounding box.')
-
-            # Call MaskFill utility
-            working_filename = mask_fill(input_filename, shape_filename,
-                                         working_dir, DEFAULT_MASK_GRID_CACHE,
-                                         None, self.logger, bounding_box)
-
+            working_filename = ''
+            try:
+                # Call MaskFill utility
+                working_filename = mask_fill(input_filename, shape_filename,
+                                             working_dir, DEFAULT_MASK_GRID_CACHE,
+                                             None, self.logger, bounding_box)
+            except Exception as e:
+                if not isinstance(e, (CustomNoRetryError,
+                                      HarmonyException,
+                                      NoRetryException)):
+                    raise MaskfillProcessingFailure(str(e))
+                else:
+                    raise
             # Stage the output file with a conventional filename
             output_filename = generate_output_filename(asset.href,
                                                        is_subsetted=True)
