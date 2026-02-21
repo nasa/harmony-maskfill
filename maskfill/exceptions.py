@@ -122,10 +122,19 @@ class NoMatchingData(CustomNoRetryError):
         super().__init__('NoMatchingData', message, 3)
 
 
-class MaskfillProcessingFailure(CustomNoRetryError):
-    """This Exception is used as a catch any unhandled exception
-    during maskfill processing.
+class MaskfillStagingError(CustomError):
+    """This Exception is used as a catch any errors
+    during staging. This will be retriable exception.
 
     """
     def __init__(self, message):
-        super().__init__('MaskFillProcessingFailure', message, 8)
+        super().__init__('MaskFillStagingFailure', message, 8)
+
+
+class MaskfillDownloadError(CustomError):
+    """This Exception is used as a capture any errors
+    during downloads. This will be a retriable exception.
+
+    """
+    def __init__(self, message):
+        super().__init__('MaskFillDownloadFailure', message, 9)

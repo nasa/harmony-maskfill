@@ -8,10 +8,7 @@ from pystac import Asset, Item
 from harmony_service_lib import BaseHarmonyAdapter
 from harmony_service_lib.message import Source as MessageSource
 
-from harmony_service_lib.exceptions import (
-    HarmonyException,
-    NoRetryException,
-)
+from harmony_service_lib.exceptions import NoRetryException
 
 from harmony_service_lib.util import (
     download,
@@ -19,10 +16,15 @@ from harmony_service_lib.util import (
     stage,
 )
 
-
 from maskfill.maskfill import DEFAULT_MASK_GRID_CACHE, mask_fill
-from maskfill.utilities import create_bounding_box_shape_file
-from maskfill.exceptions import CustomNoRetryError, MaskfillProcessingFailure
+from maskfill.utilities import (
+    create_bounding_box_shape_file,
+    raise_maskfill_exception
+)
+from maskfill.exceptions import (
+    MaskfillDownloadError,
+    MaskfillStagingError
+)
 
 EXTENSION_MIMETYPES = {'.h5': 'application/x-hdf5',
                        '.hdf5': 'application/x-hdf5',
@@ -107,29 +109,20 @@ class MaskFillAdapter(BaseHarmonyAdapter):
                     self.message.subset.process('bbox'), working_dir
                 )
                 self.logger.info('Shape file constructed from bounding box.')
-            working_filename = ''
-            try:
-                # Call MaskFill utility
-                working_filename = mask_fill(input_filename, shape_filename,
-                                             working_dir, DEFAULT_MASK_GRID_CACHE,
-                                             None, self.logger, bounding_box)
-            except Exception as e:
-                if not isinstance(e, (CustomNoRetryError,
-                                      HarmonyException,
-                                      NoRetryException)):
-                    raise MaskfillProcessingFailure(str(e))
-                else:
-                    raise
+
+            # Call MaskFill utility
+            working_filename = mask_fill(input_filename, shape_filename,
+                                         working_dir, DEFAULT_MASK_GRID_CACHE,
+                                         None, self.logger, bounding_box)
+
             # Stage the output file with a conventional filename
             output_filename = generate_output_filename(asset.href,
                                                        is_subsetted=True)
 
             output_mimetype = self.get_file_mimetype(output_filename)
 
-            output_url = stage(working_filename, output_filename,
-                               output_mimetype,
-                               location=self.message.stagingLocation,
-                               logger=self.logger)
+            output_url = self.maskfill_stage(working_filename, output_filename,
+                                             output_mimetype)
 
             # Update the STAC record
             asset = Asset(output_url, title=output_filename,
@@ -142,15 +135,9 @@ class MaskFillAdapter(BaseHarmonyAdapter):
 
             return result
 
-        except NoRetryException as err:
-            self.logger.error('MaskFill failed: ' + str(err), exc_info=1)
-            raise
-        except CustomNoRetryError as err:
-            self.logger.error('MaskFill failed: ' + str(err), exc_info=1)
-            raise NoRetryException('MaskFill failed with error: ' + str(err)) from err
         except Exception as err:
             self.logger.error('MaskFill failed: ' + str(err), exc_info=1)
-            raise HarmonyException('MaskFill failed with error: ' + str(err)) from err
+            raise_maskfill_exception(err)
         finally:
             # Clean up any intermediate resources
             rmtree(working_dir, ignore_errors=True)
@@ -167,20 +154,43 @@ class MaskFillAdapter(BaseHarmonyAdapter):
             renamed. Otherwise, Harmony will use a UUID as the basename for
             any downloaded resource.
 
+            Raises a retriable exception when there is a failure.
+
         """
-        self.logger.info(f'Retrieving: {remote_resource_url}')
+        try:
+            self.logger.info(f'Retrieving: {remote_resource_url}')
 
-        local_file = download(remote_resource_url, output_directory,
-                              logger=self.logger,
-                              access_token=self.message.accessToken,
-                              cfg=self.config)
+            local_file = download(remote_resource_url, output_directory,
+                                  logger=self.logger,
+                                  access_token=self.message.accessToken,
+                                  cfg=self.config)
 
-        if local_basename is not None:
-            full_local_name = os.path.join(output_directory, local_basename)
-            move_file(local_file, full_local_name)
-            local_file = full_local_name
+            if local_basename is not None:
+                full_local_name = os.path.join(output_directory, local_basename)
+                move_file(local_file, full_local_name)
+                local_file = full_local_name
 
-        return local_file
+            return local_file
+
+        except Exception as err:
+            raise MaskfillDownloadError(str(err)) from err
+
+    def maskfill_stage(self, working_filename: str,
+                       output_filename: str,
+                       output_mimetype: str) -> str:
+        """Stages the file to and S3 location and returns the url.
+        Throws a retriable exception when there is a failure.
+
+        """
+        try:
+            output_url = stage(working_filename, output_filename,
+                               output_mimetype,
+                               location=self.message.stagingLocation,
+                               logger=self.logger)
+            return output_url
+
+        except Exception as err:
+            raise MaskfillStagingError(str(err)) from err
 
     def validate_message(self):
         """ Check the service was triggered by a valid message containing
