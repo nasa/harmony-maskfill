@@ -643,12 +643,8 @@ def raise_maskfill_exception(exception: Exception):
     retriable HarmonyException. All unhandled exceptions are NoRetryExceptions.
 
     """
-    if issubclass(type(exception), CustomNoRetryError):
-        ExceptionClass = NoRetryException
-    elif issubclass(type(exception), CustomError):
+    if issubclass(type(exception), CustomError):
         ExceptionClass = HarmonyException
-    elif issubclass(type(exception), NoRetryException):
-        ExceptionClass = NoRetryException
     else:
         ExceptionClass = NoRetryException
 
