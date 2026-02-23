@@ -18,7 +18,15 @@ from shapely.geometry import Polygon, shape
 import geopandas as gpd
 import numpy as np
 import rasterio
-from maskfill.exceptions import InsufficientDataError
+from harmony_service_lib.exceptions import (
+    NoRetryException,
+    HarmonyException
+)
+from maskfill.exceptions import (
+    InsufficientDataError,
+    CustomError,
+    CustomNoRetryError
+)
 from maskfill.cf_config import CFConfigH5
 
 BBox = namedtuple('BBox', ['west', 'south', 'east', 'north'])
@@ -626,3 +634,20 @@ def get_axes_permutation(old_dims: Tuple[int], new_dims: Tuple[int]) -> Tuple[in
                 used[i] = True
                 break
     return axes
+
+
+def raise_maskfill_exception(exception: Exception):
+    """Convert a maskfill exception to an appropriate Harmony exception.
+    CustomNoRetryError exceptions are converted
+    to NoRetryException, and CustomError exceptions are raised as
+    retriable HarmonyException. All unhandled exceptions are NoRetryExceptions.
+
+    """
+    if issubclass(type(exception), CustomError):
+        ExceptionClass = HarmonyException
+    else:
+        ExceptionClass = NoRetryException
+
+    raise ExceptionClass(
+        'Maskfill failed with error: ' + str(exception)
+    ) from exception

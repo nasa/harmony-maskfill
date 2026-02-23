@@ -9,9 +9,10 @@ from unittest.mock import ANY, patch
 from unittest import skip
 
 from harmony_service_lib.message import Message
-from harmony_service_lib.util import config, HarmonyException
-
+from harmony_service_lib.exceptions import HarmonyException, NoRetryException
+from harmony_service_lib.util import config
 from maskfill.adapter import MaskFillAdapter
+from maskfill.exceptions import InsufficientProjectionInformation
 from tests.utilities import create_input_stac, MaskFillTestCase
 
 
@@ -601,7 +602,7 @@ class TestHarmonyMaskFill(MaskFillTestCase):
         """
         maskfill_adapter = MaskFillAdapter(None, config=config(False))
 
-        with self.assertRaises(HarmonyException) as context:
+        with self.assertRaises(NoRetryException) as context:
             maskfill_adapter.invoke()
 
         mock_download.assert_not_called()
@@ -628,7 +629,7 @@ class TestHarmonyMaskFill(MaskFillTestCase):
 
         maskfill_adapter = MaskFillAdapter(test_data, config=config(False))
 
-        with self.assertRaises(HarmonyException) as context:
+        with self.assertRaises(NoRetryException) as context:
             maskfill_adapter.invoke()
 
         mock_download.assert_not_called()
@@ -660,7 +661,7 @@ class TestHarmonyMaskFill(MaskFillTestCase):
             message = Message(base_message_text)
             maskfill_adapter = MaskFillAdapter(message, config=config(False))
 
-            with self.assertRaises(HarmonyException) as context:
+            with self.assertRaises(NoRetryException) as context:
                 maskfill_adapter.invoke()
 
             mock_download.assert_not_called()
@@ -675,7 +676,7 @@ class TestHarmonyMaskFill(MaskFillTestCase):
             message = Message(message_text)
             maskfill_adapter = MaskFillAdapter(message, config=config(False))
 
-            with self.assertRaises(HarmonyException) as context:
+            with self.assertRaises(NoRetryException) as context:
                 maskfill_adapter.invoke()
 
             mock_stage.assert_not_called()
@@ -689,7 +690,7 @@ class TestHarmonyMaskFill(MaskFillTestCase):
             message = Message(message_text)
             maskfill_adapter = MaskFillAdapter(message, config=config(False))
 
-            with self.assertRaises(HarmonyException) as context:
+            with self.assertRaises(NoRetryException) as context:
                 maskfill_adapter.invoke()
 
             mock_stage.assert_not_called()
@@ -702,7 +703,7 @@ class TestHarmonyMaskFill(MaskFillTestCase):
             message = Message(message_text)
             maskfill_adapter = MaskFillAdapter(message, config=config(False))
 
-            with self.assertRaises(HarmonyException) as context:
+            with self.assertRaises(NoRetryException) as context:
                 maskfill_adapter.invoke()
 
             mock_stage.assert_not_called()
@@ -711,16 +712,21 @@ class TestHarmonyMaskFill(MaskFillTestCase):
 
     @patch('maskfill.adapter.mkdtemp')
     @patch('maskfill.adapter.rmtree')
-    def test_maskfill_adapter_not_nominal_order(
+    @patch('maskfill.h5_maskfill.get_hdf_crs')
+    def test_maskfill_noretry_exception(
         self,
+        mock_get_hdf_crs,
         mock_rmtree,
         mock_mkdtemp,
         mock_download,
-        mock_stage,
+        mock_stage
     ):
-        """ Ensure MaskFill can run successfully for granules with 'yxz' order  (e.g., from HOSS). """
-        mock_mkdtemp.return_value = self.output_dir
+        """ Ensure MaskFill throws a NoRetryException Exception
 
+        for exceptions that should not be  retried"""
+
+        mock_mkdtemp.return_value = self.output_dir
+        mock_get_hdf_crs.side_effect = InsufficientProjectionInformation('TestDataset')
         input_file_name = 'tests/data/SC_SPL3SMP_subsetted_without_maskfill.nc4'
 
         test_data = Message({
@@ -735,7 +741,7 @@ class TestHarmonyMaskFill(MaskFillTestCase):
             }],
             'subset': {
                 'shape': {
-                    'href': self.bbox_greenland_json,
+                    'href': self.shape_usa,
                     'type': 'application/geo+json'
                 }
             },
@@ -744,15 +750,63 @@ class TestHarmonyMaskFill(MaskFillTestCase):
 
         maskfill_config = config(False)
         input_stac = create_input_stac(input_file_name, 'application/netcdf-4')
-        maskfill_adapter = MaskFillAdapter(
-            test_data,
-            config=maskfill_config,
-            catalog=input_stac,
-        )
-        maskfill_adapter.invoke()
+        with self.assertRaises(NoRetryException) as e:
+            maskfill_adapter = MaskFillAdapter(
+                test_data,
+                config=maskfill_config,
+                catalog=input_stac,
+            )
+            maskfill_adapter.invoke()
 
-        # Compare the output file to a template output file.
-        expected_output_file = 'tests/data/SC_SPL3SMP_subsetted_with_maskfill_mf.nc4'
-        actual_output_file = self.create_output_file_name(input_file_name,
-                                                          use_identifier=False)
-        self.compare_h5_files(expected_output_file, actual_output_file)
+        mock_stage.assert_not_called()
+        mock_rmtree.assert_called_once_with(self.output_dir, ignore_errors=True)
+
+    @patch('maskfill.adapter.mkdtemp')
+    @patch('maskfill.adapter.rmtree')
+    def test_maskfill_retry_exception(
+        self,
+        mock_rmtree,
+        mock_mkdtemp,
+        mock_download,
+        mock_stage
+    ):
+        """ Ensure MaskFill throws a Harmony Exception if the exception is
+
+        retriable """
+
+        mock_mkdtemp.return_value = self.output_dir
+        mock_download.side_effect = Exception('Random error')
+        input_file_name = 'tests/data/GPM_3IMERGHH_input.nc4'
+
+        test_data = Message({
+            'accessToken': self.access_token,
+            'callback': self.callback,
+            'stagingLocation': self.staging_location,
+            'sources': [{
+                'granules': [{
+                    'bbox': self.bounding_box,
+                    'temporal': self.temporal,
+                }]
+            }],
+            'subset': {
+                'shape': {
+                    'href': self.shape_usa,
+                    'type': 'application/geo+json'
+                }
+            },
+            'user': self.user,
+        })
+
+        maskfill_config = config(False)
+        input_stac = create_input_stac(input_file_name, 'application/netcdf-4')
+        with self.assertRaises(HarmonyException) as e:
+            maskfill_adapter = MaskFillAdapter(
+                test_data,
+                config=maskfill_config,
+                catalog=input_stac,
+            )
+            maskfill_adapter.invoke()
+
+        self.assertFalse(issubclass(type(e), NoRetryException))
+        mock_stage.assert_not_called()
+        mock_rmtree.assert_called_once_with(self.output_dir, ignore_errors=True)
