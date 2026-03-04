@@ -136,6 +136,14 @@ def get_lon_lat_datasets(h5_dataset: Dataset, cf_config: CFConfigH5) -> Tuple[Da
         except InvalidMetadata:
             raise MissingCoordinateDataset(h5_file.filename, coordinate)
 
+    if latitude is None or longitude is None:
+        missing = []
+        if latitude is None:
+            missing.append('latitude')
+        if longitude is None:
+            missing.append('longitude')
+        raise MissingCoordinateDataset(h5_file.filename, ', '.join(missing))
+
     return longitude, latitude
 
 

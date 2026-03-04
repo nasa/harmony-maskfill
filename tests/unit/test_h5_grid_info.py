@@ -714,6 +714,42 @@ class TestH5GridProjectionInfo(TestCase):
             self.assertEqual(lon_out, lon)
             self.assertEqual(lat_out, lat)
 
+        h5_file.close()
+
+    def test_get_lon_lat_datasets_missing_lat_lon(self):
+        """Ensure MissingCoordinateDataset is raised when coordinate datasets
+        exist but their names do not contain 'lat' or 'lon' substrings.
+
+        """
+        lat_array = np.array([[1, 1], [2, 2]])
+        lon_array = np.array([[1, 2], [1, 2]])
+        lat_name = '/latitude'
+        lon_name = '/longitude'
+
+        h5_file = h5py.File(self.test_h5_name, 'w')
+        dataset = h5_file.create_dataset('data', data=np.ones((2, 2)))
+        h5_file.create_dataset(lat_name, data=lat_array)
+        h5_file.create_dataset(lon_name, data=lon_array)
+        h5_file.create_dataset('/x_coord', data=lon_array)
+        h5_file.create_dataset('/y_coord', data=lat_array)
+
+        # Test cases for coordinates without lat/lon substrings
+        missing_coord_test_args = [
+            ['/x_coord /y_coord', 'latitude, longitude'],
+            [f'{lat_name} /x_coord', 'longitude'],
+            [f'/y_coord {lon_name}', 'latitude'],
+        ]
+
+        for coordinates_attr, missing_coords in missing_coord_test_args:
+            with self.subTest(f'missing {missing_coords} - no lat/lon substring'):
+                dataset.attrs['coordinates'] = coordinates_attr.encode('utf-8')
+                with self.assertRaises(MissingCoordinateDataset) as context:
+                    lon_out, lat_out = get_lon_lat_datasets(dataset, self.cf_config)
+
+                self.assertEqual(context.exception.message,
+                                 (f'Cannot find "{missing_coords}" in '
+                                  f'"{self.test_h5_name}".'))
+
     def test_get_hdf_crs(self):
         """Ensure that a `pyproj.CRS` object is returned, where possible. The
             order of projection information should be: DIMENSION_LIST,
