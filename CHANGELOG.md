@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - The tests in `tests/test_maskfill.py` now call `mask_fill` directly rather than the removed `maskfill_sdps`.
+- Bumped harmony-service-lib version to 3.0.0 in `pip_requirements.txt`.
 
 ## [v1.3.3] - 2026-03-03
 
