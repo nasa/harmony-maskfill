@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.3.4] - 2026-07-21
+
+### Removed
+
+- The unused SDPS command-line entry point and its helper functions have been removed from `maskfill/maskfill.py`.
+- The SDPS-only unit tests in `tests/unit/test_maskfill.py`, which covered only the removed helper functions, have been removed.
+
+### Changed
+
+- The tests in `tests/test_maskfill.py` now call `mask_fill` directly rather than the removed `maskfill_sdps`.
+
 ## [v1.3.3] - 2026-03-03
 
 ### Added
@@ -104,6 +115,7 @@ see legacy-CHANGELOG.md.
 - On-premises scripts and artefacts for the SDPS system have been removed from
   the repository.
 
+[v1.3.4]: https://github.com/nasa/harmony-maskfill/releases/tag/1.3.4
 [v1.3.3]: https://github.com/nasa/harmony-maskfill/releases/tag/1.3.3
 [v1.3.2]: https://github.com/nasa/harmony-maskfill/releases/tag/1.3.2
 [v1.3.1]: https://github.com/nasa/harmony-maskfill/releases/tag/1.3.1
