@@ -595,9 +595,8 @@ def get_resolved_line(point_one: Coordinates, point_two: Coordinates,
 def get_default_fill_for_data_type(variable_type: str | None) -> Any:
     """ Retrieve a default value for filling as defined in the
         DEFAULT_FILL_VALUES dictionary. This will only be used if there is no
-        _FillValue (HDF-5/NetCDF-4) or NoData (GeoTIFF) in-file metadata, no
-        configuration file setting for fill value, or no user-supplied default
-        fill value.
+        _FillValue (HDF-5/NetCDF-4) or NoData (GeoTIFF) in-file metadata, or no
+        configuration file setting for fill value.
 
         If the type is not recognised, the returned default value will be
         -9999.0

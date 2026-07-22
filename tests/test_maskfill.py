@@ -14,13 +14,11 @@ from maskfill.maskfill import (
 from tests.utilities import MaskFillTestCase
 
 
-logger = getLogger('maskfill.tests')
-
-
 class TestMaskFill(MaskFillTestCase):
 
     def setUp(self):
         super().setUp()
+        self.logger = getLogger('maskfill.tests')
         self.input_geotiff_file = 'tests/data/SMAP_L4_SM_aup_input.tif'
         self.input_h5_file = 'tests/data/SMAP_L4_SM_aup_input.h5'
         self.shape_file = 'tests/data/USA.geo.json'
@@ -45,14 +43,14 @@ class TestMaskFill(MaskFillTestCase):
         self.output_comparison_h5 = self.create_output_file_name(self.input_comparison_h5)
 
     def run_mask_fill(self, input_file: str, shape_file: str,
-                      fill_value: float | None = -9999.0,
+                      fill_value: float | None = None,
                       mask_grid_cache: str = DEFAULT_MASK_GRID_CACHE) -> str:
         """Call `mask_fill` and return the path of the masked output file."""
         working_dir = join(self.output_dir, self.identifier)
         makedirs(working_dir, exist_ok=True)
 
         return mask_fill(input_file, shape_file, working_dir, mask_grid_cache,
-                         fill_value, logger)
+                         fill_value, self.logger)
 
     def test_mask_fill_h5(self):
         """A full test of the `mask_fill` utility using an HDF-5 input file.
