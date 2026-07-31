@@ -172,38 +172,41 @@ def mask_fill(h5_dataset: h5py.Dataset, shape_path: str, cache_dir: str,
         fill_value = get_fill_value(h5_dataset, cf_config, logger,
                                     default_fill_value)
         apply_2d_process = get_apply_2d_process(h5_dataset, cf_config)
-        mask_filled_data = apply_2d_process(h5_dataset, cf_config,
-                                            utilities.mask_fill_array,
-                                            mask_array, fill_value)
-        h5_dataset.write_direct(mask_filled_data)
-
-        # If the dataset attributes contain observed statistics, update them.
         statistics = ['observed_max', 'observed_min', 'observed_mean']
+        has_statistics = any(statistic in h5_dataset.attrs.keys()
+                             for statistic in statistics)
 
-        if any(statistic in h5_dataset.attrs.keys()
-               for statistic in statistics):
-            logger.debug(f'Updating statistics for {h5_dataset.name}')
+        if len(h5_dataset.shape) == 2 and not has_statistics:
+            utilities.mask_fill_dataset_by_chunks(h5_dataset, mask_array,
+                                                  fill_value)
+        else:
+            mask_filled_data = apply_2d_process(h5_dataset, cf_config,
+                                                utilities.mask_fill_array,
+                                                mask_array, fill_value)
+            h5_dataset.write_direct(mask_filled_data)
+            if has_statistics:
+                logger.debug(f'Updating statistics for {h5_dataset.name}')
 
-            # Get all values in mask_filled_data excluding the fill value
-            unfilled_data = mask_filled_data[np.not_equal(mask_filled_data,
-                                                          fill_value)]
+                # Get all values in mask_filled_data excluding the fill value
+                unfilled_data = mask_filled_data[np.not_equal(mask_filled_data,
+                                                              fill_value)]
 
-            if unfilled_data.size > 0:
-                observed_max = np.max(unfilled_data)
-                observed_min = np.min(unfilled_data)
-                observed_mean = np.mean(unfilled_data)
-            else:
-                observed_max = observed_min = observed_mean = fill_value
+                if unfilled_data.size > 0:
+                    observed_max = np.max(unfilled_data)
+                    observed_min = np.min(unfilled_data)
+                    observed_mean = np.mean(unfilled_data)
+                else:
+                    observed_max = observed_min = observed_mean = fill_value
 
-            # Update statistics in the h5_dataset
-            if h5_dataset.attrs.__contains__('observed_max'):
-                h5_dataset.attrs.modify('observed_max', observed_max)
+                # Update statistics in the h5_dataset
+                if h5_dataset.attrs.__contains__('observed_max'):
+                    h5_dataset.attrs.modify('observed_max', observed_max)
 
-            if h5_dataset.attrs.__contains__('observed_min'):
-                h5_dataset.attrs.modify('observed_min', observed_min)
+                if h5_dataset.attrs.__contains__('observed_min'):
+                    h5_dataset.attrs.modify('observed_min', observed_min)
 
-            if h5_dataset.attrs.__contains__('observed_mean'):
-                h5_dataset.attrs.modify('observed_mean', observed_mean)
+                if h5_dataset.attrs.__contains__('observed_mean'):
+                    h5_dataset.attrs.modify('observed_mean', observed_mean)
 
         logger.debug(f'Mask filled the dataset {h5_dataset.name}')
 

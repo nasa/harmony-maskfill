@@ -630,8 +630,12 @@ def dataset_all_fill_value(dataset: Dataset, cf_config: CFConfigH5,
 
     if band is not None:
         return np.all(dataset[band][:] == fill_value)
-    else:
-        return np.all(dataset[:] == fill_value)
+
+    if dataset.chunks is not None:
+        return all(np.all(dataset[cs] == fill_value)
+                   for cs in dataset.iter_chunks())
+
+    return np.all(dataset[:] == fill_value)
 
 
 def dataset_all_outside_valid_range(dataset: Dataset) -> bool:

@@ -26,6 +26,8 @@ from maskfill.utilities import (
     get_geographic_resolution,
     get_geotiff_crs,
     get_geotiff_info,
+    get_grid_geographic_bounds,
+    get_grid_geographic_resolution,
     get_grid_lat_lons,
     get_h5_mask_array_id,
     get_resolved_dataframe,
@@ -35,6 +37,7 @@ from maskfill.utilities import (
     get_resolved_shape,
     get_transform_information,
     mask_fill_array,
+    mask_fill_dataset_by_chunks,
     should_ignore_pyproj_bounds,
 )
 
@@ -514,6 +517,95 @@ class TestUtilities(TestCase):
         expected_resolution = 5
         self.assertAlmostEqual(get_geographic_resolution(longitudes, latitudes),
                                expected_resolution, places=3)
+
+    def test_get_grid_geographic_bounds_matches_full_grid(self):
+        """ Ensure the geographic bounds derived from the grid perimeter are
+            identical to those derived by transforming every grid cell. This
+            test does not contain a geographic pole.
+
+        """
+        transform = Affine(10000, 0, 1422897.377, 0, 10000, -8069652.027)
+        out_shape = (25, 30)
+
+        latitudes, longitudes = get_grid_lat_lons(transform,
+                                                  self.ease_two_north,
+                                                  out_shape)
+        expected_bounds = (np.nanmin(longitudes), np.nanmin(latitudes),
+                           np.nanmax(longitudes), np.nanmax(latitudes))
+
+        self.assertTupleEqual(
+            get_grid_geographic_bounds(transform, self.ease_two_north,
+                                       out_shape),
+            expected_bounds
+        )
+
+    def test_get_grid_geographic_bounds_containing_pole(self):
+        """ Ensure that, when a geographic pole is contained within
+            the extent of the grid, the geographic bounds span the full
+            longitude range and extend to the latitude of that pole.
+
+        """
+        transform = Affine(10000, 0, -45000, 0, -10000, 45000)
+        out_shape = (10, 10)
+
+        west, south, east, north = get_grid_geographic_bounds(
+            transform, self.ease_two_north, out_shape
+        )
+
+        self.assertEqual(west, -180.0)
+        self.assertEqual(east, 180.0)
+        self.assertEqual(north, 90.0)
+        self.assertLess(south, 90.0)
+
+    def test_get_grid_geographic_resolution_matches_full_grid(self):
+        """ Ensure the geographic resolution derived from streamed row
+            blocks is identical to that derived by transforming all grid
+            cells at once.
+
+        """
+        transform = Affine(10000, 0, 1422897.377, 0, 10000, -8069652.027)
+        out_shape = (25, 30)
+
+        latitudes, longitudes = get_grid_lat_lons(transform,
+                                                  self.ease_two_north,
+                                                  out_shape)
+        expected_resolution = get_geographic_resolution(longitudes, latitudes)
+
+        for block_rows in [1, 7, 25, 256]:
+            with self.subTest(f'block_rows = {block_rows}'):
+                self.assertEqual(
+                    get_grid_geographic_resolution(transform,
+                                                   self.ease_two_north,
+                                                   out_shape,
+                                                   block_rows=block_rows),
+                    expected_resolution
+                )
+
+    def test_mask_fill_dataset_by_chunks(self):
+        """ Ensure a dataset that is mask filled one chunk at a time contains
+            exactly the values produced by a whole-array `mask_fill_array`.
+
+        """
+        fill_value = -9999.0
+        rng = np.random.default_rng(0)
+        data = rng.random((7, 5)).astype(np.float64)
+        mask_array = np.zeros((7, 5), dtype=np.uint8)
+        mask_array[0:3, 0:2] = 1
+        mask_array[6, 4] = 1
+        expected_output = mask_fill_array(data, mask_array, fill_value)
+
+        test_args = [['Chunked dataset with partial edge chunks', (3, 2)],
+                     ['Contiguous dataset', None]]
+
+        for description, chunks in test_args:
+            with self.subTest(description):
+                h5_path = f'{self.tmp_dir}/chunked_fill.h5'
+                with h5py.File(h5_path, 'w') as h5_file:
+                    dataset = h5_file.create_dataset('data', data=data,
+                                                     chunks=chunks)
+                    mask_fill_dataset_by_chunks(dataset, mask_array,
+                                                fill_value)
+                    assert_array_equal(dataset[:], expected_output)
 
     def test_get_decoded_attribute(self):
         """ Ensure attributes will be retrieved with the correct type. If the

@@ -96,13 +96,10 @@ def get_bounded_shape(shape_path: str, crs: CRS, out_shape: Tuple[int, int],
     if epsg is not None and not should_ignore_pyproj_bounds(crs):
         # Get geographic extent of data using the EPSG code
         minx, miny, maxx, maxy = CRS(epsg).area_of_use.bounds
-
     else:
-        # Transform all indices in the data array to geographic coordinates
-        # and get min/max lat/lon values
-        latitudes, longitudes = get_grid_lat_lons(transform, crs, out_shape)
-        minx, maxx = np.nanmin(longitudes), np.nanmax(longitudes)
-        miny, maxy = np.nanmin(latitudes), np.nanmax(latitudes)
+        # Transform the grid perimeter
+        minx, miny, maxx, maxy = get_grid_geographic_bounds(transform, crs,
+                                                            out_shape)
 
     # Create bounding box in geographic coordinates
     bbox = [(minx, miny), (maxx, miny), (maxx, maxy), (minx, maxy)]
@@ -152,6 +149,29 @@ def mask_fill_array(raster_arr: np.ndarray, mask_array: np.ndarray,
     return out_image.filled()
 
 
+def mask_fill_dataset_by_chunks(h5_dataset: Dataset, mask_array: np.ndarray,
+                                fill_value: float) -> None:
+    """ Performs the equivalent of `mask_fill_array` on a 2-D HDF5 dataset,
+        writing the result back to the dataset, one chunk at a time.
+
+        Args:
+            h5_dataset: The 2-D dataset to mask fill in place.
+            mask_array: The mask array, with the same shape as the dataset.
+            fill_value (float): Value used to fill in the masked values.
+
+    """
+    if h5_dataset.chunks is not None:
+        chunk_slices_iterator = h5_dataset.iter_chunks()
+    else:
+        chunk_slices_iterator = [tuple(slice(0, extent)
+                                       for extent in h5_dataset.shape)]
+
+    for chunk_slices in chunk_slices_iterator:
+        h5_dataset[chunk_slices] = mask_fill_array(h5_dataset[chunk_slices],
+                                                   mask_array[chunk_slices],
+                                                   fill_value)
+
+
 def get_masked_file_path(original_file_path: str, output_dir: str) -> str:
     """ Returns the path to the mask filled output file.
         Args:
@@ -179,7 +199,7 @@ def get_h5_mask_array_id(h5_dataset: Dataset, crs: CRS,
                 dataset projection and Affine transformation.
     """
     transform_info = get_transform_information(h5_dataset)
-    dataset_shape = h5_dataset[:].shape
+    dataset_shape = h5_dataset.shape
 
     return create_mask_array_id(crs, transform_info, dataset_shape, shape_path)
 
@@ -447,18 +467,17 @@ def create_bounding_box_shape_file(bounding_box: List[float],
 
 def get_resolved_dataframe(shape_file_path: str, transform: Affine, crs: CRS,
                            out_shape: Tuple[int, int]) -> gpd.GeoDataFrame:
-    """ When data are projected, first derive the longitude and latitude
-        values for all points on the grid. From this determine the smallest
-        separation between diagonally adjacent points. Use this as the
-        resolution of the grid in geographic space. Finally, take the input
-        GeoJSON shape file and ensure that all polygon edges have points at
-        the geographic resolution of the grid. The `explode` method is used
-        on the input `geopandas.GeoDataFrame` to split MultiPolygon features
-        into separate Polygons.
+    """ When data are projected, first determine the smallest geographic
+        separation between diagonally adjacent points on the grid. Use this
+        as the resolution of the grid in geographic space. Finally, take the
+        input GeoJSON shape file and ensure that all polygon edges have
+        points at the geographic resolution of the grid. The `explode`
+        method is used on the input `geopandas.GeoDataFrame` to split
+        MultiPolygon features into separate Polygons.
 
     """
-    latitudes, longitudes = get_grid_lat_lons(transform, crs, out_shape)
-    geographic_resolution = get_geographic_resolution(longitudes, latitudes)
+    geographic_resolution = get_grid_geographic_resolution(transform, crs,
+                                                           out_shape)
     initial_gpd = gpd.read_file(shape_file_path).explode(index_parts=True)
     return get_resolved_shape(initial_gpd, geographic_resolution)
 
@@ -493,6 +512,115 @@ def get_geographic_resolution(longitudes: np.ndarray,
         return 0
 
     return np.nanmin(np.sqrt(np.add(lon_square_diffs, lat_square_diffs)))
+
+
+def get_grid_geographic_bounds(transform: Affine, crs: CRS,
+                               out_shape: Tuple[int, int]) -> Tuple[float]:
+    """ Determine the geographic extent of a projected grid without
+        computing latitude and longitude values for every grid cell.
+
+        The extreme latitude and longitude values of a projected grid are
+        computed on the grid perimeter, unless a geographic pole is contained
+        within the extent of the grid. In that case, the grid surrounds that pole,
+        so the longitudes span the full valid range and the corresponding latitude
+        extreme is the pole itself.
+
+        Returns:
+            Tuple[float]: (west, south, east, north) geographic bounds of the grid.
+
+    """
+    rows, columns = out_shape
+    row_indices = np.arange(rows, dtype='float64')
+    column_indices = np.arange(columns, dtype='float64')
+
+    # Perimeter indices: top row, bottom row, left and right columns.
+    perimeter_columns = np.concatenate([column_indices, column_indices,
+                                        np.zeros(rows),
+                                        np.full(rows, columns - 1)])
+    perimeter_rows = np.concatenate([np.zeros(columns),
+                                     np.full(columns, rows - 1),
+                                     row_indices, row_indices])
+
+    projected_x = np.add(np.multiply(transform.a, perimeter_columns), transform.c)
+    projected_y = np.add(np.multiply(transform.e, perimeter_rows), transform.f)
+
+    to_geo_transformer = Transformer.from_crs(crs, 4326)
+    latitudes, longitudes = to_geo_transformer.transform(projected_x,
+                                                         projected_y)
+
+    west, east = np.nanmin(longitudes), np.nanmax(longitudes)
+    south, north = np.nanmin(latitudes), np.nanmax(latitudes)
+
+    x_edges = (transform.c, transform.a * (columns - 1) + transform.c)
+    y_edges = (transform.f, transform.e * (rows - 1) + transform.f)
+    from_geo_transformer = Transformer.from_crs(4326, crs, always_xy=True)
+
+    for pole_latitude in (90.0, -90.0):
+        pole_x, pole_y = from_geo_transformer.transform(0.0, pole_latitude)
+
+        if (
+            np.isfinite(pole_x) and np.isfinite(pole_y)
+            and min(x_edges) <= pole_x <= max(x_edges)
+            and min(y_edges) <= pole_y <= max(y_edges)
+        ):
+            west, east = -180.0, 180.0
+            south = min(south, pole_latitude)
+            north = max(north, pole_latitude)
+
+    return west, south, east, north
+
+
+def get_grid_geographic_resolution(transform: Affine, crs: CRS,
+                                   out_shape: Tuple[int, int],
+                                   block_rows: int = 256) -> float:
+    """ Calculate the minimum Euclidean distance between diagonally
+        adjacent grid cells in geographic coordinates in blocks of
+        `block_rows`, with the final row of each block carried
+        over to the start of the next.
+
+    """
+    rows, columns = out_shape
+
+    if rows == 1 or columns == 1:
+        latitudes, longitudes = get_grid_lat_lons(transform, crs, out_shape)
+        return get_geographic_resolution(longitudes, latitudes)
+
+    to_geo_transformer = Transformer.from_crs(crs, 4326)
+    projected_x_row = np.add(
+        np.multiply(transform.a, np.arange(columns, dtype='float64')),
+        transform.c,
+    )
+
+    resolution = np.inf
+    previous_latitudes = None
+    previous_longitudes = None
+
+    for block_start in range(0, rows, block_rows):
+        block_stop = min(block_start + block_rows, rows)
+        row_indices = np.arange(block_start, block_stop, dtype='float64')
+        projected_y = np.add(np.multiply(transform.e, row_indices),
+                             transform.f)
+
+        block_latitudes, block_longitudes = to_geo_transformer.transform(
+            np.broadcast_to(projected_x_row,
+                            (block_stop - block_start, columns)),
+            np.broadcast_to(projected_y[:, np.newaxis],
+                            (block_stop - block_start, columns)),
+        )
+
+        if previous_latitudes is not None:
+            block_latitudes = np.vstack([previous_latitudes, block_latitudes])
+            block_longitudes = np.vstack([previous_longitudes, block_longitudes])
+
+        if block_latitudes.shape[0] > 1:
+            resolution = min(resolution,
+                             get_geographic_resolution(block_longitudes,
+                                                       block_latitudes))
+
+        previous_latitudes = block_latitudes[-1:].copy()
+        previous_longitudes = block_longitudes[-1:].copy()
+
+    return resolution
 
 
 def get_grid_lat_lons(transform: Affine, crs: CRS,
