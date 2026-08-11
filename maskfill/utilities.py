@@ -27,7 +27,7 @@ from maskfill.exceptions import (
     CustomError,
     CustomNoRetryError
 )
-from maskfill.cf_config import CFConfigH5
+from maskfill.cf_config import CFConfig
 
 BBox = namedtuple('BBox', ['west', 'south', 'east', 'north'])
 Coordinates = Tuple[float]
@@ -353,7 +353,7 @@ def process_h5_file(file_path, process, *args):
         process_children(file, process, *args)
 
 
-def apply_2d(h5_dataset: Dataset, cf_config: CFConfigH5, process, *args):
+def apply_2d(h5_dataset: Dataset, cf_config: CFConfig, process, *args):
     """ Recursively applies a 2D process to datasets with two or more dimensions,
         Always applies the process to the last 2 dimensions of the dataset,
         iterating through any lower dimensions and processing up through n-2 dimensions.
@@ -380,7 +380,7 @@ def apply_2d(h5_dataset: Dataset, cf_config: CFConfigH5, process, *args):
     return data
 
 
-def apply_2d_dataset_to_multidim(h5_dataset: Dataset, cf_config: CFConfigH5, process, *args):
+def apply_2d_dataset_to_multidim(h5_dataset: Dataset, cf_config: CFConfig, process, *args):
     """ Applies a 2D process to the spatial dimensions (Y, X) of a
         multi-dimensional HDF5 dataset, handling necessary axis transpositions
         for processing and re-transposing back.

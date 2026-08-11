@@ -9,7 +9,7 @@ from pyproj import CRS, Proj
 import h5py
 import numpy as np
 
-from maskfill.cf_config import CFConfigH5
+from maskfill.cf_config import CFConfig
 from maskfill.exceptions import (
     InsufficientDataError,
     InsufficientProjectionInformation,
@@ -49,7 +49,7 @@ class TestH5GridProjectionInfo(TestCase):
     @classmethod
     def setUpClass(cls):
         cls.logger = getLogger('test')
-        cls.cf_config = CFConfigH5('tests/data/SMAP_L3_FT_P_corners_input.h5')
+        cls.cf_config = CFConfig('SPL3FTP')
 
     def setUp(self):
         self.output_dir = 'tests/output'
@@ -741,7 +741,7 @@ class TestH5GridProjectionInfo(TestCase):
             h5_spl3smp_e_file = h5py.File('tests/data/SPL3SMP_E_pm_input.h5', 'r')
             lat = h5_spl3smp_e_file['/Soil_Moisture_Retrieval_Data_Polar_PM/latitude_pm']
             lon = h5_spl3smp_e_file['/Soil_Moisture_Retrieval_Data_Polar_PM/longitude_pm']
-            cf_config = CFConfigH5('tests/data/SPL3SMP_E_pm_input.h5')
+            cf_config = CFConfig('SPL3SMP_E')
             dataset = h5_spl3smp_e_file['/Soil_Moisture_Retrieval_Data_Polar_PM/surface_flag_pm']
             lon_out, lat_out = get_lon_lat_datasets(dataset, cf_config)
             self.assertEqual(lon_out, lon)
@@ -808,11 +808,11 @@ class TestH5GridProjectionInfo(TestCase):
 
         with self.subTest('No projection information or configuration, raises exception'):
             with self.assertRaises(InsufficientProjectionInformation) as context:
-                with patch.object(CFConfigH5,
+                with patch.object(CFConfig,
                                   'get_dataset_grid_mapping_attributes',
                                   return_value=None):
 
-                    cf_config = CFConfigH5('tests/data/SMAP_L3_FT_P_corners_input.h5')
+                    cf_config = CFConfig('tests/data/SPL3FTP')
                     crs = get_hdf_crs(config_dataset, cf_config,
                                       self.logger)
 
@@ -1418,25 +1418,25 @@ class TestH5GridProjectionInfo(TestCase):
         with self.subTest('get nominal 2d shape from a granule file'):
             h5_file = h5py.File('tests/data/SPL3SMP_E_pm_input.h5', 'r')
             h5_dataset = h5_file['/Soil_Moisture_Retrieval_Data_Polar_PM/surface_flag_pm']
-            cf_config = CFConfigH5('tests/data/SPL3SMP_E_pm_input.h5')
+            cf_config = CFConfig('SPL3SMP_E')
             data_shape = get_spatial_grid_shape(h5_dataset, cf_config)
             self.assertEqual(data_shape, (2000, 2000))
         with self.subTest('get nominal 3d shape from a granule file'):
             h5_file = h5py.File('tests/data/SMAP_L3_FT_P_polar_3d_input.h5', 'r')
             h5_dataset = h5_file['Freeze_Thaw_Retrieval_Data_Polar/altitude_dem']
-            cf_config = CFConfigH5('tests/data/SMAP_L3_FT_P_polar_3d_input.h5')
+            cf_config = CFConfig('SPL3FTP')
             data_shape = get_spatial_grid_shape(h5_dataset, cf_config)
             self.assertEqual(data_shape, (500, 500))
         with self.subTest('get shape from dimensions in a granule file'):
             h5_file = h5py.File('tests/data/SMAP_L4_SM_aup_input.h5', 'r')
             h5_dataset = h5_file['/Analysis_Data/surface_temp_analysis']
-            cf_config = CFConfigH5('tests/data/SMAP_L4_SM_aup_input.h5')
+            cf_config = CFConfig('SPL4SMAU')
             data_shape = get_spatial_grid_shape(h5_dataset, cf_config)
             self.assertEqual(data_shape, (508, 1123))
         with self.subTest('get yxz shape from a granule file'):
             h5_file = h5py.File('tests/data/SC_SPL3SMP_subsetted_without_maskfill.nc4', 'r')
             h5_dataset = h5_file['/Soil_Moisture_Retrieval_Data_AM/landcover_class_fraction']
-            cf_config = CFConfigH5('tests/data/SPL3SMP_E_pm_input.h5')
+            cf_config = CFConfig('SPL3SMP_E')
             data_shape = get_spatial_grid_shape(h5_dataset, cf_config)
             self.assertEqual(data_shape, (27, 162))
 
@@ -1447,21 +1447,21 @@ class TestH5GridProjectionInfo(TestCase):
         with self.subTest('apply_2d process for nominal 2d shaped dataset from a granule file'):
             h5_file = h5py.File('tests/data/SPL3SMP_E_pm_input.h5', 'r')
             h5_dataset = h5_file['/Soil_Moisture_Retrieval_Data_Polar_PM/surface_flag_pm']
-            cf_config = CFConfigH5('tests/data/SPL3SMP_E_pm_input.h5')
+            cf_config = CFConfig('SPL3SMP_E')
             apply_2d_process = get_apply_2d_process(h5_dataset, cf_config)
             self.assertEqual(apply_2d_process, apply_2d)
 
         with self.subTest('get apply_2d for nominal 3d shape from a granule file'):
             h5_file = h5py.File('tests/data/SMAP_L3_FT_P_polar_3d_input.h5', 'r')
             h5_dataset = h5_file['Freeze_Thaw_Retrieval_Data_Polar/altitude_dem']
-            cf_config = CFConfigH5('tests/data/SMAP_L3_FT_P_polar_3d_input.h5')
+            cf_config = CFConfig('SPL3FTP')
             apply_2d_process = get_apply_2d_process(h5_dataset, cf_config)
             self.assertEqual(apply_2d_process, apply_2d)
 
         with self.subTest('get apply_2d_dataset_to_multidim process for not nominal granule'):
             h5_file = h5py.File('tests/data/SC_SPL3SMP_subsetted_without_maskfill.nc4', 'r')
             h5_dataset = h5_file['/Soil_Moisture_Retrieval_Data_AM/landcover_class_fraction']
-            cf_config = CFConfigH5('tests/data/SPL3SMP_E_pm_input.h5')
+            cf_config = CFConfig('SPL3SMP_E')
             apply_2d_process = get_apply_2d_process(h5_dataset, cf_config)
             self.assertEqual(apply_2d_process, apply_2d_dataset_to_multidim)
             apply_2d_dataset_to_multidim
@@ -1477,6 +1477,6 @@ class TestH5GridProjectionInfo(TestCase):
                     dim_lat.attrs.create('units', 'degrees_north')
                     h5_dataset = h5_file.create_dataset('data', data=np.ones((4, 3)))
                     h5_dataset.attrs.create('coordinates', '/lon /lat')
-                    cf_config = CFConfigH5(self.test_h5_name)
+                    cf_config = CFConfig('SPL3FTP')
                     apply_2d_process = get_apply_2d_process(h5_dataset, cf_config)
                     self.assertTrue(context_manager.exception.message.endswith("Not supported data"))

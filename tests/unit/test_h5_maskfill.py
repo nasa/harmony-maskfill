@@ -16,7 +16,7 @@ from maskfill.h5_maskfill import (
     get_string_variables,
     create_mask_array
 )
-from maskfill.cf_config import CFConfigH5
+from maskfill.cf_config import CFConfig
 from maskfill.utilities import apply_2d, mask_fill_array
 
 from tests.utilities import MaskFillTestCase
@@ -26,7 +26,7 @@ class TestH5MaskFill(MaskFillTestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.cf_config = CFConfigH5('tests/data/SMAP_L4_SM_aup_input.h5')
+        cls.cf_config = CFConfig('SPL4SMAU')
         cls.logger = getLogger('test')
 
     def setUp(self):

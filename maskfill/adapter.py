@@ -111,9 +111,16 @@ class MaskFillAdapter(BaseHarmonyAdapter):
                 self.logger.info('Shape file constructed from bounding box.')
 
             # Call MaskFill utility
-            working_filename = mask_fill(input_filename, shape_filename,
-                                         working_dir, DEFAULT_MASK_GRID_CACHE,
-                                         None, self.logger, bounding_box)
+            working_filename = mask_fill(
+                input_filename,
+                source.shortName,
+                shape_filename,
+                working_dir,
+                DEFAULT_MASK_GRID_CACHE,
+                None,
+                self.logger,
+                bounding_box,
+            )
 
             # Stage the output file with a conventional filename
             output_filename = generate_output_filename(asset.href,

@@ -21,6 +21,7 @@ class TestMaskFill(MaskFillTestCase):
         self.logger = getLogger('maskfill.tests')
         self.input_geotiff_file = 'tests/data/SMAP_L4_SM_aup_input.tif'
         self.input_h5_file = 'tests/data/SMAP_L4_SM_aup_input.h5'
+        self.input_short_name = 'SPL4SMAU'
         self.shape_file = 'tests/data/USA.geo.json'
         self.shape_file_south_pole = 'tests/data/south_pole.geo.json'
         self.output_geotiff_file = self.create_output_file_name(self.input_geotiff_file)
@@ -30,10 +31,12 @@ class TestMaskFill(MaskFillTestCase):
         self.output_h5_template_south_pole = 'tests/data/SMAP_L3_FT_P_polar_3d_south_pole_output.h5'
         self.output_h5_template = 'tests/data/SMAP_L4_SM_aup_output.h5'
         self.input_corner_file = 'tests/data/SMAP_L3_FT_P_corners_input.h5'
+        self.corner_short_name = 'SPL3FTP'
         self.output_corner_file = self.create_output_file_name(self.input_corner_file)
         self.output_corner_template = 'tests/data/SMAP_L3_FT_P_corners_output.h5'
         self.input_polar_h5_file = 'tests/data/SMAP_L3_FT_P_polar_3d_input.h5'
         self.input_polar_geo_file = 'tests/data/SMAP_L3_FT_P_polar_3d_input.tif'
+        self.polar_short_name = 'SPL3FTP'
         self.output_polar_h5_file = self.create_output_file_name(self.input_polar_h5_file)
         self.output_polar_geo_file = self.create_output_file_name(self.input_polar_geo_file)
         self.output_polar_template = 'tests/data/SMAP_L3_FT_P_polar_3d_output.h5'
@@ -42,15 +45,27 @@ class TestMaskFill(MaskFillTestCase):
         self.output_comparison_geo = self.create_output_file_name(self.input_comparison_geo)
         self.output_comparison_h5 = self.create_output_file_name(self.input_comparison_h5)
 
-    def run_mask_fill(self, input_file: str, shape_file: str,
-                      fill_value: float | None = None,
-                      mask_grid_cache: str = DEFAULT_MASK_GRID_CACHE) -> str:
+    def run_mask_fill(
+        self,
+        input_file: str,
+        collection_short_name: str,
+        shape_file: str,
+        fill_value: float | None = None,
+        mask_grid_cache: str = DEFAULT_MASK_GRID_CACHE,
+    ) -> str:
         """Call `mask_fill` and return the path of the masked output file."""
         working_dir = join(self.output_dir, self.identifier)
         makedirs(working_dir, exist_ok=True)
 
-        return mask_fill(input_file, shape_file, working_dir, mask_grid_cache,
-                         fill_value, self.logger)
+        return mask_fill(
+            input_file,
+            collection_short_name,
+            shape_file,
+            working_dir,
+            mask_grid_cache,
+            fill_value,
+            self.logger,
+        )
 
     def test_mask_fill_h5(self):
         """A full test of the `mask_fill` utility using an HDF-5 input file.
@@ -58,7 +73,11 @@ class TestMaskFill(MaskFillTestCase):
         to a templated output by checking the expected datasets.
 
         """
-        output_file = self.run_mask_fill(self.input_h5_file, self.shape_file)
+        output_file = self.run_mask_fill(
+            self.input_h5_file,
+            self.input_short_name,
+            self.shape_file,
+        )
 
         self.assertEqual(output_file, self.output_h5_file)
         self.compare_h5_files(self.output_h5_template, self.output_h5_file)
@@ -69,7 +88,11 @@ class TestMaskFill(MaskFillTestCase):
         to a templated output file by checking the dataset and metadata.
 
         """
-        output_file = self.run_mask_fill(self.input_geotiff_file, self.shape_file)
+        output_file = self.run_mask_fill(
+            self.input_geotiff_file,
+            self.input_short_name,
+            self.shape_file,
+        )
 
         self.assertEqual(output_file, self.output_geotiff_file)
         self.compare_geotiff_files(self.output_geotiff_template, self.output_geotiff_file)
@@ -80,7 +103,11 @@ class TestMaskFill(MaskFillTestCase):
         latitude arrays.
 
         """
-        output_file = self.run_mask_fill(self.input_corner_file, self.shape_file)
+        output_file = self.run_mask_fill(
+            self.input_corner_file,
+            self.corner_short_name,
+            self.shape_file,
+        )
 
         self.assertEqual(output_file, self.output_corner_file)
         self.compare_h5_files(self.output_corner_template, self.output_corner_file)
@@ -97,7 +124,11 @@ class TestMaskFill(MaskFillTestCase):
         The data use the NSIDC EASE-2 polar standard grid.
 
         """
-        output_file = self.run_mask_fill(self.input_polar_h5_file, self.shape_file)
+        output_file = self.run_mask_fill(
+            self.input_polar_h5_file,
+            self.polar_short_name,
+            self.shape_file,
+        )
 
         self.assertEqual(output_file, self.output_polar_h5_file)
         self.compare_h5_files(self.output_polar_template, self.output_polar_h5_file)
@@ -109,8 +140,16 @@ class TestMaskFill(MaskFillTestCase):
         """
         shape_file = 'tests/data/comparison.geo.json'
 
-        response_h5 = self.run_mask_fill(self.input_comparison_h5, shape_file)
-        response_geo = self.run_mask_fill(self.input_comparison_geo, shape_file)
+        response_h5 = self.run_mask_fill(
+            self.input_comparison_h5,
+            self.input_short_name,
+            shape_file,
+        )
+        response_geo = self.run_mask_fill(
+            self.input_comparison_geo,
+            self.input_short_name,
+            shape_file,
+        )
 
         self.assertEqual(response_h5, self.output_comparison_h5)
         self.assertEqual(response_geo, self.output_comparison_geo)
@@ -143,8 +182,12 @@ class TestMaskFill(MaskFillTestCase):
         input_file_path = 'tests/data/SMAP_L3_FT_P_fill_input.h5'
         output_file_path = self.create_output_file_name(input_file_path)
 
-        output_file = self.run_mask_fill(input_file_path, self.shape_file,
-                                         fill_value=None)
+        output_file = self.run_mask_fill(
+            input_file_path,
+            self.input_short_name,
+            self.shape_file,
+            fill_value=None,
+        )
 
         self.assertEqual(output_file, output_file_path)
         self.compare_h5_files(
@@ -163,8 +206,12 @@ class TestMaskFill(MaskFillTestCase):
         input_file_path = 'tests/data/SMAP_L3_FT_P_fill_float_input.tif'
         output_file_path = self.create_output_file_name(input_file_path)
 
-        output_file = self.run_mask_fill(input_file_path, self.shape_file,
-                                         fill_value=None)
+        output_file = self.run_mask_fill(
+            input_file_path,
+            'SPL3FTP',
+            self.shape_file,
+            fill_value=None,
+        )
 
         self.assertEqual(output_file, output_file_path)
         self.compare_geotiff_files(
@@ -183,8 +230,12 @@ class TestMaskFill(MaskFillTestCase):
         input_file_path = 'tests/data/SMAP_L3_FT_P_fill_uint_input.tif'
         output_file_path = self.create_output_file_name(input_file_path)
 
-        output_file = self.run_mask_fill(input_file_path, self.shape_file,
-                                         fill_value=None)
+        output_file = self.run_mask_fill(
+            input_file_path,
+            'SPL3FTP',
+            self.shape_file,
+            fill_value=None,
+        )
 
         self.assertEqual(output_file, output_file_path)
         self.compare_geotiff_files(
@@ -198,16 +249,22 @@ class TestMaskFill(MaskFillTestCase):
 
         """
         with self.subTest('South Pole HDF-5 file format'):
-            output_file = self.run_mask_fill(self.input_polar_h5_file,
-                                             self.shape_file_south_pole)
+            output_file = self.run_mask_fill(
+                self.input_polar_h5_file,
+                self.polar_short_name,
+                self.shape_file_south_pole,
+            )
 
             self.assertEqual(output_file, self.output_polar_h5_file)
             self.compare_h5_files(self.output_h5_template_south_pole,
                                   self.output_polar_h5_file)
 
         with self.subTest('South Pole GeoTIFF file format'):
-            output_file = self.run_mask_fill(self.input_polar_geo_file,
-                                             self.shape_file_south_pole)
+            output_file = self.run_mask_fill(
+                self.input_polar_geo_file,
+                self.polar_short_name,
+                self.shape_file_south_pole,
+            )
 
             self.assertEqual(output_file, self.output_polar_geo_file)
             self.compare_geotiff_files(self.output_geotiff_template_south_pole,
@@ -224,7 +281,11 @@ class TestMaskFill(MaskFillTestCase):
         input_name = f'tests/data/{geotiff_base}.tif'
         output_name = self.create_output_file_name(input_name)
 
-        output_file = self.run_mask_fill(input_name, self.shape_file)
+        output_file = self.run_mask_fill(
+            input_name,
+            'SPL3FTP',
+            self.shape_file
+        )
 
         self.assertEqual(output_file, output_name)
         self.compare_geotiff_files(input_name, output_name)
@@ -240,7 +301,11 @@ class TestMaskFill(MaskFillTestCase):
         test_output = self.create_output_file_name(input_name)
         shape_file = 'tests/data/WV.geo.json'
 
-        output_file = self.run_mask_fill(input_name, shape_file)
+        output_file = self.run_mask_fill(
+            input_name,
+            'SPL3FTP',
+            shape_file,
+        )
 
         self.assertEqual(output_file, test_output)
         self.compare_geotiff_files(template_output, test_output)
@@ -253,7 +318,11 @@ class TestMaskFill(MaskFillTestCase):
         input_file = 'tests/data/SMAP_L4_SM_aup_compression.tif'
         output_file_path = self.create_output_file_name(input_file)
 
-        output_file = self.run_mask_fill(input_file, self.shape_file)
+        output_file = self.run_mask_fill(
+            input_file,
+            'SPL4SMAU',
+            self.shape_file,
+        )
 
         self.assertEqual(output_file, output_file_path)
         self.compare_geotiff_files(self.output_geotiff_template, output_file_path)
@@ -272,7 +341,11 @@ class TestMaskFill(MaskFillTestCase):
         output_file_path = self.create_output_file_name(input_file)
         template_output = 'tests/data/SMAP_L4_SM_aup_dimension_list_output.h5'
 
-        output_file = self.run_mask_fill(input_file, shape_file)
+        output_file = self.run_mask_fill(
+            input_file,
+            'SPL4SMAU',
+            shape_file,
+        )
 
         self.assertEqual(output_file, output_file_path)
         self.compare_h5_files(template_output, output_file_path)
@@ -287,7 +360,11 @@ class TestMaskFill(MaskFillTestCase):
         output_file_path = self.create_output_file_name(input_file)
         template_output = 'tests/data/SMAP_L4_SM_aup_UTM_output.h5'
 
-        output_file = self.run_mask_fill(input_file, shape_file)
+        output_file = self.run_mask_fill(
+            input_file,
+            'SPL4SMAU',
+            shape_file,
+        )
 
         self.assertEqual(output_file, output_file_path)
         self.compare_h5_files(template_output, output_file_path)
@@ -302,7 +379,11 @@ class TestMaskFill(MaskFillTestCase):
         output_file_path = self.create_output_file_name(input_file)
         template_output = 'tests/data/SMAP_L4_SM_aup_UTM_output.tif'
 
-        output_file = self.run_mask_fill(input_file, shape_file)
+        output_file = self.run_mask_fill(
+            input_file,
+            'SPL4SMAU',
+            shape_file,
+        )
 
         self.assertEqual(output_file, output_file_path)
         self.compare_geotiff_files(template_output, output_file_path)
@@ -317,7 +398,11 @@ class TestMaskFill(MaskFillTestCase):
         output_file_path = self.create_output_file_name(input_file)
         template_output = 'tests/data/GPM_3IMERGHH_output.nc4'
 
-        output_file = self.run_mask_fill(input_file, shape_file)
+        output_file = self.run_mask_fill(
+            input_file,
+            'GPM_3IMERGHH',
+            shape_file,
+        )
 
         self.assertEqual(output_file, output_file_path)
         self.compare_h5_files(template_output, output_file_path)

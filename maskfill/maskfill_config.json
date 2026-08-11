@@ -1,79 +1,4 @@
 {
-    "collection_shortname_paths": [
-        {
-            "attribute": "shortName",
-            "group": "/Metadata/DatasetIdentification"
-        },
-        {
-            "attribute": "shortName",
-            "group": "/METADATA/DatasetIdentification"
-        },
-        {
-            "attribute": "shortName",
-            "group": "/Metadata/SeriesIdentification"
-        },
-        {
-            "attribute": "shortName",
-            "group": "/METADATA/SeriesIdentification"
-        },
-        {
-            "attribute": "shortName",
-            "group": "/"
-        },
-        {
-            "attribute": "short_name",
-            "group": "/"
-        }
-    ],
-    "collection_prefix_to_shortname_mapping": {
-        "SMAP_L2_SM_SP": "SPL2SMAP_S",
-        "SC_SPL2SMAP_S": "SPL2SMAP_S",
-        "SC:SPL2SMAP_S": "SPL2SMAP_S",
-        "SMAP_L3_FT_P": "SPL3FTP",
-        "SC_SPL3FTP": "SPL3FTP",
-        "SC:SPL3FTP": "SPL3FTP",
-        "SMAP_L3_FT_P_E": "SPL3FTP_E",
-        "SC_SPL3FTP_E": "SPL3FTP_E",
-        "SC:SPL3FTP_E": "SPL3FTP_E",
-        "SMAP_L3_FT_A": "SPL3FTA",
-        "SC_SPL3FTA": "SPL3FTA",
-        "SC:SPL3FTA": "SPL3FTA",
-        "SMAP_L3_SM_A": "SPL3SMA",
-        "SC_SPL3SMA": "SPL3SMA",
-        "SC:SPL3SMA": "SPL3SMA",
-        "SMAP_L3_SM_AP": "SPL3SMAP",
-        "SC_SPL3SMAP": "SPL3SMAP",
-        "SC:SPL3SMAP": "SPL3SMAP",
-        "SMAP_L3_SM_P": "SPL3SMP",
-        "SC_SPL3SMP": "SPL3SMP",
-        "SC:SPL3SMP": "SPL3SMP",
-        "SMAP_L3_SM_P_E": "SPL3SMP_E",
-        "SC_SPL3SMP_E": "SPL3SMP_E",
-        "SC:SPL3SMP_E": "SPL3SMP_E",
-        "SMAP_L4_C_mdl": "SPL4CMDL",
-        "SC_SPL4CMDL": "SPL4CMDL",
-        "SC:SPL4CMDL": "SPL4CMDL",
-        "SMAP_L4_SM_aup": "SPL4SMAU",
-        "SC_SPL4SMAU": "SPL4SMAU",
-        "SC:SPL4SMAU": "SPL4SMAU",
-        "SMAP_L4_SM_gph": "SPL4SMGP",
-        "SC_SPL4SMGP": "SPL4SMGP",
-        "SC:SPL4SMGP": "SPL4SMGP",
-        "SMAP_L4_SM_lmc": "SPL4SMLM",
-        "SC_SPL4SMLM": "SPL4SMLM",
-        "SC:SPL4SMLM": "SPL4SMLM",
-        "ATL16": "ATL16",
-        "ATL17": "ATL17",
-        "ATL20": "ATL20",
-        "VNP10": "VNP10",
-        "VNP10A1": "VNP10A1",
-        "VNP10A1F": "VNP10A1F",
-        "VNP30": "VNP30",
-        "GPM_3IMERGHH": "3IMERGHH",
-        "f16_ssmis_": "RSSMIF16D",
-        "ABoVE_ForestDisturbance_Agents": "ABoVE_ForestDisturbance_Agents_1924",
-        "NorthSlope_NEE_TVPRM": "NorthSlope_NEE_TVPRM_1920"
-    },
     "corrected_fill_values": {
         "SPL3FT(A|P|P_E)": {
             "/Freeze_Thaw_Retrieval_Data_Polar/latitude": -9999.0,
@@ -304,7 +229,7 @@
         "VNP30": [
             "IST_Data/Geolocation_Fields/L(at|ong)itude"
         ],
-        "3IMERGHH": [
+        "GPM_3IMERGHH": [
             "/l(at|on)",
             "/l(at|on)_bnds",
             "/time",

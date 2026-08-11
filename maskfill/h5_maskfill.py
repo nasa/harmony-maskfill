@@ -16,7 +16,6 @@
         str: The path to the output HDF-5 file
 """
 from logging import Logger
-from typing import Dict, List, Set
 import os
 import re
 import shutil
@@ -26,7 +25,7 @@ import numpy as np
 import h5py
 
 from maskfill import utilities
-from maskfill.cf_config import CFConfigH5
+from maskfill.cf_config import CFConfig
 from maskfill.h5_grid_info import (
     dataset_all_fill_value,
     get_fill_value,
@@ -47,9 +46,16 @@ from maskfill.utilities import (
 )
 
 
-def produce_masked_hdf(hdf_path: str, shape_path: str, output_dir: str,
-                       cache_dir: str, mask_grid_cache: str,
-                       default_fill_value: float, logger: Logger) -> str:
+def produce_masked_hdf(
+    hdf_path: str,
+    collection_short_name: str,
+    shape_path: str,
+    output_dir: str,
+    cache_dir: str,
+    mask_grid_cache: str,
+    default_fill_value: float,
+    logger: Logger,
+) -> str:
     """ This is the main wrapper function that is called from maskfill.py
         when processing an HDF-5 file. This deals primarily with instantiating
         a dictionary-based cache for masks, based on their coordinate
@@ -61,7 +67,7 @@ def produce_masked_hdf(hdf_path: str, shape_path: str, output_dir: str,
     """
     mask_grid_cache = mask_grid_cache.lower()
     saved_mask_arrays = dict()
-    cf_config = CFConfigH5(hdf_path)
+    cf_config = CFConfig(collection_short_name)
     exclusion_set = get_exclusions(hdf_path, cf_config)
 
     if mask_grid_cache == 'maskgrid_only':
@@ -82,8 +88,8 @@ def produce_masked_hdf(hdf_path: str, shape_path: str, output_dir: str,
         return utilities.get_masked_file_path(hdf_path, output_dir)
 
 
-def get_exclusions(h5_file_path: str, cf_config: CFConfigH5) -> Set[str]:
-    """ Get the set of dataset exclusions from coordinates and config file.
+def get_exclusions(h5_file_path: str, cf_config: CFConfig) -> set[str]:
+    """Get the set of dataset exclusions from coordinates and config file.
 
     Args:
         h5_dataset: h5py data object for dataset within hdf5 file
@@ -101,8 +107,8 @@ def get_exclusions(h5_file_path: str, cf_config: CFConfigH5) -> Set[str]:
 
 def mask_fill(h5_dataset: h5py.Dataset, shape_path: str, cache_dir: str,
               mask_grid_cache: str, default_fill_value: float,
-              saved_mask_arrays: Dict[str, np.ndarray],
-              cf_config: CFConfigH5, exclusions_set: Set[str], logger: Logger):
+              saved_mask_arrays: dict[str, np.ndarray],
+              cf_config: CFConfig, exclusions_set: set[str], logger: Logger):
     """ Replaces the data in the HDF5 dataset with a mask filled version of the
         data. This function is applied to each dataset via the apply_2d
         mechanism.
@@ -216,8 +222,8 @@ def mask_fill(h5_dataset: h5py.Dataset, shape_path: str, cache_dir: str,
 
 def get_mask_array(h5_dataset: h5py.Dataset, shape_path: str,
                    cache_dir: str, mask_grid_cache: str,
-                   saved_mask_arrays: Dict[str, np.ndarray],
-                   cf_config: CFConfigH5, logger: Logger) -> np.ndarray:
+                   saved_mask_arrays: dict[str, np.ndarray],
+                   cf_config: CFConfig, logger: Logger) -> np.ndarray:
     """ Gets the mask array corresponding the HDF5 file and shape file from a
         set of saved mask arrays or the cache directory.
         If the mask array file does not already exist, it is created
@@ -267,7 +273,7 @@ def get_mask_array(h5_dataset: h5py.Dataset, shape_path: str,
 
 
 def create_mask_array(h5_dataset: h5py.Dataset, crs: CRS, shape_path: str,
-                      cf_config: CFConfigH5, logger: Logger) -> np.ndarray:
+                      cf_config: CFConfig, logger: Logger) -> np.ndarray:
     """ Creates a mask array corresponding to the HDF5 dataset and shape file
         Args:
             h5_dataset (h5py._hl.dataset.Dataset): The given HDF5 dataset
@@ -289,7 +295,7 @@ def create_mask_array(h5_dataset: h5py.Dataset, crs: CRS, shape_path: str,
     )
 
 
-def get_coordinates(input_file: h5py.File) -> Set[str]:
+def get_coordinates(input_file: h5py.File) -> set[str]:
     """ Gets the coordinate reference datasets within the input_file.
     :param input_file: H5Py data object for HDF5 input data file, follows CF conventions
     :return: set of coordinate reference paths found in data file.
@@ -317,7 +323,7 @@ def get_coordinates(input_file: h5py.File) -> Set[str]:
     return coords
 
 
-def get_string_variables(input_file: h5py.File) -> List[str]:
+def get_string_variables(input_file: h5py.File) -> list[str]:
     """ Return all the string type variables within the file.
 
     This walks through every hierachial group and dataset and checks if dataset

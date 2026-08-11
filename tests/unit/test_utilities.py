@@ -14,7 +14,7 @@ from geopandas.testing import assert_geodataframe_equal
 from numpy.testing import assert_allclose, assert_array_equal
 from pyproj import CRS
 from shapely.geometry import Polygon, shape
-from maskfill.cf_config import CFConfigH5
+from maskfill.cf_config import CFConfig
 
 from maskfill.utilities import (
     apply_2d,
@@ -709,7 +709,7 @@ class TestUtilities(TestCase):
                             [True, False, True],
                             [True, False, True],
                             [True, False, True]])
-        cf_config = CFConfigH5('tests/data/SPL3SMP_E_pm_input.h5')
+        cf_config = CFConfig('SPL3SMP_E')
         with self.subTest('apply_2d to nominal shaped granule'):
             array_2x4x3 = np.arange(24).reshape(2, 4, 3)
             expected_masked_output = np.array([[[-9999, 1, -9999],
@@ -733,7 +733,7 @@ class TestUtilities(TestCase):
             when the apply_2d_dataset_to_multidim methods are called.
         """
         h5_file = h5py.File('test_apply_2d.h5', 'w', driver='core', backing_store=False)
-        cf_config = CFConfigH5('tests/data/SPL3SMP_E_pm_input.h5')
+        cf_config = CFConfig('SPL3SMP_E')
         mock_get_spatial_grid_shape.return_value = (2, 3)
 
         with self.subTest('apply on 3d dataset'):

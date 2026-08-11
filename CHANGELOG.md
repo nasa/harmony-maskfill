@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.3.6] - 2026-08-11
+
+### Changed
+
+- Collection short name is now extracted from the input
+  `harmony_service_lib.Source` object.
+- The short name for the GPM_3IMERGHH collection has been corrected, now it is
+  being supplied from Harmony, rather than internally defined via the MaskFill
+  configuration file.
+
+### Removed
+
+- `CFConfigH5` and `CFConfigGeotiff` classes have been removed, as the short name
+  for both data formats can be derived from input Harmony request information.
+  The generic `CFConfig` class can be used for both.
+- The `collection_shortname_paths` and `collection_prefix_to_shortname_mapping`
+  elements of the MaskFill configuration file have been removed, as they are
+  now unused.
+
 ## [v1.3.5] - 2026-07-31
 
 ### Changed
@@ -124,6 +143,7 @@ see legacy-CHANGELOG.md.
 - On-premises scripts and artefacts for the SDPS system have been removed from
   the repository.
 
+[v1.3.6]: https://github.com/nasa/harmony-maskfill/releases/tag/1.3.6
 [v1.3.5]: https://github.com/nasa/harmony-maskfill/releases/tag/1.3.5
 [v1.3.4]: https://github.com/nasa/harmony-maskfill/releases/tag/1.3.4
 [v1.3.3]: https://github.com/nasa/harmony-maskfill/releases/tag/1.3.3
