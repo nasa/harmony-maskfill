@@ -2,7 +2,7 @@ from logging import getLogger
 from os import mkdir
 from os.path import isdir, join
 from shutil import rmtree
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from pyproj import CRS
 import h5py
@@ -17,6 +17,7 @@ from maskfill.h5_maskfill import (
     create_mask_array
 )
 from maskfill.cf_config import CFConfigH5
+from maskfill.utilities import apply_2d, mask_fill_array
 
 from tests.utilities import MaskFillTestCase
 
@@ -110,6 +111,67 @@ class TestH5MaskFill(MaskFillTestCase):
                       self.exclusions_set, self.logger)
 
             mock_get_mask_array.assert_not_called()
+
+    @patch('maskfill.h5_maskfill.get_apply_2d_process')
+    @patch('maskfill.h5_maskfill.get_mask_array')
+    def test_mask_fill_write_paths(self, mock_get_mask_array,
+                                   mock_get_apply_2d_process):
+        """ Ensure a plain 2-D dataset is mask filled via the chunk-wise
+            path, a dataset carrying observed statistics attributes retains
+            the whole-array path and has its statistics updated, and that
+            both paths write identical values.
+
+        """
+        whole_array_process = Mock(wraps=apply_2d)
+        mock_get_apply_2d_process.return_value = whole_array_process
+
+        fill_value = -9999.0
+        data = np.arange(12, dtype=np.float64).reshape(4, 3)
+        mask_array = np.array([[1, 0, 1], [1, 0, 1], [1, 0, 1], [1, 0, 1]],
+                              dtype=np.uint8)
+        mock_get_mask_array.return_value = mask_array
+        expected_output = mask_fill_array(data, mask_array, fill_value)
+        expected_unfilled = expected_output[expected_output != fill_value]
+
+        h5_file = h5py.File(self.test_h5_name, 'w')
+
+        with self.subTest('Plain 2-D dataset uses the chunk-wise path'):
+            dataset = h5_file.create_dataset('plain', data=data, chunks=(3, 2))
+            dataset.attrs['_FillValue'] = fill_value
+            dataset.attrs['coordinates'] = '/latitude /longitude'
+
+            mask_fill(dataset, self.shape_file, self.cache_dir,
+                      'ignore_and_delete', fill_value,
+                      self.saved_mask_arrays, self.cf_config,
+                      self.exclusions_set, self.logger)
+
+            np.testing.assert_array_equal(dataset[:], expected_output)
+            whole_array_process.assert_not_called()
+
+        with self.subTest('Observed statistics retain the whole-array path'):
+            dataset = h5_file.create_dataset('with_statistics', data=data,
+                                             chunks=(3, 2))
+            dataset.attrs['_FillValue'] = fill_value
+            dataset.attrs['coordinates'] = '/latitude /longitude'
+            dataset.attrs['observed_max'] = 0.0
+            dataset.attrs['observed_min'] = 0.0
+            dataset.attrs['observed_mean'] = 0.0
+
+            mask_fill(dataset, self.shape_file, self.cache_dir,
+                      'ignore_and_delete', fill_value,
+                      self.saved_mask_arrays, self.cf_config,
+                      self.exclusions_set, self.logger)
+
+            np.testing.assert_array_equal(dataset[:], expected_output)
+            whole_array_process.assert_called_once()
+            self.assertEqual(dataset.attrs['observed_max'],
+                             np.max(expected_unfilled))
+            self.assertEqual(dataset.attrs['observed_min'],
+                             np.min(expected_unfilled))
+            self.assertEqual(dataset.attrs['observed_mean'],
+                             np.mean(expected_unfilled))
+
+        h5_file.close()
 
     @patch('maskfill.h5_maskfill.create_mask_array')
     def test_get_mask_array(self, mock_create_mask_array):

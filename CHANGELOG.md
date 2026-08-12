@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.3.5] - 2026-07-31
+
+### Changed
+
+- MaskFill computes the geographic bounds and resolution of projected grids from the grid perimeter and from streamed row blocks instead of computing latitude and longitude values for every grid cell.
+- MaskFill mask fills two dimensional datasets without observed statistics attributes one chunk at a time instead of a full-array read and write, and no longer reads entire datasets into memory to obtain a shape or to check for fill values.
+
 ## [v1.3.4] - 2026-07-21
 
 ### Removed
@@ -117,6 +124,7 @@ see legacy-CHANGELOG.md.
 - On-premises scripts and artefacts for the SDPS system have been removed from
   the repository.
 
+[v1.3.5]: https://github.com/nasa/harmony-maskfill/releases/tag/1.3.5
 [v1.3.4]: https://github.com/nasa/harmony-maskfill/releases/tag/1.3.4
 [v1.3.3]: https://github.com/nasa/harmony-maskfill/releases/tag/1.3.3
 [v1.3.2]: https://github.com/nasa/harmony-maskfill/releases/tag/1.3.2

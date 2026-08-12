@@ -101,6 +101,39 @@ class TestH5GridProjectionInfo(TestCase):
 
         h5_file.close()
 
+    def test_dataset_all_fill_value_chunked(self):
+        """ Ensure that chunked datasets, are correctly identified as
+            containing only fill values, including when the only non-fill
+            element lies in the final chunk.
+
+        """
+        h5_file = h5py.File(self.test_h5_name, 'w')
+        fill_value = 1.0
+        dimensions = (8, 8)
+        chunks = (3, 3)
+        data_ones = np.ones(dimensions)
+        data_last_chunk = np.ones(dimensions)
+        data_last_chunk[-1][-1] = 0
+
+        test_args = [
+            ['All chunks are fill value', 'filled', data_ones, True],
+            ['Non-fill element in the final chunk', 'last_chunk',
+             data_last_chunk, False],
+        ]
+
+        for description, dataset_name, input_data, expected_result in test_args:
+            with self.subTest(description):
+                dataset = h5_file.create_dataset(dataset_name,
+                                                 data=input_data,
+                                                 chunks=chunks,
+                                                 fillvalue=fill_value)
+                self.assertIsNotNone(dataset.chunks)
+                result = dataset_all_fill_value(dataset, self.cf_config,
+                                                self.logger, fill_value)
+                self.assertEqual(result, expected_result)
+
+        h5_file.close()
+
     def test_dataset_all_outside_valid_range(self):
         """Ensure correct detection of when data in a Dataset all lies outside
         the valid range specified by the `valid_min` and `valid_max` attributes.

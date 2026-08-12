@@ -172,16 +172,22 @@ def mask_fill(h5_dataset: h5py.Dataset, shape_path: str, cache_dir: str,
         fill_value = get_fill_value(h5_dataset, cf_config, logger,
                                     default_fill_value)
         apply_2d_process = get_apply_2d_process(h5_dataset, cf_config)
+        statistics = ['observed_max', 'observed_min', 'observed_mean']
+        has_statistics = any(statistic in h5_dataset.attrs.keys()
+                             for statistic in statistics)
+
+        if len(h5_dataset.shape) == 2 and not has_statistics:
+            utilities.mask_fill_dataset_by_chunks(h5_dataset, mask_array,
+                                                  fill_value)
+            logger.debug(f'Mask filled the dataset {h5_dataset.name}')
+            return
+
         mask_filled_data = apply_2d_process(h5_dataset, cf_config,
                                             utilities.mask_fill_array,
                                             mask_array, fill_value)
         h5_dataset.write_direct(mask_filled_data)
 
-        # If the dataset attributes contain observed statistics, update them.
-        statistics = ['observed_max', 'observed_min', 'observed_mean']
-
-        if any(statistic in h5_dataset.attrs.keys()
-               for statistic in statistics):
+        if has_statistics:
             logger.debug(f'Updating statistics for {h5_dataset.name}')
 
             # Get all values in mask_filled_data excluding the fill value
