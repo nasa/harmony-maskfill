@@ -632,8 +632,8 @@ def dataset_all_fill_value(dataset: Dataset, cf_config: CFConfigH5,
         return np.all(dataset[band][:] == fill_value)
 
     if dataset.chunks is not None:
-        return all(np.all(dataset[cs] == fill_value)
-                   for cs in dataset.iter_chunks())
+        return all(np.all(dataset[chunk_slices] == fill_value)
+                   for chunk_slices in dataset.iter_chunks())
 
     return np.all(dataset[:] == fill_value)
 

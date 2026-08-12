@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - MaskFill computes the geographic bounds and resolution of projected grids from the grid perimeter and from streamed row blocks instead of computing latitude and longitude values for every grid cell.
-- MaskFill mask fills two dimensional datasets one chunk at a time instead of a full-array read and write, and no longer reads entire datasets into memory to obtain a shape or to check for fill values.
+- MaskFill mask fills two dimensional datasets without observed statistics attributes one chunk at a time instead of a full-array read and write, and no longer reads entire datasets into memory to obtain a shape or to check for fill values.
 
 ## [v1.3.4] - 2026-07-21
 

@@ -160,9 +160,14 @@ def mask_fill_dataset_by_chunks(h5_dataset: Dataset, mask_array: np.ndarray,
             fill_value (float): Value used to fill in the masked values.
 
     """
+    # Chunked datasets are read and written one chunk at a time, so
+    # peak memory is bounded by the chunk size. Contiguous datasets have no
+    # chunks to iterate, and are processed as a single whole-array block.
     if h5_dataset.chunks is not None:
         chunk_slices_iterator = h5_dataset.iter_chunks()
     else:
+        # One slice per dimension, each spanning that dimension's full
+        # extent: a single selection covering the entire dataset.
         chunk_slices_iterator = [tuple(slice(0, extent)
                                        for extent in h5_dataset.shape)]
 
@@ -541,8 +546,8 @@ def get_grid_geographic_bounds(transform: Affine, crs: CRS,
                                      np.full(columns, rows - 1),
                                      row_indices, row_indices])
 
-    projected_x = np.add(np.multiply(transform.a, perimeter_columns), transform.c)
-    projected_y = np.add(np.multiply(transform.e, perimeter_rows), transform.f)
+    projected_x = transform.a * perimeter_columns + transform.c
+    projected_y = transform.e * perimeter_rows + transform.f
 
     to_geo_transformer = Transformer.from_crs(crs, 4326)
     latitudes, longitudes = to_geo_transformer.transform(projected_x,
@@ -551,8 +556,8 @@ def get_grid_geographic_bounds(transform: Affine, crs: CRS,
     west, east = np.nanmin(longitudes), np.nanmax(longitudes)
     south, north = np.nanmin(latitudes), np.nanmax(latitudes)
 
-    x_edges = (transform.c, transform.a * (columns - 1) + transform.c)
-    y_edges = (transform.f, transform.e * (rows - 1) + transform.f)
+    x_edges = transform.a * np.array([0, columns - 1]) + transform.c
+    y_edges = transform.e * np.array([0, rows - 1]) + transform.f
     from_geo_transformer = Transformer.from_crs(4326, crs, always_xy=True)
 
     for pole_latitude in (90.0, -90.0):
@@ -560,8 +565,8 @@ def get_grid_geographic_bounds(transform: Affine, crs: CRS,
 
         if (
             np.isfinite(pole_x) and np.isfinite(pole_y)
-            and min(x_edges) <= pole_x <= max(x_edges)
-            and min(y_edges) <= pole_y <= max(y_edges)
+            and x_edges.min() <= pole_x <= x_edges.max()
+            and y_edges.min() <= pole_y <= y_edges.max()
         ):
             west, east = -180.0, 180.0
             south = min(south, pole_latitude)
@@ -586,10 +591,8 @@ def get_grid_geographic_resolution(transform: Affine, crs: CRS,
         return get_geographic_resolution(longitudes, latitudes)
 
     to_geo_transformer = Transformer.from_crs(crs, 4326)
-    projected_x_row = np.add(
-        np.multiply(transform.a, np.arange(columns, dtype='float64')),
-        transform.c,
-    )
+    projected_x_row = (transform.a * np.arange(columns, dtype='float64')
+                       + transform.c)
 
     resolution = np.inf
     previous_latitudes = None
@@ -598,8 +601,7 @@ def get_grid_geographic_resolution(transform: Affine, crs: CRS,
     for block_start in range(0, rows, block_rows):
         block_stop = min(block_start + block_rows, rows)
         row_indices = np.arange(block_start, block_stop, dtype='float64')
-        projected_y = np.add(np.multiply(transform.e, row_indices),
-                             transform.f)
+        projected_y = transform.e * row_indices + transform.f
 
         block_latitudes, block_longitudes = to_geo_transformer.transform(
             np.broadcast_to(projected_x_row,
@@ -617,9 +619,8 @@ def get_grid_geographic_resolution(transform: Affine, crs: CRS,
                              get_geographic_resolution(block_longitudes,
                                                        block_latitudes))
 
-        previous_latitudes = block_latitudes[-1:].copy()
-        previous_longitudes = block_longitudes[-1:].copy()
-
+        previous_latitudes = block_latitudes[-1:, :].copy()
+        previous_longitudes = block_longitudes[-1:, :].copy()
     return resolution
 
 

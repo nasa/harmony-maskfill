@@ -545,6 +545,9 @@ class TestUtilities(TestCase):
             longitude range and extend to the latitude of that pole.
 
         """
+        # Cell centers span -45 km to 45 km in both x and y, so the North Pole
+        # at EASE-2 North projected coordinates (0, 0), lies within the grid extent.
+        # x = 10000 * col -45000, y = -10000 * row + 45000
         transform = Affine(10000, 0, -45000, 0, -10000, 45000)
         out_shape = (10, 10)
 
