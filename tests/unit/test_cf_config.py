@@ -1,8 +1,5 @@
-from os import remove
 from unittest import TestCase
 import json
-
-from h5py import File
 
 from maskfill.cf_config import CFConfig
 
