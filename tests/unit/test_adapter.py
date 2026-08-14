@@ -47,12 +47,17 @@ class TestHarmonyMaskFill(TestCase):
         cls.message = Message({
             'accessToken': 'fake_token',
             'callback': 'https://example.com/callback',
-            'sources': [{
-                'granules': [{
-                    'bbox': [-180, -90, 180, 90],
-                    'temporal': cls.temporal,
-                }]
-            }],
+            'sources': [
+                {
+                    'granules': [
+                        {
+                            'bbox': [-180, -90, 180, 90],
+                            'temporal': cls.temporal,
+                        }
+                    ],
+                    'shortName': 'SPL4SMAU',
+                }
+            ],
             'stagingLocation': 's3://example-bucket/example-path',
             'subset': {
                 'shape': {
@@ -301,3 +306,52 @@ class TestHarmonyMaskFill(TestCase):
 
             self.assertEqual(context_manager.exception.message,
                              'Bounding box must be 4-element list.')
+
+    def test_validate_source(self):
+        """Ensure guard against missing shortName operates correctly."""
+
+        with self.subTest('Source object with shortName passes validation'):
+            self.harmony_adapter.validate_source(self.message.sources[0])
+
+        with self.subTest('Source object with no shortName raises exception'):
+            source_with_no_shortname = {
+                'granules': [
+                    {
+                        'bbox': [-180, -90, 180, 90],
+                        'temporal': self.temporal,
+                    }
+                ]
+            }
+
+            message = Message({'sources': [source_with_no_shortname]})
+
+            harmony_adapter = MaskFillAdapter(
+                message,
+                config=config(False),
+                catalog=self.input_stac,
+            )
+
+            with self.assertRaises(NoRetryException) as context_manager:
+                harmony_adapter.validate_source(source_with_no_shortname)
+
+        with self.subTest('Source object with None shortName raises exception'):
+            source_with_none_shortname = {
+                'granules': [
+                    {
+                        'bbox': [-180, -90, 180, 90],
+                        'temporal': self.temporal,
+                    }
+                ],
+                'shortName': None,
+            }
+
+            message = Message({'sources': [source_with_none_shortname]})
+
+            harmony_adapter = MaskFillAdapter(
+                message,
+                config=config(False),
+                catalog=self.input_stac,
+            )
+
+            with self.assertRaises(NoRetryException) as context_manager:
+                harmony_adapter.validate_source(source_with_none_shortname)

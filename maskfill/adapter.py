@@ -80,6 +80,7 @@ class MaskFillAdapter(BaseHarmonyAdapter):
                 output
 
         """
+        self.validate_source(source)
         result = item.clone()
         result.assets = {}
 
@@ -198,6 +199,11 @@ class MaskFillAdapter(BaseHarmonyAdapter):
 
         except Exception as err:
             raise MaskfillStagingError(str(err)) from err
+
+    def validate_source(self, source: MessageSource):
+        """Ensure the harmony_service_lib.Source has collection source name."""
+        if not hasattr(source, 'shortName') or source.shortName is None:
+            raise NoRetryException('shortName not provided in input Source')
 
     def validate_message(self):
         """ Check the service was triggered by a valid message containing
