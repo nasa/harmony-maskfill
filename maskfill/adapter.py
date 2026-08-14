@@ -80,6 +80,7 @@ class MaskFillAdapter(BaseHarmonyAdapter):
                 output
 
         """
+        self.validate_source(source)
         result = item.clone()
         result.assets = {}
 
@@ -111,9 +112,16 @@ class MaskFillAdapter(BaseHarmonyAdapter):
                 self.logger.info('Shape file constructed from bounding box.')
 
             # Call MaskFill utility
-            working_filename = mask_fill(input_filename, shape_filename,
-                                         working_dir, DEFAULT_MASK_GRID_CACHE,
-                                         None, self.logger, bounding_box)
+            working_filename = mask_fill(
+                input_filename,
+                source.shortName,
+                shape_filename,
+                working_dir,
+                DEFAULT_MASK_GRID_CACHE,
+                None,
+                self.logger,
+                bounding_box,
+            )
 
             # Stage the output file with a conventional filename
             output_filename = generate_output_filename(asset.href,
@@ -191,6 +199,11 @@ class MaskFillAdapter(BaseHarmonyAdapter):
 
         except Exception as err:
             raise MaskfillStagingError(str(err)) from err
+
+    def validate_source(self, source: MessageSource):
+        """Ensure the harmony_service_lib.Source has collection source name."""
+        if not hasattr(source, 'shortName') or source.shortName is None:
+            raise NoRetryException('shortName not provided in input Source')
 
     def validate_message(self):
         """ Check the service was triggered by a valid message containing

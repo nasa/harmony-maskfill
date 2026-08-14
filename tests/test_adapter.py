@@ -120,12 +120,17 @@ class TestHarmonyMaskFill(MaskFillTestCase):
             'accessToken': self.access_token,
             'callback': self.callback,
             'stagingLocation': self.staging_location,
-            'sources': [{
-                'granules': [{
-                    'bbox': self.bounding_box,
-                    'temporal': self.temporal
-                }]
-            }],
+            'sources': [
+                {
+                    'granules': [
+                        {
+                            'bbox': self.bounding_box,
+                            'temporal': self.temporal
+                        },
+                    ],
+                    'shortName': 'SPL4SMAU',
+                }
+            ],
             'subset': {
                 'shape': {
                     'href': self.shape_usa,
@@ -185,12 +190,17 @@ class TestHarmonyMaskFill(MaskFillTestCase):
             'accessToken': self.access_token,
             'callback': self.callback,
             'stagingLocation': self.staging_location,
-            'sources': [{
-                'granules': [{
-                    'bbox': self.bounding_box,
-                    'temporal': self.temporal
-                }]
-            }],
+            'sources': [
+                {
+                    'granules': [
+                        {
+                            'bbox': self.bounding_box,
+                            'temporal': self.temporal
+                        }
+                    ],
+                    'shortName': 'SPL4SMAU',
+                }
+            ],
             'subset': {
                 'shape': {
                     'href': self.shape_usa,
@@ -255,12 +265,17 @@ class TestHarmonyMaskFill(MaskFillTestCase):
             'accessToken': self.access_token,
             'callback': self.callback,
             'stagingLocation': self.staging_location,
-            'sources': [{
-                'granules': [{
-                    'bbox': self.bounding_box,
-                    'temporal': self.temporal,
-                }]
-            }],
+            'sources': [
+                {
+                    'granules': [
+                        {
+                            'bbox': self.bounding_box,
+                            'temporal': self.temporal,
+                        }
+                    ],
+                    'shortName': 'GPM_3IMERGHH',
+                }
+            ],
             'subset': {
                 'shape': {
                     'href': self.shape_usa,
@@ -325,12 +340,17 @@ class TestHarmonyMaskFill(MaskFillTestCase):
             'accessToken': self.access_token,
             'callback': self.callback,
             'stagingLocation': self.staging_location,
-            'sources': [{
-                'granules': [{
-                    'bbox': self.bounding_box,
-                    'temporal': self.temporal,
-                }]
-            }],
+            'sources': [
+                {
+                    'granules': [
+                        {
+                            'bbox': self.bounding_box,
+                            'temporal': self.temporal,
+                        }
+                    ],
+                    'shortName': 'SPL3FTP',
+                }
+            ],
             'subset': {'bbox': [0, 54, 44, 72]},
             'user': self.user,
         })
@@ -389,12 +409,17 @@ class TestHarmonyMaskFill(MaskFillTestCase):
             'accessToken': self.access_token,
             'callback': self.callback,
             'stagingLocation': self.staging_location,
-            'sources': [{
-                'granules': [{
-                    'bbox': self.bounding_box,
-                    'temporal': self.temporal,
-                }]
-            }],
+            'sources': [
+                {
+                    'granules': [
+                        {
+                            'bbox': self.bounding_box,
+                            'temporal': self.temporal,
+                        }
+                    ],
+                    'shortName': 'SPL3FTP',
+                }
+            ],
             'subset': {
                 'shape': {
                     'href': self.shape_usa,
@@ -458,12 +483,17 @@ class TestHarmonyMaskFill(MaskFillTestCase):
             'accessToken': self.access_token,
             'callback': self.callback,
             'stagingLocation': self.staging_location,
-            'sources': [{
-                'granules': [{
-                    'bbox': self.bounding_box,
-                    'temporal': self.temporal,
-                }]
-            }],
+            'sources': [
+                {
+                    'granules': [
+                        {
+                            'bbox': self.bounding_box,
+                            'temporal': self.temporal,
+                        }
+                    ],
+                    'shortName': 'SPL3FTP',
+                }
+            ],
             'subset': {
                 'shape': {
                     'href': self.shape_usa,
@@ -538,12 +568,17 @@ class TestHarmonyMaskFill(MaskFillTestCase):
             'accessToken': self.access_token,
             'callback': self.callback,
             'stagingLocation': self.staging_location,
-            'sources': [{
-                'granules': [{
-                    'bbox': self.bounding_box,
-                    'temporal': self.temporal,
-                }]
-            }],
+            'sources': [
+                {
+                    'granules': [
+                        {
+                            'bbox': self.bounding_box,
+                            'temporal': self.temporal,
+                        }
+                    ],
+                    'shortName': 'SPL3FTP',
+                }
+            ],
             'subset': {
                 'shape': {
                     'href': self.shape_usa,
@@ -646,13 +681,18 @@ class TestHarmonyMaskFill(MaskFillTestCase):
         base_message_text = {
             'accessToken': self.access_token,
             'callback': self.callback,
-            'sources': [{
-                'granules': [{
-                    'bbox': self.bounding_box,
-                    'temporal': self.temporal,
-                    'url': self.input_geotiff
-                }]
-            }],
+            'sources': [
+                {
+                    'granules': [
+                        {
+                            'bbox': self.bounding_box,
+                            'temporal': self.temporal,
+                            'url': self.input_geotiff
+                        }
+                    ],
+                    'shortName': 'SPL3FTP',
+                }
+            ],
             'stagingLocation': self.staging_location,
             'user': self.user
         }
@@ -733,12 +773,17 @@ class TestHarmonyMaskFill(MaskFillTestCase):
             'accessToken': self.access_token,
             'callback': self.callback,
             'stagingLocation': self.staging_location,
-            'sources': [{
-                'granules': [{
-                    'bbox': self.bounding_box,
-                    'temporal': self.temporal,
-                }]
-            }],
+            'sources': [
+                {
+                    'granules': [
+                        {
+                            'bbox': self.bounding_box,
+                            'temporal': self.temporal,
+                        }
+                    ],
+                    'shortName': 'SPL3SMP',
+                }
+            ],
             'subset': {
                 'shape': {
                     'href': self.shape_usa,
@@ -782,12 +827,17 @@ class TestHarmonyMaskFill(MaskFillTestCase):
             'accessToken': self.access_token,
             'callback': self.callback,
             'stagingLocation': self.staging_location,
-            'sources': [{
-                'granules': [{
-                    'bbox': self.bounding_box,
-                    'temporal': self.temporal,
-                }]
-            }],
+            'sources': [
+                {
+                    'granules': [
+                        {
+                            'bbox': self.bounding_box,
+                            'temporal': self.temporal,
+                        }
+                    ],
+                    'shortName': 'GPM_3IMERGHH',
+                }
+            ],
             'subset': {
                 'shape': {
                     'href': self.shape_usa,

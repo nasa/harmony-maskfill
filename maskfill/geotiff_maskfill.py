@@ -11,7 +11,7 @@ import rasterio
 import rasterio.mask
 
 from maskfill import utilities
-from maskfill.cf_config import CFConfigGeotiff
+from maskfill.cf_config import CFConfig
 from maskfill.caching import (
     cache_geotiff_mask_array,
     get_geotiff_cached_mask_array,
@@ -19,9 +19,16 @@ from maskfill.caching import (
 from maskfill.utilities import get_default_fill_for_data_type, get_geotiff_crs
 
 
-def produce_masked_geotiff(geotiff_path: str, shape_path: str, output_dir: str,
-                           cache_dir: str, mask_grid_cache: str,
-                           default_fill_value: float, logger: Logger) -> str:
+def produce_masked_geotiff(
+    geotiff_path: str,
+    collection_short_name: str,
+    shape_path: str,
+    output_dir: str,
+    cache_dir: str,
+    mask_grid_cache: str,
+    default_fill_value: float,
+    logger: Logger,
+) -> str:
     """ Performs a mask fill on the given GeoTIFF using the shapes in the given
         shape file. If the variable is a coordinate, or EASE-2 grid index, then
         the input file is copied directly to the output, unmasked.
@@ -40,7 +47,7 @@ def produce_masked_geotiff(geotiff_path: str, shape_path: str, output_dir: str,
 
     """
     mask_grid_cache = mask_grid_cache.lower()
-    cf_config = CFConfigGeotiff(geotiff_path)
+    cf_config = CFConfig(collection_short_name)
     exclusions = [convert_variable_path(exclusion_path)
                   for exclusion_path in cf_config.get_file_exclusions()]
 

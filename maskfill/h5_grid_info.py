@@ -3,7 +3,7 @@
     file.
 """
 from logging import Logger
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Optional, Union
 from collections.abc import Callable
 import re
 
@@ -13,7 +13,7 @@ from h5py import Dataset, Reference
 from pyproj import CRS, Proj
 from pyproj.exceptions import CRSError
 
-from maskfill.cf_config import CFConfigH5
+from maskfill.cf_config import CFConfig
 from maskfill.exceptions import (
     InsufficientDataError,
     InsufficientProjectionInformation,
@@ -29,11 +29,10 @@ from maskfill.utilities import (
 )
 
 
-CornerPoints = Tuple[float, float, float, float]
+CornerPoints = tuple[float, float, float, float]
 
 
-def get_hdf_crs(h5_dataset: Dataset, cf_config: CFConfigH5,
-                logger: Logger) -> CRS:
+def get_hdf_crs(h5_dataset: Dataset, cf_config: CFConfig, logger: Logger) -> CRS:
     """ Returns a `pyproj.CRS` object corresponding to the coordinate reference
         system of the HDF-5 variable. Current logic:
 
@@ -106,7 +105,7 @@ def get_grid_mapping_name(h5_dataset: Dataset) -> Optional[str]:
     return grid_mapping_name
 
 
-def get_lon_lat_datasets(h5_dataset: Dataset, cf_config: CFConfigH5) -> Tuple[Dataset, Dataset]:
+def get_lon_lat_datasets(h5_dataset: Dataset, cf_config: CFConfig) -> tuple[Dataset, Dataset]:
     """ Finds the lat/lon datsets corresponding to the given HDF5 dataset. It
         first checks for overrides in `cf_config.coordinate_overrides`. If no
         overrides are found, it attempts to retrieve coordinate names from the
@@ -147,7 +146,7 @@ def get_lon_lat_datasets(h5_dataset: Dataset, cf_config: CFConfigH5) -> Tuple[Da
     return longitude, latitude
 
 
-def get_dimension_datasets(h5_dataset: Dataset) -> Optional[Tuple[Dataset, Dataset]]:
+def get_dimension_datasets(h5_dataset: Dataset) -> Optional[tuple[Dataset, Dataset]]:
     """ Finds the dimension scales datasets corresponding to the horizontal
         spatial dimensions of a given HDF5 dataset. This function assumes that
         these will correspond to the last two array dimensions of the science
@@ -221,7 +220,7 @@ def is_projection_y_dimension(dimension_dataset: Dataset) -> bool:
     )
 
 
-def get_crs_from_grid_mapping(grid_mapping: Union[Dataset, Dict]) -> CRS:
+def get_crs_from_grid_mapping(grid_mapping: Union[Dataset, dict]) -> CRS:
     """ Returns a `pyproj.CRS` object corresponding to a grid mapping variable.
 
         Args:
@@ -248,7 +247,7 @@ def get_crs_from_grid_mapping(grid_mapping: Union[Dataset, Dict]) -> CRS:
     return crs
 
 
-def get_dataset_attributes(h5_dataset: Dataset) -> Dict:
+def get_dataset_attributes(h5_dataset: Dataset) -> dict:
     """ Retrieve all attributres for an HDF-5 dataset. Any values that are
         `bytes` are decoded during the list comprehension.
 
@@ -258,9 +257,7 @@ def get_dataset_attributes(h5_dataset: Dataset) -> Dict:
             in h5_dataset.attrs}
 
 
-def get_apply_2d_process(h5_dataset: Dataset,
-                         cf_config: CFConfigH5
-                         ) -> Callable:
+def get_apply_2d_process(h5_dataset: Dataset, cf_config: CFConfig) -> Callable:
     """ This function returns the right apply_2d process
     based on the dimension order in the h5_dataset. Will
     throw an exception the dataset is not in the supported
@@ -284,9 +281,7 @@ def get_apply_2d_process(h5_dataset: Dataset,
         raise NotSupportedData(h5_dataset.name)
 
 
-def get_spatial_grid_shape(h5_dataset: Dataset,
-                           cf_config: CFConfigH5
-                           ) -> list[int]:
+def get_spatial_grid_shape(h5_dataset: Dataset, cf_config: CFConfig) -> list[int]:
     """ This function returns the shape of dimension or
     if dimensions are not explicitly defined (hdf-5 vs. NetCDF, SMAP L3),
     determines shape from coordinate dataset
@@ -302,7 +297,7 @@ def get_spatial_grid_shape(h5_dataset: Dataset,
     return []
 
 
-def get_transform(h5_dataset: Dataset, crs: CRS, cf_config: CFConfigH5,
+def get_transform(h5_dataset: Dataset, crs: CRS, cf_config: CFConfig,
                   logger: Logger) -> Affine:
     """ Determines the transform from the index coordinates of the HDF5 dataset
         to projected coordinates (meters) in the coordinate reference frame of
@@ -342,7 +337,7 @@ def get_transform(h5_dataset: Dataset, crs: CRS, cf_config: CFConfigH5,
     return Affine(cell_width, 0, x_0, 0, cell_height, y_0)
 
 
-def get_cell_size_from_dimensions(h5_dataset: Dataset) -> Tuple[int, int] | None:
+def get_cell_size_from_dimensions(h5_dataset: Dataset) -> tuple[int, int] | None:
     """ Gets the cell height and width of the gridded HDF-5 dataset using the
         dimension scales of the dataset.
 
@@ -373,7 +368,7 @@ def get_cell_size_from_dimensions(h5_dataset: Dataset) -> Tuple[int, int] | None
 
 def get_cell_size_from_lat_lon_extents(h5_dataset: Dataset, x_0: float,
                                        x_n: float, y_0: float,
-                                       y_m: float, cf_config: CFConfigH5) -> Tuple[float, float]:
+                                       y_m: float, cf_config: CFConfig) -> tuple[float, float]:
     """ Gets the cell height and width of the gridded HDF-5 dataset from the
         dataset's latitude and longitude coordinate datasets and their extents.
 
@@ -411,7 +406,7 @@ def get_corner_points_from_dimensions(h5_dataset: Dataset) -> CornerPoints:
 
 
 def get_corner_points_from_lat_lon(h5_dataset: Dataset, crs: CRS,
-                                   cf_config: CFConfigH5,
+                                   cf_config: CFConfig,
                                    logger: Logger) -> CornerPoints:
     """ Finds the min and max locations in both coordinate axes of the dataset.
         Args:
@@ -469,7 +464,7 @@ def get_corner_points_from_lat_lon(h5_dataset: Dataset, crs: CRS,
 def get_projected_coordinate_extent(projection: Proj, latitude: np.ndarray,
                                     longitude: np.ndarray,
                                     array_dimension: int,
-                                    valid_indices: Tuple) -> Tuple:
+                                    valid_indices: tuple) -> tuple:
     """ Calculate the maximum and minimum projected coordinate in a single
         dimension of coordinate grid. This method assumes that the data are
         gridded, and that all points in the same row have the same projected
@@ -533,8 +528,7 @@ def get_projected_coordinate_extent(projection: Proj, latitude: np.ndarray,
     return lower_corner, upper_corner
 
 
-def get_dimension_arrays(h5_dataset: Dataset) \
-        -> Tuple[List[float], List[float]] | None:
+def get_dimension_arrays(h5_dataset: Dataset) -> tuple[list[float], list[float]] | None:
     """ Gets the dimension scales arrays of the HDF5 dataset.
         projected meters - x-coordinates, y-coordinates
         Args:
@@ -551,8 +545,10 @@ def get_dimension_arrays(h5_dataset: Dataset) \
         return None
 
 
-def get_lon_lat_axes(h5_dataset: Dataset, cf_config: CFConfigH5) \
-        -> Tuple[List[float], List[float]]:  # degrees - lat, lon
+def get_lon_lat_axes(
+    h5_dataset: Dataset,
+    cf_config: CFConfig
+) -> tuple[list[float], list[float]]:  # degrees - lat, lon
     """ Gets the Lat/Lon axes of the HDF5 dataset - the first row/column
         of the latitude/longitude arrays.
         Args:
@@ -570,7 +566,7 @@ def get_lon_lat_axes(h5_dataset: Dataset, cf_config: CFConfigH5) \
         return x[0][0], y[0][:, 0]
 
 
-def get_fill_value(h5_dataset: Dataset, cf_config: CFConfigH5, logger: Logger,
+def get_fill_value(h5_dataset: Dataset, cf_config: CFConfig, logger: Logger,
                    default_fill_value: Optional[float]) -> Optional[float]:
     """ Returns the fill value for the given HDF5 dataset.
         If the HDF5 dataset has no fill value, returns the given default fill value.
@@ -612,7 +608,7 @@ def get_fill_value(h5_dataset: Dataset, cf_config: CFConfigH5, logger: Logger,
         return get_default_fill_for_data_type(h5_dataset.dtype.name)
 
 
-def dataset_all_fill_value(dataset: Dataset, cf_config: CFConfigH5,
+def dataset_all_fill_value(dataset: Dataset, cf_config: CFConfig,
                            logger: Logger, default_fill_value: float,
                            band: Optional[int] = None) -> bool:
     """ Check if an HDF5 dataset only contains a fill value.
