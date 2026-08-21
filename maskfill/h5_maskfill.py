@@ -67,7 +67,7 @@ def produce_masked_hdf(
 
     """
     mask_grid_cache = mask_grid_cache.lower()
-    saved_mask_arrays = dict()
+    saved_mask_arrays = {}
     cf_config = CFConfig(collection_short_name)
     exclusion_set = get_exclusions(hdf_path, cf_config)
 
@@ -215,9 +215,7 @@ def mask_fill(
         fill_value = get_fill_value(h5_dataset, cf_config, logger, default_fill_value)
         apply_2d_process = get_apply_2d_process(h5_dataset, cf_config)
         statistics = ['observed_max', 'observed_min', 'observed_mean']
-        has_statistics = any(
-            statistic in h5_dataset.attrs.keys() for statistic in statistics
-        )
+        has_statistics = any(statistic in h5_dataset.attrs for statistic in statistics)
 
         if len(h5_dataset.shape) == 2 and not has_statistics:
             utilities.mask_fill_dataset_by_chunks(h5_dataset, mask_array, fill_value)

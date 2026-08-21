@@ -12,7 +12,7 @@ class TestCFConfig(TestCase):
         """Define objects to be reused between tests."""
         cls.cf_config = CFConfig('SPL3FTP')
 
-        with open('maskfill/maskfill_config.json', 'r') as file_handler:
+        with open('maskfill/maskfill_config.json') as file_handler:
             cls.raw_config = json.load(file_handler)
 
     def test_cfconfig_instantiation(self):

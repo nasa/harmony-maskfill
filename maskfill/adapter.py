@@ -158,7 +158,7 @@ class MaskFillAdapter(BaseHarmonyAdapter):
         self,
         remote_resource_url: str,
         output_directory: str,
-        local_basename: str = None,
+        local_basename: str | None = None,
     ) -> str:
         """A class method to wrap the Harmony utility function to download a
         file from a remote source. This method automatically uses the
@@ -318,6 +318,6 @@ class MaskFillAdapter(BaseHarmonyAdapter):
         if mimetype is None:
             # Assumption: only one extension at the end of the file path
             file_extension = os.path.splitext(file_name)[1]
-            mimetype = EXTENSION_MIMETYPES.get(file_extension, None)
+            mimetype = EXTENSION_MIMETYPES.get(file_extension)
 
         return mimetype

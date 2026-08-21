@@ -4,7 +4,6 @@ import re
 from logging import Logger
 from os.path import basename
 from shutil import copyfile
-from typing import List, Union
 
 import numpy as np
 import rasterio
@@ -165,7 +164,7 @@ def create_mask_array(geotiff_path: str, shape_path: str) -> np.ndarray:
 
 def get_fill_value(
     geotiff_dataset: gdal.Dataset,
-    default_fill_value: Union[float, None],
+    default_fill_value: float | None,
     logger: Logger,
 ) -> float:
     """Returns the fill value for the given GeoTIFF.
@@ -199,7 +198,7 @@ def get_fill_value(
     return fill_value
 
 
-def variable_should_be_masked(geotiff_path: str, exclusions: List[str]) -> bool:
+def variable_should_be_masked(geotiff_path: str, exclusions: list[str]) -> bool:
     """Compare the GeoTIFF file name, which will contain the full variable
     path (with underscores in place of forward slashes), to the full list
     of collection variables that should be excluded from masking.
@@ -210,9 +209,7 @@ def variable_should_be_masked(geotiff_path: str, exclusions: List[str]) -> bool:
     """
     geotiff_base_path = basename(geotiff_path)
 
-    return not any(
-        [re.search(exclusion, geotiff_base_path) for exclusion in exclusions]
-    )
+    return not any(re.search(exclusion, geotiff_base_path) for exclusion in exclusions)
 
 
 def convert_variable_path(variable_path: str) -> str:

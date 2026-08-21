@@ -4,7 +4,6 @@ To cache the masking array used to apply fill values (outside mask)
 
 import os
 from logging import Logger
-from typing import Dict
 
 import numpy as np
 
@@ -102,7 +101,7 @@ def cache_geotiff_mask_array(
 
 
 def cache_h5_mask_arrays(
-    mask_arrays: Dict, cache_dir: str, mask_grid_cache: str, logger: Logger
+    mask_arrays: dict, cache_dir: str, mask_grid_cache: str, logger: Logger
 ) -> None:
     """Caches all of the given mask arrays as a .npy file in the cache
     directory, if the mask grid cache value allows.

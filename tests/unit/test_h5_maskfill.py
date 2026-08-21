@@ -62,7 +62,7 @@ class TestH5MaskFill(MaskFillTestCase):
         valid_max = 2
 
         test_args = [
-            ['1-d data', np.ones((3)), True, 0],
+            ['1-d data', np.ones(3), True, 0],
             ['No coordinates', np.ones((3, 2)), False, 0],
             ['All fill values', np.ones((3, 2)), True, 1],
             ['String data', 'A string', True, ''],

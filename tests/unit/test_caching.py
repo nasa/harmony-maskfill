@@ -1,10 +1,9 @@
 from logging import getLogger
 from unittest import TestCase
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import numpy as np
 
-from maskfill import utilities
 from maskfill.caching import (
     cache_geotiff_mask_array,
     cache_h5_mask_arrays,
@@ -161,7 +160,6 @@ class TestCaching(TestCase):
         input file paths for the data, shape file and cache directory.
 
         """
-        mock_utilties = Mock(spec=utilities)
         mock_get_geotiff_mask_array_id.return_value = self.mock_id
 
         mask_array_path = get_geotiff_mask_array_path(

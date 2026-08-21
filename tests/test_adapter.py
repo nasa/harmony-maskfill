@@ -12,6 +12,7 @@ from logging import (
 from os import sep
 from os.path import basename
 from shutil import copy
+from typing import ClassVar
 from unittest import skip
 from unittest.mock import ANY, patch
 
@@ -43,7 +44,7 @@ class TestLogHandler(LogHandler):
 
     """
 
-    messages = []
+    messages: ClassVar[list[str]] = []
 
     def emit(self, record):
         self.messages.append(self.format(record))
@@ -811,7 +812,7 @@ class TestHarmonyMaskFill(MaskFillTestCase):
 
         maskfill_config = config(False)
         input_stac = create_input_stac(input_file_name, 'application/netcdf-4')
-        with self.assertRaises(NoRetryException) as e:
+        with self.assertRaises(NoRetryException):
             maskfill_adapter = MaskFillAdapter(
                 test_data,
                 config=maskfill_config,

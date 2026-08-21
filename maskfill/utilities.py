@@ -5,7 +5,7 @@ import json
 import os
 from collections import namedtuple
 from os.path import join as path_join
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 from uuid import uuid4
 from warnings import catch_warnings, simplefilter
 
@@ -23,14 +23,14 @@ from rasterio.features import rasterize
 from shapely.geometry import Polygon, shape
 
 from maskfill.cf_config import CFConfig
-from maskfill.exceptions import CustomError, CustomNoRetryError, InsufficientDataError
+from maskfill.exceptions import CustomError, InsufficientDataError
 
 BBox = namedtuple('BBox', ['west', 'south', 'east', 'north'])
-Coordinates = Tuple[float]
+Coordinates = tuple[float]
 
 
 def get_mask_array(
-    shape_path: str, crs: CRS, out_shape: Tuple[int, int], transform: Affine
+    shape_path: str, crs: CRS, out_shape: tuple[int, int], transform: Affine
 ) -> np.ndarray:
     """Rasterizes the intersection of the given shapes and the bounding box of
     the data to create a mask array.
@@ -79,7 +79,7 @@ def get_mask_array(
 
 
 def get_bounded_shape(
-    shape_path: str, crs: CRS, out_shape: Tuple[int, int], transform: Affine
+    shape_path: str, crs: CRS, out_shape: tuple[int, int], transform: Affine
 ) -> gpd.GeoDataFrame:
     """Creates a geodataframe (in geographic coordinates) for the shapes in
     the shape file. Bounds the shapes by the geographic extent of the data.
@@ -238,7 +238,7 @@ def get_transform_information(h5_dataset: Dataset) -> str:
 
 
 def get_decoded_attribute(
-    h5_dataset: Dataset, attribute_key: str, default: Optional[Any] = None
+    h5_dataset: Dataset, attribute_key: str, default: Any | None = None
 ) -> Any:
     """Ensure that any Byte type attributes are decoded to a string. Otherwise
     return the metadata attribute as stored in the H5 file.
@@ -259,7 +259,7 @@ def get_decoded_attribute(
     elif (
         isinstance(attribute_value, np.ndarray)
         and attribute_value.size == 1
-        and not attribute_value.dtype == 'object'
+        and attribute_value.dtype != 'object'
     ):
         attribute_value = attribute_value[0]
 
@@ -291,8 +291,8 @@ def get_geotiff_mask_array_id(geotiff_path: str, shape_path: str) -> str:
 
 def create_mask_array_id(
     crs: CRS,
-    transform: Union[str, Affine],
-    dataset_shape: Tuple[int],
+    transform: str | Affine,
+    dataset_shape: tuple[int],
     shape_file_path: str,
 ) -> str:
     """Creates an ID corresponding to the given shapefile, projection
@@ -310,7 +310,7 @@ def create_mask_array_id(
             a combined input string of the shape file path, dataset shape,
             dataset projection and Affine transformation.
     """
-    mask_id = f'{crs.to_string()}{str(transform)}{str(dataset_shape)}{shape_file_path}'
+    mask_id = f'{crs.to_string()}{transform!s}{dataset_shape!s}{shape_file_path}'
 
     return hashlib.sha224(mask_id.encode()).hexdigest()
 
@@ -325,7 +325,7 @@ def get_geotiff_crs(geotiff_path: str) -> CRS:
     return CRS.from_wkt(wkt_string)
 
 
-def get_geotiff_info(geotiff_path: str) -> Tuple[Tuple[int], Affine]:
+def get_geotiff_info(geotiff_path: str) -> tuple[tuple[int], Affine]:
     """Retuns the shape and transform of the given GeoTIFF.
 
     Args:
@@ -424,7 +424,7 @@ def apply_2d_dataset_to_multidim(
 
     # Ensure both required dims are present
     if column_shape is None or row_shape is None:
-        raise InsufficientDataError(f'Dimensions (row/column) have no valid data.')
+        raise InsufficientDataError('Dimensions (row/column) have no valid data.')
 
     # Construct the desired shape: (row/Y, column/X)
     ordered_track_shape = (row_shape, column_shape)
@@ -453,7 +453,7 @@ def apply_2d_dataset_to_multidim(
 
 
 def create_bounding_box_shape_file(
-    bounding_box: List[float], working_directory: str
+    bounding_box: list[float], working_directory: str
 ) -> str:
     """Take a bounding box in the format of [W, S, E, N] and create a GeoJSON
     polygon. Then write that polygon to a temporary file. Return the
@@ -493,7 +493,7 @@ def create_bounding_box_shape_file(
 
 
 def get_resolved_dataframe(
-    shape_file_path: str, transform: Affine, crs: CRS, out_shape: Tuple[int, int]
+    shape_file_path: str, transform: Affine, crs: CRS, out_shape: tuple[int, int]
 ) -> gpd.GeoDataFrame:
     """When data are projected, first determine the smallest geographic
     separation between diagonally adjacent points on the grid. Use this
@@ -526,8 +526,8 @@ def get_geographic_resolution(longitudes: np.ndarray, latitudes: np.ndarray) -> 
         lon_square_diffs = np.square(np.diff(longitudes[0:]))
 
     elif latitudes.shape[1] == 1:  # one column
-        lat_square_diffs = np.square(np.diff((np.transpose(latitudes)[0:])))
-        lon_square_diffs = np.square(np.diff((np.transpose(longitudes)[0:])))
+        lat_square_diffs = np.square(np.diff(np.transpose(latitudes)[0:]))
+        lon_square_diffs = np.square(np.diff(np.transpose(longitudes)[0:]))
 
     elif latitudes.shape[0] > 1 and latitudes.shape[1] > 1:
         lon_square_diffs = np.square(
@@ -543,8 +543,8 @@ def get_geographic_resolution(longitudes: np.ndarray, latitudes: np.ndarray) -> 
 
 
 def get_grid_geographic_bounds(
-    transform: Affine, crs: CRS, out_shape: Tuple[int, int]
-) -> Tuple[float]:
+    transform: Affine, crs: CRS, out_shape: tuple[int, int]
+) -> tuple[float]:
     """Determine the geographic extent of a projected grid without
     computing latitude and longitude values for every grid cell.
 
@@ -600,7 +600,7 @@ def get_grid_geographic_bounds(
 
 
 def get_grid_geographic_resolution(
-    transform: Affine, crs: CRS, out_shape: Tuple[int, int], block_rows: int = 256
+    transform: Affine, crs: CRS, out_shape: tuple[int, int], block_rows: int = 256
 ) -> float:
     """Calculate the minimum Euclidean distance between diagonally
     adjacent grid cells in geographic coordinates in blocks of
@@ -648,8 +648,8 @@ def get_grid_geographic_resolution(
 
 
 def get_grid_lat_lons(
-    transform: Affine, crs: CRS, out_shape: Tuple[int, int]
-) -> Tuple[np.ndarray]:
+    transform: Affine, crs: CRS, out_shape: tuple[int, int]
+) -> tuple[np.ndarray]:
     """Use the components of the Affine transformation matrix to perform an
     inverse transformation from array indices to projected x and y
     coordinates for all points on the input data grid. Then transform those
@@ -684,7 +684,7 @@ def get_resolved_shape(
     return gpd.GeoDataFrame(crs='epsg:4326', geometry=polygons)
 
 
-def get_resolved_polygon(feature: Dict, resolution: float) -> Polygon:
+def get_resolved_polygon(feature: dict, resolution: float) -> Polygon:
     """Populate points around the exterior and interior rings of the supplied
     geopandas feature. These additional points will be at the resolution of
     the gridded data. Return a `shapely.geometry.Polygon` object to be used
@@ -705,8 +705,8 @@ def get_resolved_polygon(feature: Dict, resolution: float) -> Polygon:
 
 
 def get_resolved_ring(
-    ring_points: List[Coordinates], resolution: float
-) -> List[Coordinates]:
+    ring_points: list[Coordinates], resolution: float
+) -> list[Coordinates]:
     """Iterate through all pairs of consecutive points and ensure that, if
     those points are further apart than the resolution of the input data,
     additional points are placed along that edge at regular intervals. Each
@@ -732,7 +732,7 @@ def get_resolved_ring(
 
 def get_resolved_line(
     point_one: Coordinates, point_two: Coordinates, resolution: float
-) -> List[Coordinates]:
+) -> list[Coordinates]:
     """A function that takes two consecutive points from either an exterior
     or interior ring of a `shapely.geometry.Polygon` object and places
     equally spaced points along that line determined by the supplied
@@ -747,7 +747,7 @@ def get_resolved_line(
     n_points = np.ceil(length / resolution) + 1
     new_x = np.linspace(point_one[0], point_two[0], int(n_points))
     new_y = np.linspace(point_one[1], point_two[1], int(n_points))
-    return list(zip(new_x, new_y))
+    return list(zip(new_x, new_y, strict=True))
 
 
 def get_default_fill_for_data_type(variable_type: str | None) -> Any:
@@ -777,7 +777,7 @@ def get_default_fill_for_data_type(variable_type: str | None) -> Any:
     return default_fill_values.get(variable_type, -9999.0)
 
 
-def get_axes_permutation(old_dims: Tuple[int], new_dims: Tuple[int]) -> Tuple[int]:
+def get_axes_permutation(old_dims: tuple[int], new_dims: tuple[int]) -> tuple[int]:
     """
     Compute the axis permutation required to reorder dimension array.
     """

@@ -3,9 +3,6 @@ from logging import (
     getLogger,
 )
 from logging import (
-    Handler as LogHandler,
-)
-from logging import (
     basicConfig as basic_log_config,
 )
 from os.path import exists as file_exists
@@ -346,7 +343,7 @@ class TestHarmonyMaskFill(TestCase):
                 catalog=self.input_stac,
             )
 
-            with self.assertRaises(NoRetryException) as context_manager:
+            with self.assertRaises(NoRetryException):
                 harmony_adapter.validate_source(source_with_no_shortname)
 
         with self.subTest('Source object with None shortName raises exception'):
@@ -368,5 +365,5 @@ class TestHarmonyMaskFill(TestCase):
                 catalog=self.input_stac,
             )
 
-            with self.assertRaises(NoRetryException) as context_manager:
+            with self.assertRaises(NoRetryException):
                 harmony_adapter.validate_source(source_with_none_shortname)

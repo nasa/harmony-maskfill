@@ -193,18 +193,18 @@ class TestUtilities(TestCase):
                 expected_gdf, bounded_gdf, check_less_precise=True
             )
 
-        with self.subTest('Creating bounded shape from CRS without EPSG code'):
-            # This will truncate the shape by the longitude and latitude values
-            # associated with the grid.
-            with patch.object(CRS, 'to_epsg', return_value=None):
-                crs = CRS.from_epsg(6931)
-                expected_gdf = gpd.read_file(
-                    'tests/data/south_pole_bounded_grid.geo.json'
-                )
-                bounded_gdf = get_bounded_shape(shape_path, crs, out_shape, transform)
-                assert_geodataframe_equal(
-                    expected_gdf, bounded_gdf, check_less_precise=True
-                )
+        # This will truncate the shape by the longitude and latitude values
+        # associated with the grid.
+        with (
+            self.subTest('Creating bounded shape from CRS without EPSG code'),
+            patch.object(CRS, 'to_epsg', return_value=None),
+        ):
+            crs = CRS.from_epsg(6931)
+            expected_gdf = gpd.read_file('tests/data/south_pole_bounded_grid.geo.json')
+            bounded_gdf = get_bounded_shape(shape_path, crs, out_shape, transform)
+            assert_geodataframe_equal(
+                expected_gdf, bounded_gdf, check_less_precise=True
+            )
 
         with self.subTest('UTM projections do not use pyproj bounds'):
             utm_crs = CRS.from_epsg(32618)
@@ -252,7 +252,7 @@ class TestUtilities(TestCase):
         # Ensure an output GeoJSON file is written with the expected structure
         self.assertTrue(exists(geojson_file_path), 'Output file not created')
 
-        with open(geojson_file_path, 'r', encoding='utf-8') as file_handler:
+        with open(geojson_file_path, encoding='utf-8') as file_handler:
             actual_geojson = json.load(file_handler)
 
         self.assertIn('features', actual_geojson)

@@ -6,7 +6,6 @@ file.
 import re
 from collections.abc import Callable
 from logging import Logger
-from typing import Any, Optional, Union
 
 import numpy as np
 from affine import Affine
@@ -87,7 +86,7 @@ def has_geographic_dimensions(h5_dataset: Dataset) -> bool:
     return any('degrees' in units for units in units_list)
 
 
-def get_grid_mapping_name(h5_dataset: Dataset) -> Optional[str]:
+def get_grid_mapping_name(h5_dataset: Dataset) -> str | None:
     """Check the associated metadata for a science variable, and extract the
     `grid_mapping` attribute. Account for any use of the extended grid
     mapping name (see CF-Conventions, 1.8, section 5.6) and resolve any
@@ -116,7 +115,7 @@ def get_lon_lat_datasets(
     """Finds the lat/lon datsets corresponding to the given HDF5 dataset. It
     first checks for overrides in `cf_config.coordinate_overrides`. If no
     overrides are found, it attempts to retrieve coordinate names from the
-    dataset’s 'coordinates' attribute. It then resolves and returns the
+    dataset's 'coordinates' attribute. It then resolves and returns the
     corresponding datasets.
     Args:
          h5_dataset (h5py._hl.dataset.Dataset): The HDF5 dataset
@@ -139,8 +138,8 @@ def get_lon_lat_datasets(
 
             if 'lon' in coordinate:
                 longitude = h5_file[qualified_coordinate]
-        except InvalidMetadata:
-            raise MissingCoordinateDataset(h5_file.filename, coordinate)
+        except InvalidMetadata as exception:
+            raise MissingCoordinateDataset(h5_file.filename, coordinate) from exception
 
     if latitude is None or longitude is None:
         missing = []
@@ -153,7 +152,7 @@ def get_lon_lat_datasets(
     return longitude, latitude
 
 
-def get_dimension_datasets(h5_dataset: Dataset) -> Optional[tuple[Dataset, Dataset]]:
+def get_dimension_datasets(h5_dataset: Dataset) -> tuple[Dataset, Dataset] | None:
     """Finds the dimension scales datasets corresponding to the horizontal
     spatial dimensions of a given HDF5 dataset. This function assumes that
     these will correspond to the last two array dimensions of the science
@@ -174,8 +173,8 @@ def get_dimension_datasets(h5_dataset: Dataset) -> Optional[tuple[Dataset, Datas
     dimension_list = get_decoded_attribute(h5_dataset, 'DIMENSION_LIST', np.array([]))
 
     # Initialize dimension variables
-    column_dimension: Optional[Dataset] = None
-    row_dimension: Optional[Dataset] = None
+    column_dimension: Dataset | None = None
+    row_dimension: Dataset | None = None
 
     for dimension in dimension_list:
         dimension_dataset = h5_file[dimension[0]]
@@ -239,7 +238,7 @@ def is_projection_y_dimension(dimension_dataset: Dataset) -> bool:
     )
 
 
-def get_crs_from_grid_mapping(grid_mapping: Union[Dataset, dict]) -> CRS:
+def get_crs_from_grid_mapping(grid_mapping: Dataset | dict) -> CRS:
     """Returns a `pyproj.CRS` object corresponding to a grid mapping variable.
 
     Args:
@@ -257,11 +256,11 @@ def get_crs_from_grid_mapping(grid_mapping: Union[Dataset, dict]) -> CRS:
 
     try:
         crs = CRS.from_cf(cf_parameters)
-    except CRSError:
+    except CRSError as exception:
         if 'srid' in cf_parameters:
             crs = CRS(cf_parameters['srid'])
         else:
-            raise InsufficientProjectionInformation(grid_mapping.name)
+            raise InsufficientProjectionInformation(grid_mapping.name) from exception
 
     return crs
 
@@ -620,8 +619,8 @@ def get_fill_value(
     h5_dataset: Dataset,
     cf_config: CFConfig,
     logger: Logger,
-    default_fill_value: Optional[float],
-) -> Optional[float]:
+    default_fill_value: float | None,
+) -> float | None:
     """Returns the fill value for the given HDF5 dataset.
     If the HDF5 dataset has no fill value, returns the given default fill value.
 
@@ -673,7 +672,7 @@ def dataset_all_fill_value(
     cf_config: CFConfig,
     logger: Logger,
     default_fill_value: float,
-    band: Optional[int] = None,
+    band: int | None = None,
 ) -> bool:
     """Check if an HDF5 dataset only contains a fill value.
 
@@ -759,8 +758,8 @@ def resolve_relative_dataset_path(h5_dataset: Dataset, relative_path: str) -> st
                 working_path = working_path[3:]
                 del referee_pieces[-1]
 
-            resolved_path = '/'.join([''] + referee_pieces + [working_path])
-        except IndexError:
+            resolved_path = '/'.join(['', *referee_pieces, working_path])
+        except IndexError as exception:
             # This exception will be raised if the relative path claims to be
             # more nested than the referee actually is.
             # e.g.: "/group1/variable" has a reference: "../../other_variable".
@@ -769,7 +768,7 @@ def resolve_relative_dataset_path(h5_dataset: Dataset, relative_path: str) -> st
                 'grid_mapping or coordinate',
                 relative_path,
                 'Relative path has incorrect nesting',
-            )
+            ) from exception
 
     if resolved_path not in h5_dataset.file:
         raise InvalidMetadata(

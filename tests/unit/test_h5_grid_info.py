@@ -204,7 +204,7 @@ class TestH5GridProjectionInfo(TestCase):
         the default value supplied to the function should be returned instead.
 
         """
-        config_dataset_name = list(self.cf_config.fill_values.keys())[0]
+        config_dataset_name = next(iter(self.cf_config.fill_values))
         config_dataset_fill = self.cf_config.fill_values[config_dataset_name]
 
         data_array = np.ones((3, 2))
@@ -258,7 +258,7 @@ class TestH5GridProjectionInfo(TestCase):
             )
 
         with self.subTest('Last option: use variable-type default fill value.'):
-            dataset = h5_file.create_dataset('type_default', data=data_array)
+            h5_file.create_dataset('type_default', data=data_array)
             self.assertEqual(
                 get_fill_value(dataset_without_fill, self.cf_config, self.logger, None),
                 -9999.0,
@@ -354,7 +354,7 @@ class TestH5GridProjectionInfo(TestCase):
                 lon_dataset = h5_file.create_dataset(lon_name, data=lon_copy)
                 lon_dataset.attrs.create('_FillValue', fill_value)
 
-                dataset.attrs['coordinates'] = f'{lat_name} {lon_name}'.encode('utf-8')
+                dataset.attrs['coordinates'] = f'{lat_name} {lon_name}'.encode()
 
                 corners = get_corner_points_from_lat_lon(
                     dataset, crs, self.cf_config, self.logger
@@ -377,7 +377,6 @@ class TestH5GridProjectionInfo(TestCase):
         """
         projection = Proj({'proj': 'eqc'})
 
-        fill_value = -1
         data_array = np.ones((3, 3))
         lat_array = np.array(
             [
@@ -740,7 +739,7 @@ class TestH5GridProjectionInfo(TestCase):
         dataset = h5_file.create_dataset('data', data=np.ones((2, 2)))
         lat = h5_file.create_dataset(lat_name, data=lat_array)
         lon = h5_file.create_dataset(lon_name, data=lon_array)
-        dataset.attrs['coordinates'] = f'{lat_name} {lon_name}'.encode('utf-8')
+        dataset.attrs['coordinates'] = f'{lat_name} {lon_name}'.encode()
 
         with self.subTest('latitude and longitude both present'):
             lon_out, lat_out = get_lon_lat_datasets(dataset, self.cf_config)
@@ -810,7 +809,7 @@ class TestH5GridProjectionInfo(TestCase):
             with self.subTest(f'missing {missing_coords} - no lat/lon substring'):
                 dataset.attrs['coordinates'] = coordinates_attr.encode('utf-8')
                 with self.assertRaises(MissingCoordinateDataset) as context:
-                    lon_out, lat_out = get_lon_lat_datasets(dataset, self.cf_config)
+                    get_lon_lat_datasets(dataset, self.cf_config)
 
                 self.assertEqual(
                     context.exception.message,
@@ -843,12 +842,14 @@ class TestH5GridProjectionInfo(TestCase):
         with self.subTest(
             'No projection information or configuration, raises exception'
         ):
-            with self.assertRaises(InsufficientProjectionInformation) as context:
-                with patch.object(
+            with (
+                self.assertRaises(InsufficientProjectionInformation) as context,
+                patch.object(
                     CFConfig, 'get_dataset_grid_mapping_attributes', return_value=None
-                ):
-                    cf_config = CFConfig('tests/data/SPL3FTP')
-                    crs = get_hdf_crs(config_dataset, cf_config, self.logger)
+                ),
+            ):
+                cf_config = CFConfig('tests/data/SPL3FTP')
+                crs = get_hdf_crs(config_dataset, cf_config, self.logger)
 
             self.assertEqual(
                 context.exception.message,
@@ -923,7 +924,7 @@ class TestH5GridProjectionInfo(TestCase):
         ]
 
         for description, test_dataset in test_args:
-            with self.subTest('Geographic dimensions'):
+            with self.subTest(description):
                 self.assertTrue(has_geographic_dimensions(test_dataset))
 
         h5_file.close()
@@ -1547,23 +1548,24 @@ class TestH5GridProjectionInfo(TestCase):
             cf_config = CFConfig('SPL3SMP_E')
             apply_2d_process = get_apply_2d_process(h5_dataset, cf_config)
             self.assertEqual(apply_2d_process, apply_2d_dataset_to_multidim)
-            apply_2d_dataset_to_multidim
 
-        with self.subTest(
-            'apply_2d_dataset_to_multidim process for not supported spatial order'
+        with (
+            self.subTest(
+                'apply_2d_dataset_to_multidim process for not supported spatial order'
+            ),
+            self.assertRaises(NotSupportedData) as context_manager,
+            h5py.File(self.test_h5_name, 'w') as h5_file,
         ):
-            with self.assertRaises(NotSupportedData) as context_manager:
-                with h5py.File(self.test_h5_name, 'w') as h5_file:
-                    dim_lon = h5_file.create_dataset('/lon', data=np.ones((4)))
-                    dim_lon.attrs.create('standard_name', 'longitude')
-                    dim_lon.attrs.create('units', 'degrees_east')
-                    dim_lat = h5_file.create_dataset('/lat', data=np.ones((3)))
-                    dim_lat.attrs.create('standard_name', 'latitude')
-                    dim_lat.attrs.create('units', 'degrees_north')
-                    h5_dataset = h5_file.create_dataset('data', data=np.ones((4, 3)))
-                    h5_dataset.attrs.create('coordinates', '/lon /lat')
-                    cf_config = CFConfig('SPL3FTP')
-                    apply_2d_process = get_apply_2d_process(h5_dataset, cf_config)
-                    self.assertTrue(
-                        context_manager.exception.message.endswith('Not supported data')
-                    )
+            dim_lon = h5_file.create_dataset('/lon', data=np.ones(4))
+            dim_lon.attrs.create('standard_name', 'longitude')
+            dim_lon.attrs.create('units', 'degrees_east')
+            dim_lat = h5_file.create_dataset('/lat', data=np.ones(3))
+            dim_lat.attrs.create('standard_name', 'latitude')
+            dim_lat.attrs.create('units', 'degrees_north')
+            h5_dataset = h5_file.create_dataset('data', data=np.ones((4, 3)))
+            h5_dataset.attrs.create('coordinates', '/lon /lat')
+            cf_config = CFConfig('SPL3FTP')
+            apply_2d_process = get_apply_2d_process(h5_dataset, cf_config)
+            self.assertTrue(
+                context_manager.exception.message.endswith('Not supported data')
+            )

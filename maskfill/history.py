@@ -6,8 +6,7 @@ to maintain file provenance.
 import hashlib
 import json
 import os
-from datetime import datetime, timezone
-from typing import Dict, List, Union
+from datetime import UTC, datetime
 
 import h5py
 
@@ -22,8 +21,8 @@ PROGRAM_REF = 'https://github.com/nasa/harmony-maskfill'
 def update_history_metadata(
     input_file: str,
     shape_file: str,
-    fill_value: Union[int, float, None],
-    bounding_box: List,
+    fill_value: int | float | None,
+    bounding_box: list,
 ) -> None:
     """Update the history-related metadata of an HDF5 or NetCDF4 output file.
 
@@ -34,7 +33,7 @@ def update_history_metadata(
       record describing the current Maskfill operation, including the
       timestamp, program name, version, request URL, and processing parameters.
 
-    • The human‑readable `history` (or `History`) global attribute is updated
+    • The human-readable `history` (or `History`) global attribute is updated
       by appending a new line summarizing the Maskfill execution. If no
       history attribute exists, a new one is created.
 
@@ -47,7 +46,7 @@ def update_history_metadata(
         Path to the output HDF5 or NetCDF4 file whose history metadata
         should be updated.
     shape_file : str
-        Path to the user‑provided shape file.
+        Path to the user-provided shape file.
     fill_value : int, float, or None
         The fill value applied to masked pixels during Maskfill processing.
     bounding_box : List
@@ -105,8 +104,8 @@ def read_history_attrs(h5_input_file: h5py.File) -> tuple[str, str | None]:
     or NetCDF4 file.
 
     This function checks for the presence of either a `History` or `history`
-    attribute in the file’s global attributes. If found, the attribute value is
-    returned as a UTF‑8 string (decoding from bytes when necessary). If neither
+    attribute in the file's global attributes. If found, the attribute value is
+    returned as a UTF-8 string (decoding from bytes when necessary). If neither
     attribute exists, the function returns a default attribute name of
     `"history"` and a value of `None`.
 
@@ -144,7 +143,7 @@ def read_history_attrs(h5_input_file: h5py.File) -> tuple[str, str | None]:
     return history_attribute_name, existing_history
 
 
-def read_history_json_attrs(h5_input_file: h5py.File) -> List:
+def read_history_json_attrs(h5_input_file: h5py.File) -> list:
     """
     Retrieve and normalize the `history_json` global attribute from an
     HDF5 or NetCDF4 file.
@@ -226,7 +225,7 @@ def get_request_url_attribute(h5_input_file: h5py.File) -> str:
     return h5_input_file.filename
 
 
-def create_history_json_record(granule_url: str, maskfill_parameters: dict) -> Dict:
+def create_history_json_record(granule_url: str, maskfill_parameters: dict) -> dict:
     """Create a serializable dictionary for the `history_json` global
     attribute in the merged output NetCDF-4 file.
 
@@ -255,7 +254,7 @@ def create_history_json_record(granule_url: str, maskfill_parameters: dict) -> D
     """
     history_json_record = {
         '$schema': HISTORY_JSON_SCHEMA,
-        'date_time': datetime.utcnow().replace(tzinfo=timezone.utc).isoformat(),
+        'date_time': datetime.utcnow().replace(tzinfo=UTC).isoformat(),
         'program': PROGRAM,
         'version': get_semantic_version(),
         'parameters': maskfill_parameters,
@@ -296,8 +295,8 @@ def get_semantic_version() -> str:
 
 
 def get_maskfill_parameters(
-    shape_file: str, fill_value: Union[int, float, None], bounding_box: List
-) -> Dict:
+    shape_file: str, fill_value: int | float | None, bounding_box: list
+) -> dict:
     """Build and return the parameter dictionary used for a Maskfill operation.
 
     This function collects the inputs relevant to Maskfill—such as the hashed
@@ -308,7 +307,7 @@ def get_maskfill_parameters(
     ----------
     shape_file : str
         Path to the shape file used for spatial masking. If provided, a
-        SHA‑224 hash of the file path is stored as `shape_file_hash`.
+        SHA-224 hash of the file path is stored as `shape_file_hash`.
     fill_value : int or float
         The fill value applied to masked pixels.
     bounding_box : List
