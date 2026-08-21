@@ -115,9 +115,9 @@ python -m unittest discover tests
 The environment variable `ENV` must be set to ensure that all unit tests that
 invoke the `MaskFillAdapter` class do not try to stage their output files.
 
-The unit tests also contain basic tests for code style, ensuring that all Python
-files conform to [PEP8](https://www.python.org/dev/peps/pep-0008/), excluding
-checks on line-length.
+Formatting and linting are handled by [Ruff](https://docs.astral.sh/ruff/),
+which runs as a pre-commit hook and in the `Lint Python code with Ruff` GitHub
+workflow. See the [pre-commit hooks](#pre-commit-hooks) section below.
 
 Tests within `tests/test_maskfill.py` are designed to test the full use
 of the functionality, taking an input file, creating an output file and comparing
@@ -210,7 +210,10 @@ checking the repository for some coding standard best practices. These include:
 * Removing trailing whitespaces.
 * Removing blank lines at the end of a file.
 * JSON files have valid formats.
-  formatting checks.
+* Stripping outputs and execution counts from Jupyter notebooks, so that
+  notebook diffs stay readable.
+* Formatting and linting all Python code and notebooks with
+  [Ruff](https://docs.astral.sh/ruff/), configured in `pyproject.toml`.
 
 To enable these checks:
 
@@ -230,6 +233,22 @@ If any of the hooks detect non-compliance (e.g., trailing whitespace), that
 hook will state it failed, and also try to fix the issue. You will need to
 review and `git add` the changes before you can make a commit.
 
+Ruff can also be run directly, without going through `pre-commit`:
+
+```bash
+ruff check --fix .    # lint, applying the fixes it can make automatically
+ruff format .         # format
+```
+
+The Ruff configuration lives in `pyproject.toml`. Note that the repository was
+reformatted wholesale when Ruff was adopted; that commit is listed in
+`.git-blame-ignore-revs`, so run the following once to keep it out of local
+`git blame` output:
+
+```bash
+git config blame.ignoreRevsFile .git-blame-ignore-revs
+```
+
 It is planned to implement additional hooks, possibly including tools such as
 `mypy`.
 
@@ -240,5 +259,5 @@ automatically run for every pull request.
 
 You can reach out to the maintainers of this repository via email:
 
-* david.p.auty@nasa.gov
-* owen.m.littlejohns@nasa.gov
+* owen.m.littlejohns@nasa.gov (Owen Littlejohns)
+* savoie@colorado.edu (Matt Savoie)

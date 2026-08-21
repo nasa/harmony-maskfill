@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.3.7] - 2026-08-21
+
+### Changed
+
+- Python formatting and linting are now handled by
+  [Ruff](https://docs.astral.sh/ruff/), configured in a new `pyproject.toml`.
+  Ruff runs as a `pre-commit` hook over both `*.py` files and
+  `doc/HarmonyMaskFill.ipynb`, and in a new GitHub lint workflow.
+- The whole repository was reformatted in a single commit, which is recorded in
+  `.git-blame-ignore-revs`. Run `git config blame.ignoreRevsFile
+  .git-blame-ignore-revs` to keep it out of local `git blame` output.
+- Lint findings exposed by the new ruff rule sets were fixed.
+
+### Added
+
+- `nbstripout` pre-commit hook, so notebook outputs and execution counts stay
+  out of version control.
+
+### Removed
+
+- `tests/test_code_format.py` and the `pycodestyle` test dependency, superseded
+  by Ruff.
+
 ## [v1.3.6] - 2026-08-11
 
 ### Changed
@@ -143,6 +166,7 @@ see legacy-CHANGELOG.md.
 - On-premises scripts and artefacts for the SDPS system have been removed from
   the repository.
 
+[v1.3.7]: https://github.com/nasa/harmony-maskfill/releases/tag/1.3.7
 [v1.3.6]: https://github.com/nasa/harmony-maskfill/releases/tag/1.3.6
 [v1.3.5]: https://github.com/nasa/harmony-maskfill/releases/tag/1.3.5
 [v1.3.4]: https://github.com/nasa/harmony-maskfill/releases/tag/1.3.4

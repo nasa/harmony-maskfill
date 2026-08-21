@@ -1,0 +1,28 @@
+# This workflow lints and format-checks the repository with Ruff. It runs when
+# a PR is opened against the `main` branch, and can also be triggered manually.
+# It is deliberately kept separate from `run_tests.yml`, which builds the
+# service and test Docker images.
+name: Lint Python code with Ruff
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  ruff:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout harmony-maskfill repository
+        uses: actions/checkout@v5
+
+      - name: Check lint rules
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: check --output-format github
+
+      - name: Check formatting
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: format --check
