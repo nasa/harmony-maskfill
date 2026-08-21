@@ -1,55 +1,52 @@
-""" Data Services MaskFill service for Harmony. """
-from mimetypes import guess_type as guess_mimetype
-from shutil import move as move_file, rmtree
-from tempfile import mkdtemp
+"""Data Services MaskFill service for Harmony."""
+
 import os
+from mimetypes import guess_type as guess_mimetype
+from shutil import move as move_file
+from shutil import rmtree
+from tempfile import mkdtemp
 
-from pystac import Asset, Item
 from harmony_service_lib import BaseHarmonyAdapter
-from harmony_service_lib.message import Source as MessageSource
-
 from harmony_service_lib.exceptions import NoRetryException
-
+from harmony_service_lib.message import Source as MessageSource
 from harmony_service_lib.util import (
     download,
     generate_output_filename,
     stage,
 )
+from pystac import Asset, Item
 
+from maskfill.exceptions import MaskfillDownloadError, MaskfillStagingError
 from maskfill.maskfill import DEFAULT_MASK_GRID_CACHE, mask_fill
-from maskfill.utilities import (
-    create_bounding_box_shape_file,
-    raise_maskfill_exception
-)
-from maskfill.exceptions import (
-    MaskfillDownloadError,
-    MaskfillStagingError
-)
+from maskfill.utilities import create_bounding_box_shape_file, raise_maskfill_exception
 
-EXTENSION_MIMETYPES = {'.h5': 'application/x-hdf5',
-                       '.hdf5': 'application/x-hdf5',
-                       '.nc4': 'application/x-netcdf4',
-                       '.tif': 'image/tiff',
-                       '.tiff': 'image/tiff'}
+EXTENSION_MIMETYPES = {
+    '.h5': 'application/x-hdf5',
+    '.hdf5': 'application/x-hdf5',
+    '.nc4': 'application/x-netcdf4',
+    '.tif': 'image/tiff',
+    '.tiff': 'image/tiff',
+}
 VALID_MIMETYPES = {'application/x-hdf5', 'application/x-netcdf4', 'image/tiff'}
 
 
 class MaskFillAdapter(BaseHarmonyAdapter):
-    """ Data Services MaskFill service for Harmony
+    """Data Services MaskFill service for Harmony
 
-        This class uses the Harmony utility library for processing the
-        service input options. First the `invoke` method is called, which adds
-        validation to the raw Harmony message. The `BaseHarmonyAdapter.invoke`
-        method is then used to call the `process_item` method of this class.
+    This class uses the Harmony utility library for processing the
+    service input options. First the `invoke` method is called, which adds
+    validation to the raw Harmony message. The `BaseHarmonyAdapter.invoke`
+    method is then used to call the `process_item` method of this class.
 
     """
-    def invoke(self):
-        """ Adds validation to default process_item-based invocation
 
-            Returns
-            -------
-            pystac.Catalog
-                the output catalog
+    def invoke(self):
+        """Adds validation to default process_item-based invocation
+
+        Returns
+        -------
+        pystac.Catalog
+            the output catalog
 
         """
         self.logger.info('Starting Data Services MaskFill Service')
@@ -58,26 +55,26 @@ class MaskFillAdapter(BaseHarmonyAdapter):
         return super().invoke()
 
     def process_item(self, item: Item, source: MessageSource):
-        """ Processes a single input item. Services that are not aggregating
-            multiple input files should prefer to implement this method rather
-            than #invoke
+        """Processes a single input item. Services that are not aggregating
+        multiple input files should prefer to implement this method rather
+        than #invoke
 
-            This example copies its input to the output, marking "dpi" and
-            "variables" message attributes as having been processed
+        This example copies its input to the output, marking "dpi" and
+        "variables" message attributes as having been processed
 
-            Parameters
-            ----------
-            item : pystac.Item
-                the item that should be processed
-            source : harmony.message.Source
-                the input source defining the variables, if any, to subset
-                from the item
+        Parameters
+        ----------
+        item : pystac.Item
+            the item that should be processed
+        source : harmony.message.Source
+            the input source defining the variables, if any, to subset
+            from the item
 
-            Returns
-            -------
-            pystac.Item
-                a STAC catalog whose metadata and assets describe the service
-                output
+        Returns
+        -------
+        pystac.Item
+            a STAC catalog whose metadata and assets describe the service
+            output
 
         """
         self.validate_source(source)
@@ -88,8 +85,11 @@ class MaskFillAdapter(BaseHarmonyAdapter):
         working_dir = mkdtemp()
 
         try:
-            asset = next(item_asset for item_asset in item.assets.values()
-                         if 'data' in (item_asset.roles or []))
+            asset = next(
+                item_asset
+                for item_asset in item.assets.values()
+                if 'data' in (item_asset.roles or [])
+            )
 
             input_filename = self.download_from_remote(
                 asset.href, working_dir, os.path.basename(asset.href)
@@ -124,17 +124,21 @@ class MaskFillAdapter(BaseHarmonyAdapter):
             )
 
             # Stage the output file with a conventional filename
-            output_filename = generate_output_filename(asset.href,
-                                                       is_subsetted=True)
+            output_filename = generate_output_filename(asset.href, is_subsetted=True)
 
             output_mimetype = self.get_file_mimetype(output_filename)
 
-            output_url = self.maskfill_stage(working_filename, output_filename,
-                                             output_mimetype)
+            output_url = self.maskfill_stage(
+                working_filename, output_filename, output_mimetype
+            )
 
             # Update the STAC record
-            asset = Asset(output_url, title=output_filename,
-                          media_type=output_mimetype, roles=['data'])
+            asset = Asset(
+                output_url,
+                title=output_filename,
+                media_type=output_mimetype,
+                roles=['data'],
+            )
 
             result.assets['data'] = asset
 
@@ -150,28 +154,34 @@ class MaskFillAdapter(BaseHarmonyAdapter):
             # Clean up any intermediate resources
             rmtree(working_dir, ignore_errors=True)
 
-    def download_from_remote(self, remote_resource_url: str,
-                             output_directory: str,
-                             local_basename: str = None) -> str:
-        """ A class method to wrap the Harmony utility function to download a
-            file from a remote source. This method automatically uses the
-            Logger, access token and configuration object from the instance of
-            the MaskFillAdapter class.
+    def download_from_remote(
+        self,
+        remote_resource_url: str,
+        output_directory: str,
+        local_basename: str = None,
+    ) -> str:
+        """A class method to wrap the Harmony utility function to download a
+        file from a remote source. This method automatically uses the
+        Logger, access token and configuration object from the instance of
+        the MaskFillAdapter class.
 
-            If a file name is specified, then the downloaded file will be
-            renamed. Otherwise, Harmony will use a UUID as the basename for
-            any downloaded resource.
+        If a file name is specified, then the downloaded file will be
+        renamed. Otherwise, Harmony will use a UUID as the basename for
+        any downloaded resource.
 
-            Raises a retriable exception when there is a failure.
+        Raises a retriable exception when there is a failure.
 
         """
         try:
             self.logger.info(f'Retrieving: {remote_resource_url}')
 
-            local_file = download(remote_resource_url, output_directory,
-                                  logger=self.logger,
-                                  access_token=self.message.accessToken,
-                                  cfg=self.config)
+            local_file = download(
+                remote_resource_url,
+                output_directory,
+                logger=self.logger,
+                access_token=self.message.accessToken,
+                cfg=self.config,
+            )
 
             if local_basename is not None:
                 full_local_name = os.path.join(output_directory, local_basename)
@@ -183,18 +193,21 @@ class MaskFillAdapter(BaseHarmonyAdapter):
         except Exception as err:
             raise MaskfillDownloadError(str(err)) from err
 
-    def maskfill_stage(self, working_filename: str,
-                       output_filename: str,
-                       output_mimetype: str) -> str:
+    def maskfill_stage(
+        self, working_filename: str, output_filename: str, output_mimetype: str
+    ) -> str:
         """Stages the file to and S3 location and returns the url.
         Throws a retriable exception when there is a failure.
 
         """
         try:
-            output_url = stage(working_filename, output_filename,
-                               output_mimetype,
-                               location=self.message.stagingLocation,
-                               logger=self.logger)
+            output_url = stage(
+                working_filename,
+                output_filename,
+                output_mimetype,
+                location=self.message.stagingLocation,
+                logger=self.logger,
+            )
             return output_url
 
         except Exception as err:
@@ -206,18 +219,17 @@ class MaskFillAdapter(BaseHarmonyAdapter):
             raise NoRetryException('shortName not provided in input Source')
 
     def validate_message(self):
-        """ Check the service was triggered by a valid message containing
-            STAC item assets and a valid shape file: e.g. GeoJSON format.
+        """Check the service was triggered by a valid message containing
+        STAC item assets and a valid shape file: e.g. GeoJSON format.
 
-            This validation does not check the input file, as that has to be
-            done per-item.
+        This validation does not check the input file, as that has to be
+        done per-item.
 
         """
         if not hasattr(self, 'message') or self.message is None:
             raise NoRetryException('No message request')
 
-        has_granules = (hasattr(self.message, 'granules')
-                        and self.message.granules)
+        has_granules = hasattr(self.message, 'granules') and self.message.granules
 
         try:
             has_items = bool(self.catalog and next(self.catalog.get_all_items()))
@@ -236,13 +248,14 @@ class MaskFillAdapter(BaseHarmonyAdapter):
             not self.message_has_valid_shape_file()
             and not self.message_has_valid_bounding_box()
         ):
-            raise NoRetryException('MaskFill requires a shape file or bounding'
-                                   ' box that describes a mask.')
+            raise NoRetryException(
+                'MaskFill requires a shape file or bounding box that describes a mask.'
+            )
 
     def message_has_valid_shape_file(self):
-        """ A method that confirms if the Harmony message specifies a GeoJSON
-            shape file. If either the URL is omitted or the MIME type of the
-            shape file is not GeoJSON an exception will be raised.
+        """A method that confirms if the Harmony message specifies a GeoJSON
+        shape file. If either the URL is omitted or the MIME type of the
+        shape file is not GeoJSON an exception will be raised.
 
         """
         if getattr(self.message.subset, 'shape', None) is not None:
@@ -258,11 +271,11 @@ class MaskFillAdapter(BaseHarmonyAdapter):
         return has_valid_shape
 
     def message_has_valid_bounding_box(self):
-        """ A method that confirms a message defines a bounding box for spatial
-            subsetting. This will be used if a shape file is not defined in the
-            input Harmony message. If a bounding box is defined with incorrect
-            input (e.g., the wrong number of elements) then an exception will
-            be raised.
+        """A method that confirms a message defines a bounding box for spatial
+        subsetting. This will be used if a shape file is not defined in the
+        input Harmony message. If a bounding box is defined with incorrect
+        input (e.g., the wrong number of elements) then an exception will
+        be raised.
 
         """
         if getattr(self.message.subset, 'bbox', None) is not None:
@@ -279,8 +292,8 @@ class MaskFillAdapter(BaseHarmonyAdapter):
         return has_valid_bbox
 
     def validate_input_granule(self, input_filename):
-        """ Check that the MIME type of the given file name is one of the
-            expected types.
+        """Check that the MIME type of the given file name is one of the
+        expected types.
 
         """
         input_mimetype = self.get_file_mimetype(input_filename)
@@ -296,8 +309,8 @@ class MaskFillAdapter(BaseHarmonyAdapter):
 
     @staticmethod
     def get_file_mimetype(file_name):
-        """ Check the MIME type of the given file name, by checking the file
-            extension against a selection of known options.
+        """Check the MIME type of the given file name, by checking the file
+        extension against a selection of known options.
 
         """
         mimetype, _ = guess_mimetype(file_name, False)

@@ -5,7 +5,6 @@ import pycodestyle
 
 
 class TestCodeFormat(TestCase):
-
     @classmethod
     def setUpClass(cls):
         cls.python_files = Path('.').rglob('*.py')
@@ -25,5 +24,6 @@ class TestCodeFormat(TestCase):
         """
         pep8style = pycodestyle.StyleGuide(ignore=['E501', 'E722', 'W503'])
         result = pep8style.check_files(self.python_files)
-        self.assertEqual(result.total_errors, 0,
-                         'Found code style errors (and warnings).')
+        self.assertEqual(
+            result.total_errors, 0, 'Found code style errors (and warnings).'
+        )

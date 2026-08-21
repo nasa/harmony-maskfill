@@ -4,10 +4,11 @@ Allows processing of HDF-5 files that do not fully follow the CF
 conventions. The configuration file provides the missing information.
 
 """
-from typing import Any
+
 import json
 import os
 import re
+from typing import Any
 
 
 class CFConfig:
@@ -26,17 +27,18 @@ class CFConfig:
     GeoTIFF files which do not really have CF Convention attributes.
 
     """
+
     def __init__(self, collection_shortname: str):
         """Extract collection-specific configuration from supplied JSON file."""
         self.full_config = self._read_configuration_file()
         self.shortname = collection_shortname
 
-        self.coordinate_variables = (
-            self.full_config['collection_coordinate_variables'].get(self.shortname, [])
-        )
-        self.coordinate_overrides = (
-            self.full_config['collection_coordinate_overrides'].get(self.shortname, {})
-        )
+        self.coordinate_variables = self.full_config[
+            'collection_coordinate_variables'
+        ].get(self.shortname, [])
+        self.coordinate_overrides = self.full_config[
+            'collection_coordinate_overrides'
+        ].get(self.shortname, {})
         self.fill_values = self._get_configuration_item_by_shortname(
             'corrected_fill_values', {}
         )
@@ -51,13 +53,13 @@ class CFConfig:
         module is consistent.
 
         """
-        maskfill_directory = os.path.abspath(os.sep.join([
-            os.path.dirname(os.path.abspath(__file__)),
-            os.pardir
-        ]))
+        maskfill_directory = os.path.abspath(
+            os.sep.join([os.path.dirname(os.path.abspath(__file__)), os.pardir])
+        )
 
-        config_file_path = os.sep.join([maskfill_directory, 'maskfill',
-                                        'maskfill_config.json'])
+        config_file_path = os.sep.join(
+            [maskfill_directory, 'maskfill', 'maskfill_config.json']
+        )
 
         with open(config_file_path, encoding='utf-8') as file_handler:
             config = json.load(file_handler)
@@ -65,7 +67,8 @@ class CFConfig:
         return config
 
     def _get_configuration_item_by_shortname(
-        self, config_group: str,
+        self,
+        config_group: str,
         default_value: Any,
     ) -> Any:
         """Extract relevant configuration entries based on collection short name.
@@ -79,11 +82,16 @@ class CFConfig:
 
         """
         if self.shortname is not None:
-            item = next((configuration_item
-                         for shortname_pattern, configuration_item
-                         in self.full_config[config_group].items()
-                         if re.match(shortname_pattern, self.shortname)),
-                        default_value)
+            item = next(
+                (
+                    configuration_item
+                    for shortname_pattern, configuration_item in self.full_config[
+                        config_group
+                    ].items()
+                    if re.match(shortname_pattern, self.shortname)
+                ),
+                default_value,
+            )
         else:
             item = default_value
 
@@ -134,16 +142,18 @@ class CFConfig:
         netCDF4 file.
 
         """
-        grid_mapping_name = next((config_grid_mapping_name
-                                  for dataset_pattern, config_grid_mapping_name
-                                  in self.grid_mapping_groups.items()
-                                  if re.match(dataset_pattern, dataset_name)),
-                                 None)
+        grid_mapping_name = next(
+            (
+                config_grid_mapping_name
+                for dataset_pattern, config_grid_mapping_name in self.grid_mapping_groups.items()
+                if re.match(dataset_pattern, dataset_name)
+            ),
+            None,
+        )
 
         if grid_mapping_name is not None:
-            grid_mapping_attributes = (
-                self.full_config['grid_mapping_definitions'].get(grid_mapping_name,
-                                                                 None)
+            grid_mapping_attributes = self.full_config['grid_mapping_definitions'].get(
+                grid_mapping_name, None
             )
         else:
             grid_mapping_attributes = None

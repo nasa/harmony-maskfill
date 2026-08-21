@@ -2,20 +2,18 @@ from logging import getLogger
 from os import makedirs
 from os.path import join
 
+import h5py
 from numpy import array, array_equal, where
 from osgeo import gdal
-import h5py
 
 from maskfill.maskfill import (
     DEFAULT_MASK_GRID_CACHE,
     mask_fill,
 )
-
 from tests.utilities import MaskFillTestCase
 
 
 class TestMaskFill(MaskFillTestCase):
-
     def setUp(self):
         super().setUp()
         self.logger = getLogger('maskfill.tests')
@@ -27,8 +25,12 @@ class TestMaskFill(MaskFillTestCase):
         self.output_geotiff_file = self.create_output_file_name(self.input_geotiff_file)
         self.output_h5_file = self.create_output_file_name(self.input_h5_file)
         self.output_geotiff_template = 'tests/data/SMAP_L4_SM_aup_output.tif'
-        self.output_geotiff_template_south_pole = 'tests/data/SMAP_L3_FT_P_polar_3d_south_pole_output.tif'
-        self.output_h5_template_south_pole = 'tests/data/SMAP_L3_FT_P_polar_3d_south_pole_output.h5'
+        self.output_geotiff_template_south_pole = (
+            'tests/data/SMAP_L3_FT_P_polar_3d_south_pole_output.tif'
+        )
+        self.output_h5_template_south_pole = (
+            'tests/data/SMAP_L3_FT_P_polar_3d_south_pole_output.h5'
+        )
         self.output_h5_template = 'tests/data/SMAP_L4_SM_aup_output.h5'
         self.input_corner_file = 'tests/data/SMAP_L3_FT_P_corners_input.h5'
         self.corner_short_name = 'SPL3FTP'
@@ -37,13 +39,21 @@ class TestMaskFill(MaskFillTestCase):
         self.input_polar_h5_file = 'tests/data/SMAP_L3_FT_P_polar_3d_input.h5'
         self.input_polar_geo_file = 'tests/data/SMAP_L3_FT_P_polar_3d_input.tif'
         self.polar_short_name = 'SPL3FTP'
-        self.output_polar_h5_file = self.create_output_file_name(self.input_polar_h5_file)
-        self.output_polar_geo_file = self.create_output_file_name(self.input_polar_geo_file)
+        self.output_polar_h5_file = self.create_output_file_name(
+            self.input_polar_h5_file
+        )
+        self.output_polar_geo_file = self.create_output_file_name(
+            self.input_polar_geo_file
+        )
         self.output_polar_template = 'tests/data/SMAP_L3_FT_P_polar_3d_output.h5'
         self.input_comparison_geo = 'tests/data/SMAP_L4_SM_aup_comparison.tif'
         self.input_comparison_h5 = 'tests/data/SMAP_L4_SM_aup_comparison.h5'
-        self.output_comparison_geo = self.create_output_file_name(self.input_comparison_geo)
-        self.output_comparison_h5 = self.create_output_file_name(self.input_comparison_h5)
+        self.output_comparison_geo = self.create_output_file_name(
+            self.input_comparison_geo
+        )
+        self.output_comparison_h5 = self.create_output_file_name(
+            self.input_comparison_h5
+        )
 
     def run_mask_fill(
         self,
@@ -95,7 +105,9 @@ class TestMaskFill(MaskFillTestCase):
         )
 
         self.assertEqual(output_file, self.output_geotiff_file)
-        self.compare_geotiff_files(self.output_geotiff_template, self.output_geotiff_file)
+        self.compare_geotiff_files(
+            self.output_geotiff_template, self.output_geotiff_file
+        )
 
     def test_mask_fill_h5_extrapolating_corner(self):
         """A full test of the `mask_fill` utility using an HDF-5 input file
@@ -174,9 +186,9 @@ class TestMaskFill(MaskFillTestCase):
         self.assertTrue(array_equal(h5_array, geo_array))
 
     def test_mask_fill_h5_default_fill(self):
-        """ Ensure MaskFill can process a file that has no in-file fill value
-            metadata, relying instead on default fill values that are selected
-            based on the data type of each variable in the HDF-5 file.
+        """Ensure MaskFill can process a file that has no in-file fill value
+        metadata, relying instead on default fill values that are selected
+        based on the data type of each variable in the HDF-5 file.
 
         """
         input_file_path = 'tests/data/SMAP_L3_FT_P_fill_input.h5'
@@ -191,8 +203,7 @@ class TestMaskFill(MaskFillTestCase):
 
         self.assertEqual(output_file, output_file_path)
         self.compare_h5_files(
-            'tests/data/SMAP_L3_FT_P_fill_output.h5',
-            output_file_path
+            'tests/data/SMAP_L3_FT_P_fill_output.h5', output_file_path
         )
 
     def test_mask_fill_geo_float_default(self):
@@ -215,8 +226,7 @@ class TestMaskFill(MaskFillTestCase):
 
         self.assertEqual(output_file, output_file_path)
         self.compare_geotiff_files(
-            'tests/data/SMAP_L3_FT_P_fill_float_output.tif',
-            output_file_path
+            'tests/data/SMAP_L3_FT_P_fill_float_output.tif', output_file_path
         )
 
     def test_mask_fill_geo_uint_default(self):
@@ -239,13 +249,12 @@ class TestMaskFill(MaskFillTestCase):
 
         self.assertEqual(output_file, output_file_path)
         self.compare_geotiff_files(
-            'tests/data/SMAP_L3_FT_P_fill_uint_output.tif',
-            output_file_path
+            'tests/data/SMAP_L3_FT_P_fill_uint_output.tif', output_file_path
         )
 
     def test_mask_fill_south_pole(self):
-        """ Test mask fill with a shapefile containing the south pole for
-            both h5 and geotiff files.
+        """Test mask fill with a shapefile containing the south pole for
+        both h5 and geotiff files.
 
         """
         with self.subTest('South Pole HDF-5 file format'):
@@ -256,8 +265,9 @@ class TestMaskFill(MaskFillTestCase):
             )
 
             self.assertEqual(output_file, self.output_polar_h5_file)
-            self.compare_h5_files(self.output_h5_template_south_pole,
-                                  self.output_polar_h5_file)
+            self.compare_h5_files(
+                self.output_h5_template_south_pole, self.output_polar_h5_file
+            )
 
         with self.subTest('South Pole GeoTIFF file format'):
             output_file = self.run_mask_fill(
@@ -267,32 +277,31 @@ class TestMaskFill(MaskFillTestCase):
             )
 
             self.assertEqual(output_file, self.output_polar_geo_file)
-            self.compare_geotiff_files(self.output_geotiff_template_south_pole,
-                                       self.output_polar_geo_file)
+            self.compare_geotiff_files(
+                self.output_geotiff_template_south_pole, self.output_polar_geo_file
+            )
 
     def test_mask_fill_geotiff_coordinates(self):
-        """ Check that a GeoTIFF file that matches a coordinate pattern is
-            copied without masking.
+        """Check that a GeoTIFF file that matches a coordinate pattern is
+        copied without masking.
 
         """
-        geotiff_base = ('SMAP_L3_FT_P_20180618_R16010_001_Freeze_Thaw_'
-                        'Retrieval_Data_Global_longitude_Bands_1_488b73ed')
+        geotiff_base = (
+            'SMAP_L3_FT_P_20180618_R16010_001_Freeze_Thaw_'
+            'Retrieval_Data_Global_longitude_Bands_1_488b73ed'
+        )
 
         input_name = f'tests/data/{geotiff_base}.tif'
         output_name = self.create_output_file_name(input_name)
 
-        output_file = self.run_mask_fill(
-            input_name,
-            'SPL3FTP',
-            self.shape_file
-        )
+        output_file = self.run_mask_fill(input_name, 'SPL3FTP', self.shape_file)
 
         self.assertEqual(output_file, output_name)
         self.compare_geotiff_files(input_name, output_name)
 
     def test_mask_fill_geotiff_bands(self):
-        """ Check that a GeoTIFF with multiple bands will successfully be
-            processed by MaskFill.
+        """Check that a GeoTIFF with multiple bands will successfully be
+        processed by MaskFill.
 
         """
         base_name = 'SMAP_L3_FT_P_banded'
@@ -311,8 +320,8 @@ class TestMaskFill(MaskFillTestCase):
         self.compare_geotiff_files(template_output, test_output)
 
     def test_mask_fill_geotiff_compression(self):
-        """ Ensure that the compression of an input granule is preserved in the
-            output from MaskFill.
+        """Ensure that the compression of an input granule is preserved in the
+        output from MaskFill.
 
         """
         input_file = 'tests/data/SMAP_L4_SM_aup_compression.tif'
@@ -328,12 +337,14 @@ class TestMaskFill(MaskFillTestCase):
         self.compare_geotiff_files(self.output_geotiff_template, output_file_path)
 
         geotiff_results = gdal.Open(output_file_path)
-        compression = geotiff_results.GetMetadata('IMAGE_STRUCTURE').get('COMPRESSION', None)
+        compression = geotiff_results.GetMetadata('IMAGE_STRUCTURE').get(
+            'COMPRESSION', None
+        )
         self.assertEqual(compression, 'LZW')
 
     def test_mask_fill_h5_dimension_list(self):
-        """ Ensure a science variable with DIMENSION_LIST, but not coordinates
-            metadata attributes will be masked.
+        """Ensure a science variable with DIMENSION_LIST, but not coordinates
+        metadata attributes will be masked.
 
         """
         input_file = 'tests/data/SMAP_L4_SM_aup_dimension_list_input.h5'
@@ -351,8 +362,8 @@ class TestMaskFill(MaskFillTestCase):
         self.compare_h5_files(template_output, output_file_path)
 
     def test_mask_fill_h5_utm(self):
-        """ Ensure an HDF-5 file can be correctly masked when the input file
-            has a UTM grid.
+        """Ensure an HDF-5 file can be correctly masked when the input file
+        has a UTM grid.
 
         """
         input_file = 'tests/data/SMAP_L4_SM_aup_UTM_input.h5'
@@ -370,8 +381,8 @@ class TestMaskFill(MaskFillTestCase):
         self.compare_h5_files(template_output, output_file_path)
 
     def test_mask_fill_geo_utm(self):
-        """ Ensure a GeoTIFF file can be correctly masked when the input file
-            has a UTM grid.
+        """Ensure a GeoTIFF file can be correctly masked when the input file
+        has a UTM grid.
 
         """
         input_file = 'tests/data/SMAP_L4_SM_aup_UTM_input.tif'
@@ -389,8 +400,8 @@ class TestMaskFill(MaskFillTestCase):
         self.compare_geotiff_files(template_output, output_file_path)
 
     def test_mask_fill_netcdf4_input(self):
-        """ Ensure a NetCDF-4 file input (e.g., from HOSS) can be correctly
-            masked using an example GPM/IMERG granule.
+        """Ensure a NetCDF-4 file input (e.g., from HOSS) can be correctly
+        masked using an example GPM/IMERG granule.
 
         """
         input_file = 'tests/data/GPM_3IMERGHH_input.nc4'

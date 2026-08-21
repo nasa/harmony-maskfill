@@ -1,4 +1,5 @@
 """Run the Harmony MaskFill services via the Harmony CLI/"""
+
 from argparse import ArgumentParser
 from sys import argv
 
@@ -11,9 +12,7 @@ def main(arguments: list[str]):
     """Parse command line arguments and invoke the appropriate method."""
     parser = ArgumentParser(
         prog='MaskFill',
-        description=(
-            'Extract a polygon spatial subset from an HDF-5 or GeoTIFF file'
-        ),
+        description=('Extract a polygon spatial subset from an HDF-5 or GeoTIFF file'),
     )
 
     setup_cli(parser)

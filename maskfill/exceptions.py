@@ -15,6 +15,7 @@ class CustomNoRetryError(Exception):
 
 class CustomError(Exception):
     """Base class for exceptions in this module."""
+
     def __init__(self, exception_type, message, exit_status=None):
         self.exception_type = exception_type
         self.exit_status = exit_status
@@ -28,6 +29,7 @@ class InsufficientDataError(CustomNoRetryError):
     single column.
 
     """
+
     def __init__(self, message):
         super().__init__('InsufficientDataError', message)
 
@@ -38,10 +40,13 @@ class InsufficientProjectionInformation(CustomNoRetryError):
     information in the global MaskFill configuration file.
 
     """
+
     def __init__(self, dataset_name):
-        super().__init__('InsufficientProjectionInformation',
-                         ('Cannot find projection information for dataset: '
-                          f'{dataset_name}.'), 5)
+        super().__init__(
+            'InsufficientProjectionInformation',
+            (f'Cannot find projection information for dataset: {dataset_name}.'),
+            5,
+        )
 
 
 class InternalError(CustomError):
@@ -50,6 +55,7 @@ class InternalError(CustomError):
     messages.
 
     """
+
     def __init__(self, message='An internal error occurred.'):
         super().__init__('InternalError', message)
 
@@ -59,23 +65,26 @@ class InvalidParameterValue(CustomNoRetryError):
     This Exception is used in output error messages.
 
     """
+
     def __init__(self, message='Incorrect parameter specified for given dataset(s).'):
         super().__init__('InvalidParameterValue', message, 1)
 
 
 class InvalidMetadata(CustomNoRetryError):
-    """ Exception raised when metadata contained in a dataset's attributes is
-        invalid. For example, if a reference to a grid mapping or coordinate
-        variable has a relative path that suggests that the origin of the
-        reference is more deeply nested than it actually is. For example:
+    """Exception raised when metadata contained in a dataset's attributes is
+    invalid. For example, if a reference to a grid mapping or coordinate
+    variable has a relative path that suggests that the origin of the
+    reference is more deeply nested than it actually is. For example:
 
-        Referee: '/group1/science_variable'
-        Reference: '../../grid_mapping'
+    Referee: '/group1/science_variable'
+    Reference: '../../grid_mapping'
 
     """
+
     def __init__(self, dataset, attribute_name, attribute_value, message=None):
-        combined_message = (f'Invalid metadata in {dataset}: {attribute_name}='
-                            f'"{attribute_value}"')
+        combined_message = (
+            f'Invalid metadata in {dataset}: {attribute_name}="{attribute_value}"'
+        )
 
         if message is not None:
             combined_message = ': '.join([combined_message, message])
@@ -84,14 +93,16 @@ class InvalidMetadata(CustomNoRetryError):
 
 
 class MissingCoordinateDataset(CustomNoRetryError):
-    """ Exception raised when a science dataset refers to a coordinate dataset,
-        within its `coordinates` attribute, that is not present in the granule.
-        This Exception is used in output error messages.
+    """Exception raised when a science dataset refers to a coordinate dataset,
+    within its `coordinates` attribute, that is not present in the granule.
+    This Exception is used in output error messages.
 
     """
+
     def __init__(self, file_name, dataset):
-        super().__init__('MissingCoordinateDataset',
-                         f'Cannot find "{dataset}" in "{file_name}".', 4)
+        super().__init__(
+            'MissingCoordinateDataset', f'Cannot find "{dataset}" in "{file_name}".', 4
+        )
 
 
 class MissingParameterValue(CustomNoRetryError):
@@ -99,6 +110,7 @@ class MissingParameterValue(CustomNoRetryError):
     This Exception is used in output error messages.
 
     """
+
     def __init__(self, message='No parameter value(s) specified for given dataset(s).'):
         super().__init__('MissingParameterValue', message, 2)
 
@@ -108,9 +120,13 @@ class NotSupportedData(CustomNoRetryError):
     are not in the supported '..zyx' or 'yxz' order
 
     """
+
     def __init__(self, dataset):
-        super().__init__('NotSupportedData',
-                         f'"{dataset}" is not in nominal or supported spatial order', 7)
+        super().__init__(
+            'NotSupportedData',
+            f'"{dataset}" is not in nominal or supported spatial order',
+            7,
+        )
 
 
 class NoMatchingData(CustomNoRetryError):
@@ -118,6 +134,7 @@ class NoMatchingData(CustomNoRetryError):
     within MaskFill.
 
     """
+
     def __init__(self, message='No data found that matched the subset constraints.'):
         super().__init__('NoMatchingData', message, 3)
 
@@ -127,6 +144,7 @@ class MaskfillStagingError(CustomError):
     during staging. This will be retriable exception.
 
     """
+
     def __init__(self, message):
         super().__init__('MaskFillStagingFailure', message, 8)
 
@@ -136,5 +154,6 @@ class MaskfillDownloadError(CustomError):
     during downloads. This will be a retriable exception.
 
     """
+
     def __init__(self, message):
         super().__init__('MaskFillDownloadFailure', message, 9)
