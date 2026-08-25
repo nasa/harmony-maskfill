@@ -15,14 +15,14 @@ jobs:
 
     steps:
       - name: Checkout harmony-maskfill repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Check lint rules
-        uses: astral-sh/ruff-action@v3
+        uses: astral-sh/ruff-action@v4
         with:
           args: check --output-format github
 
       - name: Check formatting
-        uses: astral-sh/ruff-action@v3
+        uses: astral-sh/ruff-action@v4
         with:
           args: format --check
