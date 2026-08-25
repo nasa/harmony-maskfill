@@ -1,10 +1,5 @@
-from logging import (
-    INFO,
-    getLogger,
-)
-from logging import (
-    basicConfig as basic_log_config,
-)
+from logging import INFO, getLogger
+from logging import basicConfig as basic_log_config
 from os.path import exists as file_exists
 from os.path import join as path_join
 from shutil import rmtree
