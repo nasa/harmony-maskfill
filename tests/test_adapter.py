@@ -3,12 +3,8 @@ from logging import (
     INFO,
     getLogger,
 )
-from logging import (
-    Handler as LogHandler,
-)
-from logging import (
-    basicConfig as basic_log_config,
-)
+from logging import Handler as LogHandler
+from logging import basicConfig as basic_log_config
 from os import sep
 from os.path import basename
 from shutil import copy
