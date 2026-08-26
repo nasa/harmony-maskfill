@@ -5,9 +5,9 @@ from shutil import rmtree
 from unittest import TestCase
 from unittest.mock import patch
 
-from pyproj import CRS, Proj
 import h5py
 import numpy as np
+from pyproj import CRS, Proj
 
 from maskfill.cf_config import CFConfig
 from maskfill.exceptions import (
@@ -33,19 +33,17 @@ from maskfill.h5_grid_info import (
     get_hdf_crs,
     get_lon_lat_datasets,
     get_projected_coordinate_extent,
-    get_transform,
     get_spatial_grid_shape,
+    get_transform,
+    has_geographic_dimensions,
     is_projection_x_dimension,
     is_projection_y_dimension,
-    has_geographic_dimensions,
     resolve_relative_dataset_path,
 )
-
 from maskfill.utilities import apply_2d, apply_2d_dataset_to_multidim
 
 
 class TestH5GridProjectionInfo(TestCase):
-
     @classmethod
     def setUpClass(cls):
         cls.logger = getLogger('test')
@@ -74,37 +72,46 @@ class TestH5GridProjectionInfo(TestCase):
         data = np.ones(dimensions)
         data[0][0] = 0
 
-        test_args = [['All elements are fill value', 'filled', data_ones, True],
-                     ['No elements are fill value', 'not_filled', data_zeros, False],
-                     ['Only some elements are filled', 'some_filled', data, False]]
+        test_args = [
+            ['All elements are fill value', 'filled', data_ones, True],
+            ['No elements are fill value', 'not_filled', data_zeros, False],
+            ['Only some elements are filled', 'some_filled', data, False],
+        ]
 
         for description, dataset_name, input_data, expected_result in test_args:
             with self.subTest(description):
-                dataset = h5_file.create_dataset(dataset_name, data=input_data,
-                                                 fillvalue=fill_value)
-                result = dataset_all_fill_value(dataset, self.cf_config,
-                                                self.logger, fill_value)
+                dataset = h5_file.create_dataset(
+                    dataset_name, data=input_data, fillvalue=fill_value
+                )
+                result = dataset_all_fill_value(
+                    dataset, self.cf_config, self.logger, fill_value
+                )
                 self.assertEqual(result, expected_result)
 
         data_3d = np.stack([data_ones, data_zeros, data])
-        dataset_3d = h5_file.create_dataset('data_3d', data=data_3d, fillvalue=fill_value)
+        dataset_3d = h5_file.create_dataset(
+            'data_3d', data=data_3d, fillvalue=fill_value
+        )
 
-        test_args_3d = [['3-D all band elements are fill value', 0, True],
-                        ['3-D no band elements are fill value', 1, False],
-                        ['3-D some band elements are fill value', 2, False]]
+        test_args_3d = [
+            ['3-D all band elements are fill value', 0, True],
+            ['3-D no band elements are fill value', 1, False],
+            ['3-D some band elements are fill value', 2, False],
+        ]
 
         for description, band, expected_result in test_args_3d:
             with self.subTest(description):
-                result = dataset_all_fill_value(dataset_3d, self.cf_config,
-                                                self.logger, fill_value, band)
+                result = dataset_all_fill_value(
+                    dataset_3d, self.cf_config, self.logger, fill_value, band
+                )
                 self.assertEqual(result, expected_result)
 
         h5_file.close()
 
     def test_dataset_all_fill_value_chunked(self):
-        """ Ensure that chunked datasets, are correctly identified as
-            containing only fill values, including when the only non-fill
-            element lies in the final chunk.
+        """Ensure that chunked datasets, are correctly identified as
+        containing only fill values, including when the only non-fill
+        element lies in the final chunk.
 
         """
         h5_file = h5py.File(self.test_h5_name, 'w')
@@ -117,19 +124,23 @@ class TestH5GridProjectionInfo(TestCase):
 
         test_args = [
             ['All chunks are fill value', 'filled', data_ones, True],
-            ['Non-fill element in the final chunk', 'last_chunk',
-             data_last_chunk, False],
+            [
+                'Non-fill element in the final chunk',
+                'last_chunk',
+                data_last_chunk,
+                False,
+            ],
         ]
 
         for description, dataset_name, input_data, expected_result in test_args:
             with self.subTest(description):
-                dataset = h5_file.create_dataset(dataset_name,
-                                                 data=input_data,
-                                                 chunks=chunks,
-                                                 fillvalue=fill_value)
+                dataset = h5_file.create_dataset(
+                    dataset_name, data=input_data, chunks=chunks, fillvalue=fill_value
+                )
                 self.assertIsNotNone(dataset.chunks)
-                result = dataset_all_fill_value(dataset, self.cf_config,
-                                                self.logger, fill_value)
+                result = dataset_all_fill_value(
+                    dataset, self.cf_config, self.logger, fill_value
+                )
                 self.assertEqual(result, expected_result)
 
         h5_file.close()
@@ -149,11 +160,18 @@ class TestH5GridProjectionInfo(TestCase):
         with self.subTest('neither valid_min or valid_max set'):
             self.assertFalse(dataset_all_outside_valid_range(dataset))
 
-        both_attrs_tests = [['valid_min valid_max set, all within range', 2, 6, False],
-                            ['valid_min, valid_max set, some less than min', 3, 6, False],
-                            ['valid_min, valid_max set, some more than max', 2, 5, False],
-                            ['valid_min, valid_max set, some more, some less, some in range', 3, 5, False],
-                            ['valid_min, valid_max set, none in range', 4, 5, True]]
+        both_attrs_tests = [
+            ['valid_min valid_max set, all within range', 2, 6, False],
+            ['valid_min, valid_max set, some less than min', 3, 6, False],
+            ['valid_min, valid_max set, some more than max', 2, 5, False],
+            [
+                'valid_min, valid_max set, some more, some less, some in range',
+                3,
+                5,
+                False,
+            ],
+            ['valid_min, valid_max set, none in range', 4, 5, True],
+        ]
 
         for description, valid_min, valid_max, result in both_attrs_tests:
             with self.subTest(description):
@@ -164,12 +182,14 @@ class TestH5GridProjectionInfo(TestCase):
         dataset.attrs.__delitem__('valid_min')
         dataset.attrs.__delitem__('valid_max')
 
-        one_attr_tests = [['only valid_max, all below', 'valid_max', 7, False],
-                          ['only valid_max, some below', 'valid_max', 5, False],
-                          ['only valid_max, all above', 'valid_max', 1, True],
-                          ['only valid_min, all above', 'valid_min', 1, False],
-                          ['only valid_min, some above', 'valid_min', 4, False],
-                          ['only valid_min, all below', 'valid_min', 7, True]]
+        one_attr_tests = [
+            ['only valid_max, all below', 'valid_max', 7, False],
+            ['only valid_max, some below', 'valid_max', 5, False],
+            ['only valid_max, all above', 'valid_max', 1, True],
+            ['only valid_min, all above', 'valid_min', 1, False],
+            ['only valid_min, some above', 'valid_min', 4, False],
+            ['only valid_min, all below', 'valid_min', 7, True],
+        ]
 
         for description, attr_key, attr_value, result in one_attr_tests:
             with self.subTest(description):
@@ -184,7 +204,7 @@ class TestH5GridProjectionInfo(TestCase):
         the default value supplied to the function should be returned instead.
 
         """
-        config_dataset_name = list(self.cf_config.fill_values.keys())[0]
+        config_dataset_name = next(iter(self.cf_config.fill_values))
         config_dataset_fill = self.cf_config.fill_values[config_dataset_name]
 
         data_array = np.ones((3, 2))
@@ -197,46 +217,33 @@ class TestH5GridProjectionInfo(TestCase):
 
         # Add test dataset that matches a configuration file rule:
         dataset_with_config = h5_file.create_dataset(
-            config_dataset_name,
-            data=data_array,
-            fillvalue=fill_value_class
+            config_dataset_name, data=data_array, fillvalue=fill_value_class
         )
         dataset_with_config.attrs['_FillValue'] = fill_value_attr
 
         # Add test dataset with a fill value:
         dataset_with_fill = h5_file.create_dataset(
-            'with_fill',
-            data=data_array,
-            fillvalue=fill_value_class
+            'with_fill', data=data_array, fillvalue=fill_value_class
         )
         dataset_with_fill.attrs['_FillValue'] = fill_value_attr
 
         # Add test dataset without a fill value:
-        dataset_without_fill = h5_file.create_dataset(
-            'without_fill',
-            data=data_array
-        )
+        dataset_without_fill = h5_file.create_dataset('without_fill', data=data_array)
 
         with self.subTest('Override default value for specific named datasets'):
             self.assertEqual(
                 get_fill_value(
-                    dataset_with_config,
-                    self.cf_config,
-                    self.logger,
-                    default_fill_value
+                    dataset_with_config, self.cf_config, self.logger, default_fill_value
                 ),
-                config_dataset_fill
+                config_dataset_fill,
             )
 
         with self.subTest('_FillValue attribute should take precedence.'):
             self.assertEqual(
                 get_fill_value(
-                    dataset_with_fill,
-                    self.cf_config,
-                    self.logger,
-                    default_fill_value
+                    dataset_with_fill, self.cf_config, self.logger, default_fill_value
                 ),
-                fill_value_attr
+                fill_value_attr,
             )
 
         with self.subTest('No config or in-file fill value, user-specified default'):
@@ -245,21 +252,16 @@ class TestH5GridProjectionInfo(TestCase):
                     dataset_without_fill,
                     self.cf_config,
                     self.logger,
-                    default_fill_value
+                    default_fill_value,
                 ),
-                default_fill_value
+                default_fill_value,
             )
 
         with self.subTest('Last option: use variable-type default fill value.'):
-            dataset = h5_file.create_dataset('type_default', data=data_array)
+            h5_file.create_dataset('type_default', data=data_array)
             self.assertEqual(
-                get_fill_value(
-                    dataset_without_fill,
-                    self.cf_config,
-                    self.logger,
-                    None
-                ),
-                -9999.0
+                get_fill_value(dataset_without_fill, self.cf_config, self.logger, None),
+                -9999.0,
             )
 
         h5_file.close()
@@ -277,14 +279,22 @@ class TestH5GridProjectionInfo(TestCase):
 
         fill_value = -1
         data_array = np.ones((3, 3))
-        lat_array = np.array([[10.0, 10.0, 10.0, 10.0],
-                              [15.0, 15.0, 15.0, 15.0],
-                              [20.0, 20.0, 20.0, 20.0],
-                              [25.0, 25.0, 25.0, 25.0]])
-        lon_array = np.array([[5.0, 10.0, 15.0, 20.0],
-                              [5.0, 10.0, 15.0, 20.0],
-                              [5.0, 10.0, 15.0, 20.0],
-                              [5.0, 10.0, 15.0, 20.0]])
+        lat_array = np.array(
+            [
+                [10.0, 10.0, 10.0, 10.0],
+                [15.0, 15.0, 15.0, 15.0],
+                [20.0, 20.0, 20.0, 20.0],
+                [25.0, 25.0, 25.0, 25.0],
+            ]
+        )
+        lon_array = np.array(
+            [
+                [5.0, 10.0, 15.0, 20.0],
+                [5.0, 10.0, 15.0, 20.0],
+                [5.0, 10.0, 15.0, 20.0],
+                [5.0, 10.0, 15.0, 20.0],
+            ]
+        )
 
         data_array_3d = np.stack([data_array, data_array, data_array, data_array])
         lat_array_3d = np.stack([lat_array, lat_array, lat_array, lat_array])
@@ -302,14 +312,16 @@ class TestH5GridProjectionInfo(TestCase):
         data_3d = h5_file.create_dataset('data_3d', data=data_array_3d)
         data_3d.attrs.create('_FillValue', fill_value)
 
-        test_args = [['Neither_corner_filled', False, False, False],
-                     ['Lower_leftcorner_filled', True, False, False],
-                     ['Upper_right_corner_filled', False, True, False],
-                     ['Both_corners_filled', True, True, False],
-                     ['3-D_Neither_corner_filled', False, False, True],
-                     ['3-D_Lower_leftcorner_filled', True, False, True],
-                     ['3-D_Upper_right_corner_filled', False, True, True],
-                     ['3-D_Both_corners_filled', True, True, True]]
+        test_args = [
+            ['Neither_corner_filled', False, False, False],
+            ['Lower_leftcorner_filled', True, False, False],
+            ['Upper_right_corner_filled', False, True, False],
+            ['Both_corners_filled', True, True, False],
+            ['3-D_Neither_corner_filled', False, False, True],
+            ['3-D_Lower_leftcorner_filled', True, False, True],
+            ['3-D_Upper_right_corner_filled', False, True, True],
+            ['3-D_Both_corners_filled', True, True, True],
+        ]
 
         for description, fill_ll_corner, fill_ur_corner, is_3d in test_args:
             with self.subTest(description):
@@ -342,11 +354,11 @@ class TestH5GridProjectionInfo(TestCase):
                 lon_dataset = h5_file.create_dataset(lon_name, data=lon_copy)
                 lon_dataset.attrs.create('_FillValue', fill_value)
 
-                dataset.attrs['coordinates'] = f'{lat_name} {lon_name}'.encode('utf-8')
+                dataset.attrs['coordinates'] = f'{lat_name} {lon_name}'.encode()
 
-                corners = get_corner_points_from_lat_lon(dataset, crs,
-                                                         self.cf_config,
-                                                         self.logger)
+                corners = get_corner_points_from_lat_lon(
+                    dataset, crs, self.cf_config, self.logger
+                )
 
                 self.assertAlmostEqual(corners[0], x_lower_left)
                 self.assertAlmostEqual(corners[1], x_upper_right)
@@ -356,25 +368,32 @@ class TestH5GridProjectionInfo(TestCase):
         h5_file.close()
 
     def test_get_projected_coordinate_extent(self):
-        """ Ensure the x and y dimension can be correctly extrapolated when
-            the coordinate arrays contain fill values in the corners.
+        """Ensure the x and y dimension can be correctly extrapolated when
+        the coordinate arrays contain fill values in the corners.
 
-            An InsufficientDataError should be returned if unfilled data only
-            exist in a single row or column.
+        An InsufficientDataError should be returned if unfilled data only
+        exist in a single row or column.
 
         """
         projection = Proj({'proj': 'eqc'})
 
-        fill_value = -1
         data_array = np.ones((3, 3))
-        lat_array = np.array([[10.0, 10.0, 10.0, 10.0],
-                              [15.0, 15.0, 15.0, 15.0],
-                              [20.0, 20.0, 20.0, 20.0],
-                              [25.0, 25.0, 25.0, 25.0]])
-        lon_array = np.array([[5.0, 10.0, 15.0, 20.0],
-                              [5.0, 10.0, 15.0, 20.0],
-                              [5.0, 10.0, 15.0, 20.0],
-                              [5.0, 10.0, 15.0, 20.0]])
+        lat_array = np.array(
+            [
+                [10.0, 10.0, 10.0, 10.0],
+                [15.0, 15.0, 15.0, 15.0],
+                [20.0, 20.0, 20.0, 20.0],
+                [25.0, 25.0, 25.0, 25.0],
+            ]
+        )
+        lon_array = np.array(
+            [
+                [5.0, 10.0, 15.0, 20.0],
+                [5.0, 10.0, 15.0, 20.0],
+                [5.0, 10.0, 15.0, 20.0],
+                [5.0, 10.0, 15.0, 20.0],
+            ]
+        )
 
         x_lower_left = 556597.453966368
         y_lower_left = 1113194.9079327357
@@ -383,30 +402,27 @@ class TestH5GridProjectionInfo(TestCase):
 
         with self.subTest('x - No filled coordinates'):
             valid_data = np.where(data_array == 1)
-            x_min, x_max = get_projected_coordinate_extent(projection,
-                                                           lat_array,
-                                                           lon_array,
-                                                           1, valid_data)
+            x_min, x_max = get_projected_coordinate_extent(
+                projection, lat_array, lon_array, 1, valid_data
+            )
 
             self.assertAlmostEqual(x_min, x_lower_left)
             self.assertAlmostEqual(x_max, x_upper_right)
 
         with self.subTest('x - Filled outer columns'):
             valid_data = np.where((lon_array > 5) & (lon_array < 20))
-            x_min, x_max = get_projected_coordinate_extent(projection,
-                                                           lat_array,
-                                                           lon_array,
-                                                           1, valid_data)
+            x_min, x_max = get_projected_coordinate_extent(
+                projection, lat_array, lon_array, 1, valid_data
+            )
 
             self.assertAlmostEqual(x_min, x_lower_left)
             self.assertAlmostEqual(x_max, x_upper_right)
 
         with self.subTest('y - Filled outer rows'):
             valid_data = np.where((lat_array < 25) & (lat_array > 10))
-            y_min, y_max = get_projected_coordinate_extent(projection,
-                                                           lat_array,
-                                                           lon_array,
-                                                           0, valid_data)
+            y_min, y_max = get_projected_coordinate_extent(
+                projection, lat_array, lon_array, 0, valid_data
+            )
 
             self.assertAlmostEqual(y_min, y_lower_left)
             self.assertAlmostEqual(y_max, y_upper_right)
@@ -415,26 +431,32 @@ class TestH5GridProjectionInfo(TestCase):
             valid_data = np.where((lon_array > 10) & (lon_array < 20))
 
             with self.assertRaises(InsufficientDataError) as context_manager:
-                x_min, x_max = get_projected_coordinate_extent(projection,
-                                                               lat_array,
-                                                               lon_array,
-                                                               1, valid_data)
+                x_min, x_max = get_projected_coordinate_extent(
+                    projection, lat_array, lon_array, 1, valid_data
+                )
 
-            self.assertEqual(context_manager.exception.message,
-                             ('Only a single, unmasked column of data. Unable '
-                              'to calculate x pixel size.'))
+            self.assertEqual(
+                context_manager.exception.message,
+                (
+                    'Only a single, unmasked column of data. Unable '
+                    'to calculate x pixel size.'
+                ),
+            )
 
         with self.subTest('y - only single row of data'):
             valid_data = np.where((lat_array < 25) & (lat_array > 15))
             with self.assertRaises(InsufficientDataError) as context_manager:
-                y_min, y_max = get_projected_coordinate_extent(projection,
-                                                               lat_array,
-                                                               lon_array,
-                                                               0, valid_data)
+                y_min, y_max = get_projected_coordinate_extent(
+                    projection, lat_array, lon_array, 0, valid_data
+                )
 
-            self.assertEqual(context_manager.exception.message,
-                             ('Only a single, unmasked row of data. Unable '
-                              'to calculate y pixel size.'))
+            self.assertEqual(
+                context_manager.exception.message,
+                (
+                    'Only a single, unmasked row of data. Unable '
+                    'to calculate y pixel size.'
+                ),
+            )
 
     def test_get_cell_size_from_dimensions(self):
         """Given an input dataset, check the returned cell_width and cell_height."""
@@ -450,7 +472,7 @@ class TestH5GridProjectionInfo(TestCase):
         y = h5_file.create_dataset('y', data=y_array)
         y.attrs.create('standard_name', 'projection_y_coordinate')
 
-        data.attrs.create('DIMENSION_LIST', ((y.ref, ), (x.ref, )), dtype=h5py.ref_dtype)
+        data.attrs.create('DIMENSION_LIST', ((y.ref,), (x.ref,)), dtype=h5py.ref_dtype)
 
         cell_width, cell_height = get_cell_size_from_dimensions(data)
 
@@ -473,7 +495,7 @@ class TestH5GridProjectionInfo(TestCase):
         y = h5_file.create_dataset('y', data=y_array)
         y.attrs.create('standard_name', 'projection_y_coordinate')
 
-        data.attrs.create('DIMENSION_LIST', ((y.ref, ), (x.ref, )), dtype=h5py.ref_dtype)
+        data.attrs.create('DIMENSION_LIST', ((y.ref,), (x.ref,)), dtype=h5py.ref_dtype)
 
         cell_width, cell_height = get_cell_size_from_dimensions(data)
 
@@ -496,7 +518,7 @@ class TestH5GridProjectionInfo(TestCase):
         y = h5_file.create_dataset('y', data=y_array)
         y.attrs.create('standard_name', 'projection_y_coordinate')
 
-        data.attrs.create('DIMENSION_LIST', ((y.ref, ), (x.ref, )), dtype=h5py.ref_dtype)
+        data.attrs.create('DIMENSION_LIST', ((y.ref,), (x.ref,)), dtype=h5py.ref_dtype)
 
         cell_width, cell_height = get_cell_size_from_dimensions(data)
 
@@ -507,7 +529,7 @@ class TestH5GridProjectionInfo(TestCase):
 
     def test_get_cell_size_from_dimensions_no_standard_name(self):
         """Given an input dataset does not define a standard_name,
-           get_cell_size_from_dimensions return None."""
+        get_cell_size_from_dimensions return None."""
         data_array = np.ones((3, 4))
         x_array = np.array([1, 2, 3, 4])
         y_array = np.array([2, 4, 6])
@@ -516,7 +538,7 @@ class TestH5GridProjectionInfo(TestCase):
         data = h5_file.create_dataset('data', data=data_array)
         x = h5_file.create_dataset('x', data=x_array)
         y = h5_file.create_dataset('y', data=y_array)
-        data.attrs.create('DIMENSION_LIST', ((y.ref, ), (x.ref, )), dtype=h5py.ref_dtype)
+        data.attrs.create('DIMENSION_LIST', ((y.ref,), (x.ref,)), dtype=h5py.ref_dtype)
 
         self.assertIsNone(get_cell_size_from_dimensions(data))
 
@@ -535,9 +557,9 @@ class TestH5GridProjectionInfo(TestCase):
 
         data.attrs['coordinates'] = b'/longitude /latitude'
 
-        cell_width, cell_height = get_cell_size_from_lat_lon_extents(data, 1,
-                                                                     4, 2, 6,
-                                                                     self.cf_config)
+        cell_width, cell_height = get_cell_size_from_lat_lon_extents(
+            data, 1, 4, 2, 6, self.cf_config
+        )
 
         self.assertAlmostEqual(cell_width, 1)
         self.assertAlmostEqual(cell_height, 2)
@@ -562,7 +584,7 @@ class TestH5GridProjectionInfo(TestCase):
         y = h5_file.create_dataset('y', data=y_array)
         y.attrs.create('standard_name', 'projection_y_coordinate')
 
-        data.attrs.create('DIMENSION_LIST', ((y.ref, ), (x.ref, )), dtype=h5py.ref_dtype)
+        data.attrs.create('DIMENSION_LIST', ((y.ref,), (x.ref,)), dtype=h5py.ref_dtype)
 
         x_0, x_N, y_0, y_M = get_corner_points_from_dimensions(data)
 
@@ -575,26 +597,27 @@ class TestH5GridProjectionInfo(TestCase):
 
     @patch('maskfill.h5_grid_info.get_cell_size_from_lat_lon_extents')
     @patch('maskfill.h5_grid_info.get_corner_points_from_lat_lon')
-    def test_get_transform_dimensions(self, mock_get_corner_points_from_lat_lon,
-                                      mock_get_cell_size_from_lat_lon):
-        """ Ensure the correct Affine transformation matrix is formed for a
-            dataset that has a DIMENSION_LIST attribute. This should not call
-            `get_corner_points_from_lat_lon` or
-            `get_cell_size_from_lat_lon_extents`.
+    def test_get_transform_dimensions(
+        self, mock_get_corner_points_from_lat_lon, mock_get_cell_size_from_lat_lon
+    ):
+        """Ensure the correct Affine transformation matrix is formed for a
+        dataset that has a DIMENSION_LIST attribute. This should not call
+        `get_corner_points_from_lat_lon` or
+        `get_cell_size_from_lat_lon_extents`.
 
-            The expected transformation (when array dimensions match the
-            coordinate dimensions, e.g., rows = y and columns = x):
+        The expected transformation (when array dimensions match the
+        coordinate dimensions, e.g., rows = y and columns = x):
 
-            [[a, b, c],      [[1, 0, 1.5],
-             [d, e, f],   =   [0, 3, 2.5],
-             [g, h, i]]       [0, 0, 1]]
+        [[a, b, c],      [[1, 0, 1.5],
+         [d, e, f],   =   [0, 3, 2.5],
+         [g, h, i]]       [0, 0, 1]]
 
-            The expected transformation preserves the identity of rows (Y)
-            and columns (X), even when array dimensions are flipped.
+        The expected transformation preserves the identity of rows (Y)
+        and columns (X), even when array dimensions are flipped.
 
-            [[a, b, c],      [[1, 0, 1.5],
-             [d, e, f],   =   [0, 3, 2.5],
-             [g, h, i]]       [0, 0, 1]]
+        [[a, b, c],      [[1, 0, 1.5],
+         [d, e, f],   =   [0, 3, 2.5],
+         [g, h, i]]       [0, 0, 1]]
 
         """
         crs = CRS(4326)
@@ -610,17 +633,17 @@ class TestH5GridProjectionInfo(TestCase):
             y.attrs.create('standard_name', 'projection_y_coordinate')
 
             data = h5_file.create_dataset('data', data=data_array)
-            data.attrs.create('DIMENSION_LIST', ((y.ref, ), (x.ref, )),
-                              dtype=h5py.ref_dtype)
+            data.attrs.create(
+                'DIMENSION_LIST', ((y.ref,), (x.ref,)), dtype=h5py.ref_dtype
+            )
 
-            flipped_data = h5_file.create_dataset('flipped_data',
-                                                  data=np.ones((4, 3)))
-            flipped_data.attrs.create('DIMENSION_LIST', ((x.ref, ), (y.ref, )),
-                                      dtype=h5py.ref_dtype)
+            flipped_data = h5_file.create_dataset('flipped_data', data=np.ones((4, 3)))
+            flipped_data.attrs.create(
+                'DIMENSION_LIST', ((x.ref,), (y.ref,)), dtype=h5py.ref_dtype
+            )
 
             with self.subTest('Unflipped dataset'):
-                affine_transform = get_transform(data, crs, self.cf_config,
-                                                 self.logger)
+                affine_transform = get_transform(data, crs, self.cf_config, self.logger)
 
                 self.assertEqual(affine_transform.a, 1)
                 self.assertEqual(affine_transform.b, 0)
@@ -635,8 +658,9 @@ class TestH5GridProjectionInfo(TestCase):
                 mock_get_cell_size_from_lat_lon.assert_not_called()
 
             with self.subTest('Flipped dataset'):
-                flipped_transform = get_transform(flipped_data, crs,
-                                                  self.cf_config, self.logger)
+                flipped_transform = get_transform(
+                    flipped_data, crs, self.cf_config, self.logger
+                )
 
                 self.assertEqual(flipped_transform.a, 1)
                 self.assertEqual(flipped_transform.b, 0)
@@ -652,9 +676,9 @@ class TestH5GridProjectionInfo(TestCase):
 
     @patch('maskfill.h5_grid_info.get_cell_size_from_dimensions')
     @patch('maskfill.h5_grid_info.get_corner_points_from_dimensions')
-    def test_get_transform_coordinates(self,
-                                       mock_get_corner_points_from_dimensions,
-                                       mock_get_cell_size_from_dimensions):
+    def test_get_transform_coordinates(
+        self, mock_get_corner_points_from_dimensions, mock_get_cell_size_from_dimensions
+    ):
         """Ensure the correct Affine transformation matrix is formed for a
         dataset that uses the coordinate attribute. This should not call
         `get_corner_points_from_dimensions` or `get_cell_size_from_dimensions`.
@@ -680,8 +704,7 @@ class TestH5GridProjectionInfo(TestCase):
         data.attrs['coordinates'] = b'/longitude /latitude'
         data_array = np.ones((3, 4))
 
-        affine_transformation = get_transform(data, crs, self.cf_config,
-                                              self.logger)
+        affine_transformation = get_transform(data, crs, self.cf_config, self.logger)
 
         self.assertEqual(affine_transformation.a, 1)
         self.assertEqual(affine_transformation.b, 0)
@@ -716,15 +739,17 @@ class TestH5GridProjectionInfo(TestCase):
         dataset = h5_file.create_dataset('data', data=np.ones((2, 2)))
         lat = h5_file.create_dataset(lat_name, data=lat_array)
         lon = h5_file.create_dataset(lon_name, data=lon_array)
-        dataset.attrs['coordinates'] = f'{lat_name} {lon_name}'.encode('utf-8')
+        dataset.attrs['coordinates'] = f'{lat_name} {lon_name}'.encode()
 
         with self.subTest('latitude and longitude both present'):
             lon_out, lat_out = get_lon_lat_datasets(dataset, self.cf_config)
             self.assertEqual(lon_out, lon)
             self.assertEqual(lat_out, lat)
 
-        test_args = [[f'{lat_name} {bad_lon_name}', f'{bad_lon_name}'],
-                     [f'{bad_lat_name} {lon_name}', f'{bad_lat_name}']]
+        test_args = [
+            [f'{lat_name} {bad_lon_name}', f'{bad_lon_name}'],
+            [f'{bad_lat_name} {lon_name}', f'{bad_lat_name}'],
+        ]
 
         for coordinates_attr, missing_coords in test_args:
             with self.subTest(coordinates_attr):
@@ -733,16 +758,23 @@ class TestH5GridProjectionInfo(TestCase):
                     lon_out, lat_out = get_lon_lat_datasets(dataset, self.cf_config)
                     self.assertTrue(missing_coords in context.exception.message)
 
-                self.assertEqual(context.exception.message,
-                                 (f'Cannot find "{missing_coords}" in '
-                                  f'"{self.test_h5_name}".'))
+                self.assertEqual(
+                    context.exception.message,
+                    (f'Cannot find "{missing_coords}" in "{self.test_h5_name}".'),
+                )
 
         with self.subTest('coordinate override exists in configuration'):
             h5_spl3smp_e_file = h5py.File('tests/data/SPL3SMP_E_pm_input.h5', 'r')
-            lat = h5_spl3smp_e_file['/Soil_Moisture_Retrieval_Data_Polar_PM/latitude_pm']
-            lon = h5_spl3smp_e_file['/Soil_Moisture_Retrieval_Data_Polar_PM/longitude_pm']
+            lat = h5_spl3smp_e_file[
+                '/Soil_Moisture_Retrieval_Data_Polar_PM/latitude_pm'
+            ]
+            lon = h5_spl3smp_e_file[
+                '/Soil_Moisture_Retrieval_Data_Polar_PM/longitude_pm'
+            ]
             cf_config = CFConfig('SPL3SMP_E')
-            dataset = h5_spl3smp_e_file['/Soil_Moisture_Retrieval_Data_Polar_PM/surface_flag_pm']
+            dataset = h5_spl3smp_e_file[
+                '/Soil_Moisture_Retrieval_Data_Polar_PM/surface_flag_pm'
+            ]
             lon_out, lat_out = get_lon_lat_datasets(dataset, cf_config)
             self.assertEqual(lon_out, lon)
             self.assertEqual(lat_out, lat)
@@ -777,20 +809,21 @@ class TestH5GridProjectionInfo(TestCase):
             with self.subTest(f'missing {missing_coords} - no lat/lon substring'):
                 dataset.attrs['coordinates'] = coordinates_attr.encode('utf-8')
                 with self.assertRaises(MissingCoordinateDataset) as context:
-                    lon_out, lat_out = get_lon_lat_datasets(dataset, self.cf_config)
+                    get_lon_lat_datasets(dataset, self.cf_config)
 
-                self.assertEqual(context.exception.message,
-                                 (f'Cannot find "{missing_coords}" in '
-                                  f'"{self.test_h5_name}".'))
+                self.assertEqual(
+                    context.exception.message,
+                    (f'Cannot find "{missing_coords}" in "{self.test_h5_name}".'),
+                )
 
     def test_get_hdf_crs(self):
         """Ensure that a `pyproj.CRS` object is returned, where possible. The
-            order of projection information should be: DIMENSION_LIST,
-            grid_mapping, configuration file or raise an exception.
+        order of projection information should be: DIMENSION_LIST,
+        grid_mapping, configuration file or raise an exception.
 
-            - EPSG:4326: Geographic.
-            - EPSG:6931: EASE-2 Grid North.
-            - EPSG:6933: EASE-2 Grid Global.
+        - EPSG:4326: Geographic.
+        - EPSG:6931: EASE-2 Grid North.
+        - EPSG:6933: EASE-2 Grid Global.
 
         """
         global_grid_mapping_cf = CRS(6933).to_cf()
@@ -801,24 +834,30 @@ class TestH5GridProjectionInfo(TestCase):
         h5_file = h5py.File(self.test_h5_name, 'w')
         h5_file.create_dataset('data', data=np.ones((2, 2)))
         config_dataset = h5_file.create_dataset(dataset_name, data=np.ones((2, 2)))
-        dim_x = h5_file.create_dataset(dim_x_name, data=np.ones((2, )))
-        dim_y = h5_file.create_dataset(dim_y_name, data=np.ones((3, )))
-        grid_mapping = h5_file.create_dataset('grid_mapping', (10, ))
+        dim_x = h5_file.create_dataset(dim_x_name, data=np.ones((2,)))
+        dim_y = h5_file.create_dataset(dim_y_name, data=np.ones((3,)))
+        grid_mapping = h5_file.create_dataset('grid_mapping', (10,))
         grid_mapping.attrs.update(global_grid_mapping_cf)
 
-        with self.subTest('No projection information or configuration, raises exception'):
-            with self.assertRaises(InsufficientProjectionInformation) as context:
-                with patch.object(CFConfig,
-                                  'get_dataset_grid_mapping_attributes',
-                                  return_value=None):
+        with self.subTest(
+            'No projection information or configuration, raises exception'
+        ):
+            with (
+                self.assertRaises(InsufficientProjectionInformation) as context,
+                patch.object(
+                    CFConfig, 'get_dataset_grid_mapping_attributes', return_value=None
+                ),
+            ):
+                cf_config = CFConfig('tests/data/SPL3FTP')
+                crs = get_hdf_crs(config_dataset, cf_config, self.logger)
 
-                    cf_config = CFConfig('tests/data/SPL3FTP')
-                    crs = get_hdf_crs(config_dataset, cf_config,
-                                      self.logger)
-
-            self.assertEqual(context.exception.message,
-                             ('Cannot find projection information for dataset:'
-                              ' /Freeze_Thaw_Retrieval_polar/latitude.'))
+            self.assertEqual(
+                context.exception.message,
+                (
+                    'Cannot find projection information for dataset:'
+                    ' /Freeze_Thaw_Retrieval_polar/latitude.'
+                ),
+            )
 
         with self.subTest('No information, uses configured defaults.'):
             crs = get_hdf_crs(config_dataset, self.cf_config, self.logger)
@@ -831,9 +870,9 @@ class TestH5GridProjectionInfo(TestCase):
 
         with self.subTest('DIMENSION_LIST present, units degrees.'):
             dim_x.attrs['units'] = bytes('degrees', 'utf-8')
-            config_dataset.attrs.create('DIMENSION_LIST',
-                                        ((dim_x.ref, ), (dim_y.ref, )),
-                                        dtype=h5py.ref_dtype)
+            config_dataset.attrs.create(
+                'DIMENSION_LIST', ((dim_x.ref,), (dim_y.ref,)), dtype=h5py.ref_dtype
+            )
             crs = get_hdf_crs(config_dataset, self.cf_config, self.logger)
             self.assertTrue(crs.to_epsg(), 4326)
 
@@ -845,10 +884,10 @@ class TestH5GridProjectionInfo(TestCase):
         h5_file.close()
 
     def test_has_geographic_dimensions_true(self):
-        """ Ensure if a variable can be correctly determined as geographically
-            gridded based on its dimensions. This should be true for 2-D
-            variables with only geographic dimensions as well as 3-D variables
-            that have a non-geographic dimension first, e.g.: (time, lat, lon).
+        """Ensure if a variable can be correctly determined as geographically
+        gridded based on its dimensions. This should be true for 2-D
+        variables with only geographic dimensions as well as 3-D variables
+        that have a non-geographic dimension first, e.g.: (time, lat, lon).
 
         """
         dimension_data = np.linspace(0, 10, num=11)
@@ -859,70 +898,73 @@ class TestH5GridProjectionInfo(TestCase):
         lat_dimension = h5_file.create_dataset('lat', data=dimension_data)
         lat_dimension.attrs['units'] = 'degrees_north'
 
-        temporal_dimension = h5_file.create_dataset('temporal_dim',
-                                                    data=np.ones((1, )))
+        temporal_dimension = h5_file.create_dataset('temporal_dim', data=np.ones((1,)))
         temporal_dimension.attrs['unit'] = 'seconds since 2020-01-01T00:00:00'
 
-        geo_dataset = h5_file.create_dataset('var_with_geo_dims',
-                                             data=science_data)
+        geo_dataset = h5_file.create_dataset('var_with_geo_dims', data=science_data)
 
-        temporal_geo_dataset = h5_file.create_dataset('var_with_time_and_geo',
-                                                      data=np.ones((1, 11, 11)))
+        temporal_geo_dataset = h5_file.create_dataset(
+            'var_with_time_and_geo', data=np.ones((1, 11, 11))
+        )
 
         geo_dataset.attrs.create(
-            'DIMENSION_LIST', ((lat_dimension.ref, ), (lon_dimension.ref, )),
-            dtype=h5py.ref_dtype
+            'DIMENSION_LIST',
+            ((lat_dimension.ref,), (lon_dimension.ref,)),
+            dtype=h5py.ref_dtype,
         )
         temporal_geo_dataset.attrs.create(
-            'DIMENSION_LIST', ((temporal_dimension.ref, ),
-                               (lat_dimension.ref, ), (lon_dimension.ref, )),
-            dtype=h5py.ref_dtype
+            'DIMENSION_LIST',
+            ((temporal_dimension.ref,), (lat_dimension.ref,), (lon_dimension.ref,)),
+            dtype=h5py.ref_dtype,
         )
 
-        test_args = [['2-D geographic variable', geo_dataset],
-                     ['3-D geographic variable', temporal_geo_dataset]]
+        test_args = [
+            ['2-D geographic variable', geo_dataset],
+            ['3-D geographic variable', temporal_geo_dataset],
+        ]
 
         for description, test_dataset in test_args:
-            with self.subTest('Geographic dimensions'):
+            with self.subTest(description):
                 self.assertTrue(has_geographic_dimensions(test_dataset))
 
         h5_file.close()
 
     def test_has_geographic_dimensions_false(self):
-        """ Ensure a non-geographically gridded variable can be correctly
-            determined as such based on its dimensions. Such variables could be
-            projection gridded, not list dimensions at all, or have dimensions
-            with no units.
+        """Ensure a non-geographically gridded variable can be correctly
+        determined as such based on its dimensions. Such variables could be
+        projection gridded, not list dimensions at all, or have dimensions
+        with no units.
 
         """
         dimension_data = np.linspace(0, 10, num=11)
         science_data = np.ones((11, 11))
         h5_file = h5py.File(self.test_h5_name, 'w')
 
-        non_geo_dimension = h5_file.create_dataset('non_geo_dim',
-                                                   data=dimension_data)
+        non_geo_dimension = h5_file.create_dataset('non_geo_dim', data=dimension_data)
         non_geo_dimension.attrs['unit'] = 'm'
-        no_unit_dimension = h5_file.create_dataset('no_unit_dim',
-                                                   data=dimension_data)
+        no_unit_dimension = h5_file.create_dataset('no_unit_dim', data=dimension_data)
 
-        no_dim_dataset = h5_file.create_dataset('var_no_dims',
-                                                data=science_data)
+        no_dim_dataset = h5_file.create_dataset('var_no_dims', data=science_data)
 
-        non_geo_dataset = h5_file.create_dataset('var_with_non_geo_dims',
-                                                 data=science_data)
-        no_units_dataset = h5_file.create_dataset('var_with_unitless_dims',
-                                                  data=science_data)
+        non_geo_dataset = h5_file.create_dataset(
+            'var_with_non_geo_dims', data=science_data
+        )
+        no_units_dataset = h5_file.create_dataset(
+            'var_with_unitless_dims', data=science_data
+        )
 
-        non_geo_dataset.attrs.create('DIMENSION_LIST',
-                                     ((non_geo_dimension.ref, ), ),
-                                     dtype=h5py.ref_dtype)
-        no_units_dataset.attrs.create('DIMENSION_LIST',
-                                      ((no_unit_dimension.ref, ), ),
-                                      dtype=h5py.ref_dtype)
+        non_geo_dataset.attrs.create(
+            'DIMENSION_LIST', ((non_geo_dimension.ref,),), dtype=h5py.ref_dtype
+        )
+        no_units_dataset.attrs.create(
+            'DIMENSION_LIST', ((no_unit_dimension.ref,),), dtype=h5py.ref_dtype
+        )
 
-        test_args = [['No dimensions present', no_dim_dataset],
-                     ['Non-geographic dimensions', non_geo_dataset],
-                     ['Dimension with no units', no_units_dataset]]
+        test_args = [
+            ['No dimensions present', no_dim_dataset],
+            ['Non-geographic dimensions', non_geo_dataset],
+            ['Dimension with no units', no_units_dataset],
+        ]
 
         for description, test_dataset in test_args:
             with self.subTest(description):
@@ -931,9 +973,9 @@ class TestH5GridProjectionInfo(TestCase):
         h5_file.close()
 
     def test_get_dimension_datasets(self):
-        """ If a dataset has a DIMENSION_LIST attribute, the listed references
-            should be extracted and returned. Otherwise, the function should
-            return None.
+        """If a dataset has a DIMENSION_LIST attribute, the listed references
+        should be extracted and returned. Otherwise, the function should
+        return None.
 
         """
         dim_x_name = '/x'
@@ -941,18 +983,18 @@ class TestH5GridProjectionInfo(TestCase):
 
         h5_file = h5py.File(self.test_h5_name, 'w')
         dataset = h5_file.create_dataset('data', data=np.ones((3, 2)))
-        dim_x = h5_file.create_dataset(dim_x_name, data=np.ones((2, )))
+        dim_x = h5_file.create_dataset(dim_x_name, data=np.ones((2,)))
         dim_x.attrs.create('standard_name', 'projection_x_coordinate')
-        dim_y = h5_file.create_dataset(dim_y_name, data=np.ones((3, )))
+        dim_y = h5_file.create_dataset(dim_y_name, data=np.ones((3,)))
         dim_y.attrs.create('standard_name', 'projection_y_coordinate')
 
         with self.subTest('No DIMENSION_LIST'):
             self.assertEqual(get_dimension_datasets(dataset), None)
 
         with self.subTest('Valid DIMENSION_LIST'):
-            dataset.attrs.create('DIMENSION_LIST',
-                                 ((dim_y.ref, ), (dim_x.ref, )),
-                                 dtype=h5py.ref_dtype)
+            dataset.attrs.create(
+                'DIMENSION_LIST', ((dim_y.ref,), (dim_x.ref,)), dtype=h5py.ref_dtype
+            )
 
             dim_x_out, dim_y_out = get_dimension_datasets(dataset)
             self.assertEqual(dim_x_out, dim_x)
@@ -962,7 +1004,7 @@ class TestH5GridProjectionInfo(TestCase):
 
     def test_get_dimension_datasets_no_standard_name(self):
         """Given an input dataset does not define a standard_name,
-           both dim_x_out and dim_y_out should return None.
+        both dim_x_out and dim_y_out should return None.
 
         """
         dim_x_name = '/x'
@@ -970,89 +1012,95 @@ class TestH5GridProjectionInfo(TestCase):
 
         h5_file = h5py.File(self.test_h5_name, 'w')
         dataset = h5_file.create_dataset('data', data=np.ones((3, 2)))
-        dim_x = h5_file.create_dataset(dim_x_name, data=np.ones((2, )))
-        dim_y = h5_file.create_dataset(dim_y_name, data=np.ones((3, )))
+        dim_x = h5_file.create_dataset(dim_x_name, data=np.ones((2,)))
+        dim_y = h5_file.create_dataset(dim_y_name, data=np.ones((3,)))
 
         with self.subTest('No DIMENSION_LIST'):
             self.assertEqual(get_dimension_datasets(dataset), None)
 
         with self.subTest('Valid DIMENSION_LIST'):
-            dataset.attrs.create('DIMENSION_LIST',
-                                 ((dim_y.ref, ), (dim_x.ref, )),
-                                 dtype=h5py.ref_dtype)
+            dataset.attrs.create(
+                'DIMENSION_LIST', ((dim_y.ref,), (dim_x.ref,)), dtype=h5py.ref_dtype
+            )
 
             self.assertIsNone(get_dimension_datasets(dataset))
 
         h5_file.close()
 
     def test_get_dimension_datasets_invalid_dims(self):
-        """ If a dataset has a DIMENSION_LIST attribute and either of the
-            x or y dimension values are zero (fake dimensions), the function
-            should return None.
+        """If a dataset has a DIMENSION_LIST attribute and either of the
+        x or y dimension values are zero (fake dimensions), the function
+        should return None.
 
         """
         h5_file = h5py.File(self.test_h5_name, 'w')
-        valid_x_dim = h5_file.create_dataset('/x_valid', data=np.ones((5, )))
-        valid_y_dim = h5_file.create_dataset('/y_valid', data=np.ones((5, )))
-        invalid_x_dim = h5_file.create_dataset('/x_invalid', data=np.zeros((5, )))
-        invalid_y_dim = h5_file.create_dataset('/y_invalid', data=np.zeros((5, )))
+        valid_x_dim = h5_file.create_dataset('/x_valid', data=np.ones((5,)))
+        valid_y_dim = h5_file.create_dataset('/y_valid', data=np.ones((5,)))
+        invalid_x_dim = h5_file.create_dataset('/x_invalid', data=np.zeros((5,)))
+        invalid_y_dim = h5_file.create_dataset('/y_invalid', data=np.zeros((5,)))
 
         with self.subTest('Both x and y dimensions are invalid'):
             dataset_subtest_1 = h5_file.create_dataset('data_1', data=np.ones((3, 2)))
-            dataset_subtest_1.attrs.create('DIMENSION_LIST',
-                                           ((invalid_y_dim.ref, ), (invalid_x_dim.ref, )),
-                                           dtype=h5py.ref_dtype)
+            dataset_subtest_1.attrs.create(
+                'DIMENSION_LIST',
+                ((invalid_y_dim.ref,), (invalid_x_dim.ref,)),
+                dtype=h5py.ref_dtype,
+            )
 
             self.assertEqual(get_dimension_datasets(dataset_subtest_1), None)
 
         with self.subTest('x dimension is valid, y dimension is invalid'):
             dataset_subtest_2 = h5_file.create_dataset('data_2', data=np.ones((3, 2)))
-            dataset_subtest_2.attrs.create('DIMENSION_LIST',
-                                           ((invalid_y_dim.ref, ), (valid_x_dim.ref, )),
-                                           dtype=h5py.ref_dtype)
+            dataset_subtest_2.attrs.create(
+                'DIMENSION_LIST',
+                ((invalid_y_dim.ref,), (valid_x_dim.ref,)),
+                dtype=h5py.ref_dtype,
+            )
 
             self.assertEqual(get_dimension_datasets(dataset_subtest_2), None)
 
         with self.subTest('x dimension is invalid, y dimension is valid'):
             dataset_subtest_3 = h5_file.create_dataset('data_3', data=np.ones((3, 2)))
-            dataset_subtest_3.attrs.create('DIMENSION_LIST',
-                                           ((valid_y_dim.ref, ), (invalid_x_dim.ref, )),
-                                           dtype=h5py.ref_dtype)
+            dataset_subtest_3.attrs.create(
+                'DIMENSION_LIST',
+                ((valid_y_dim.ref,), (invalid_x_dim.ref,)),
+                dtype=h5py.ref_dtype,
+            )
 
             self.assertEqual(get_dimension_datasets(dataset_subtest_3), None)
 
         h5_file.close()
 
     def test_get_dimension_datasets_square_array(self):
-        """ Ensure that if a square array is supplied, the correct dimensions
-            are retrieved, rather than the same dimension twice. This function
-            assumes standard Python index ordering of (row, column), meaning
-            the x dimension will be assumed to be last.
+        """Ensure that if a square array is supplied, the correct dimensions
+        are retrieved, rather than the same dimension twice. This function
+        assumes standard Python index ordering of (row, column), meaning
+        the x dimension will be assumed to be last.
 
         """
         dim_x_name = '/x'
         dim_y_name = '/y'
 
         h5_file = h5py.File(self.test_h5_name, 'w')
-        dim_x = h5_file.create_dataset(dim_x_name, data=np.ones((3, )))
+        dim_x = h5_file.create_dataset(dim_x_name, data=np.ones((3,)))
         dim_x.attrs.create('standard_name', 'projection_x_coordinate')
         dim_x.attrs.create('units', 'm')
-        dim_y = h5_file.create_dataset(dim_y_name, data=np.ones((3, )))
+        dim_y = h5_file.create_dataset(dim_y_name, data=np.ones((3,)))
         dim_y.attrs.create('standard_name', 'projection_y_coordinate')
         dim_y.attrs.create('units', 'm')
-        dim_time = h5_file.create_dataset('/time', data=np.ones((1, )))
+        dim_time = h5_file.create_dataset('/time', data=np.ones((1,)))
 
-        flat_dataset = h5_file.create_dataset('flat_data',
-                                              data=np.ones((3, 3)))
-        flat_dataset.attrs.create('DIMENSION_LIST',
-                                  ((dim_y.ref, ), (dim_x.ref, )),
-                                  dtype=h5py.ref_dtype)
+        flat_dataset = h5_file.create_dataset('flat_data', data=np.ones((3, 3)))
+        flat_dataset.attrs.create(
+            'DIMENSION_LIST', ((dim_y.ref,), (dim_x.ref,)), dtype=h5py.ref_dtype
+        )
 
-        banded_dataset = h5_file.create_dataset('banded_data',
-                                                data=np.ones((1, 3, 3)))
-        banded_dataset.attrs.create('DIMENSION_LIST',
-                                    ((dim_time.ref, ), (dim_y.ref, ),
-                                     (dim_x.ref, )), dtype=h5py.ref_dtype)
+        banded_dataset = h5_file.create_dataset('banded_data', data=np.ones((1, 3, 3)))
+        banded_dataset.attrs.create(
+            'DIMENSION_LIST',
+            ((dim_time.ref,), (dim_y.ref,), (dim_x.ref,)),
+            dtype=h5py.ref_dtype,
+        )
 
         with self.subTest('Flat, len(x) = len(y) variable'):
             dim_x_out, dim_y_out = get_dimension_datasets(flat_dataset)
@@ -1090,78 +1138,84 @@ class TestH5GridProjectionInfo(TestCase):
         dim_time = h5_file.create_dataset(dim_time_name, data=np.ones((1,)))
         dim_level = h5_file.create_dataset(dim_level_name, data=np.ones((2,)))
 
-        dim_lon = h5_file.create_dataset(dim_lon_name, data=np.ones((3, )))
+        dim_lon = h5_file.create_dataset(dim_lon_name, data=np.ones((3,)))
         dim_lon.attrs.create('standard_name', 'longitude')
         dim_lon.attrs.create('units', 'degrees_east')
 
-        dim_lat = h5_file.create_dataset(dim_lat_name, data=np.ones((3, )))
+        dim_lat = h5_file.create_dataset(dim_lat_name, data=np.ones((3,)))
         dim_lat.attrs.create('standard_name', 'latitude')
         dim_lat.attrs.create('units', 'degrees_north')
 
         # Create a 4D dataset: (time, level, x, y)
-        data_4d_t_l_x_y = h5_file.create_dataset('data_4d_t_l_x_y',
-                                                 data=np.ones((1, 2, 3, 3)))
+        data_4d_t_l_x_y = h5_file.create_dataset(
+            'data_4d_t_l_x_y', data=np.ones((1, 2, 3, 3))
+        )
 
         # Attach dimension scales in order: time, level, y, x
         data_4d_t_l_x_y.attrs.create(
             'DIMENSION_LIST',
             ((dim_time.ref,), (dim_level.ref,), (dim_y.ref,), (dim_x.ref,)),
-            dtype=h5py.ref_dtype
+            dtype=h5py.ref_dtype,
         )
 
         # Create a 4D dataset: (time, y, x, level)
-        data_4d_t_y_x_l = h5_file.create_dataset('data_4d_t_y_x_l',
-                                                 data=np.ones((1, 3, 3, 2)))
+        data_4d_t_y_x_l = h5_file.create_dataset(
+            'data_4d_t_y_x_l', data=np.ones((1, 3, 3, 2))
+        )
 
         # Attach dimension scales in order: time, y, x, level
         data_4d_t_y_x_l.attrs.create(
             'DIMENSION_LIST',
             ((dim_time.ref,), (dim_y.ref,), (dim_x.ref,), (dim_level.ref,)),
-            dtype=h5py.ref_dtype
+            dtype=h5py.ref_dtype,
         )
 
         # Create a 4D dataset: (x, y, level, time)
-        data_4d_x_y_l_t = h5_file.create_dataset('data_4d_x_y_l_t',
-                                                 data=np.ones((3, 3, 2, 1)))
+        data_4d_x_y_l_t = h5_file.create_dataset(
+            'data_4d_x_y_l_t', data=np.ones((3, 3, 2, 1))
+        )
 
         # Attach dimension scales in order:  x, y, level, time
         data_4d_x_y_l_t.attrs.create(
             'DIMENSION_LIST',
             ((dim_x.ref,), (dim_y.ref,), (dim_level.ref,), (dim_time.ref,)),
-            dtype=h5py.ref_dtype
+            dtype=h5py.ref_dtype,
         )
 
         # Create a 4D dataset: (time, level, lon, lat)
-        data_4d_t_l_lon_lat = h5_file.create_dataset('data_4d_t_l_lon_lat',
-                                                     data=np.ones((1, 2, 3, 3)))
+        data_4d_t_l_lon_lat = h5_file.create_dataset(
+            'data_4d_t_l_lon_lat', data=np.ones((1, 2, 3, 3))
+        )
 
         # Attach dimension scales in order: time, level, lon, lat
         data_4d_t_l_lon_lat.attrs.create(
             'DIMENSION_LIST',
             ((dim_time.ref,), (dim_level.ref,), (dim_lon.ref,), (dim_lat.ref,)),
-            dtype=h5py.ref_dtype
+            dtype=h5py.ref_dtype,
         )
 
         # Create a 4D dataset: (time, lon, lat, level)
-        data_4d_t_lon_lat_l = h5_file.create_dataset('data_4d_t_lon_lat_l',
-                                                     data=np.ones((1, 3, 3, 2)))
+        data_4d_t_lon_lat_l = h5_file.create_dataset(
+            'data_4d_t_lon_lat_l', data=np.ones((1, 3, 3, 2))
+        )
 
         # Attach dimension scales in order: time, lon, lat, level
         data_4d_t_lon_lat_l.attrs.create(
             'DIMENSION_LIST',
             ((dim_time.ref,), (dim_lon.ref,), (dim_lat.ref,), (dim_level.ref,)),
-            dtype=h5py.ref_dtype
+            dtype=h5py.ref_dtype,
         )
 
         # Create a 4D dataset: (lat, lon, level, time)
-        data_4d_lat_lon_l_t = h5_file.create_dataset('data_4d_lat_lon_l_t',
-                                                     data=np.ones((3, 3, 2, 1)))
+        data_4d_lat_lon_l_t = h5_file.create_dataset(
+            'data_4d_lat_lon_l_t', data=np.ones((3, 3, 2, 1))
+        )
 
         # Attach dimension scales in order:  lat, lon, level, time
         data_4d_lat_lon_l_t.attrs.create(
             'DIMENSION_LIST',
             ((dim_lat.ref,), (dim_lon.ref,), (dim_level.ref,), (dim_time.ref,)),
-            dtype=h5py.ref_dtype
+            dtype=h5py.ref_dtype,
         )
 
         with self.subTest('4D dataset with time, level, y, x'):
@@ -1197,29 +1251,29 @@ class TestH5GridProjectionInfo(TestCase):
         h5_file.close()
 
     def test_is_projection_x_dimension(self):
-        """ Ensure that an HDF-5 dataset is correctly determined as being an
-            x spatial dimension (either longitude or projected x). Other
-            dimension types should be identified as not being an x dimension.
+        """Ensure that an HDF-5 dataset is correctly determined as being an
+        x spatial dimension (either longitude or projected x). Other
+        dimension types should be identified as not being an x dimension.
 
         """
         with h5py.File(self.test_h5_name, 'w') as h5_file:
-            dim_x = h5_file.create_dataset('/x', data=np.ones((2, )))
+            dim_x = h5_file.create_dataset('/x', data=np.ones((2,)))
             dim_x.attrs.create('standard_name', 'projection_x_coordinate')
             dim_x.attrs.create('units', 'm')
 
-            dim_y = h5_file.create_dataset('/y', data=np.ones((3, )))
+            dim_y = h5_file.create_dataset('/y', data=np.ones((3,)))
             dim_y.attrs.create('standard_name', 'projection_y_coordinate')
             dim_y.attrs.create('units', 'm')
 
-            dim_lon = h5_file.create_dataset('/lon', data=np.ones((4, )))
+            dim_lon = h5_file.create_dataset('/lon', data=np.ones((4,)))
             dim_lon.attrs.create('standard_name', 'longitude')
             dim_lon.attrs.create('units', 'degrees_east')
 
-            dim_lat = h5_file.create_dataset('/lat', data=np.ones((5, )))
+            dim_lat = h5_file.create_dataset('/lat', data=np.ones((5,)))
             dim_lat.attrs.create('standard_name', 'latitude')
             dim_lat.attrs.create('units', 'degrees_north')
 
-            dim_time = h5_file.create_dataset('/time', data=np.ones((6, )))
+            dim_time = h5_file.create_dataset('/time', data=np.ones((6,)))
             dim_time.attrs.create('standard_name', 'time')
             dim_time.attrs.create('units', 'seconds since 1980-01-01T00:00:00')
 
@@ -1239,29 +1293,29 @@ class TestH5GridProjectionInfo(TestCase):
                 self.assertFalse(is_projection_x_dimension(dim_time))
 
     def test_is_projection_y_dimension(self):
-        """ Ensure that an HDF-5 dataset is correctly determined as being a
-            y spatial dimension (either latitude or projected y). Other
-            dimension types should be identified as not being a y dimension.
+        """Ensure that an HDF-5 dataset is correctly determined as being a
+        y spatial dimension (either latitude or projected y). Other
+        dimension types should be identified as not being a y dimension.
 
         """
         with h5py.File(self.test_h5_name, 'w') as h5_file:
-            dim_x = h5_file.create_dataset('/x', data=np.ones((2, )))
+            dim_x = h5_file.create_dataset('/x', data=np.ones((2,)))
             dim_x.attrs.create('standard_name', 'projection_x_coordinate')
             dim_x.attrs.create('units', 'm')
 
-            dim_y = h5_file.create_dataset('/y', data=np.ones((3, )))
+            dim_y = h5_file.create_dataset('/y', data=np.ones((3,)))
             dim_y.attrs.create('standard_name', 'projection_y_coordinate')
             dim_y.attrs.create('units', 'm')
 
-            dim_lon = h5_file.create_dataset('/lon', data=np.ones((4, )))
+            dim_lon = h5_file.create_dataset('/lon', data=np.ones((4,)))
             dim_lon.attrs.create('standard_name', 'longitude')
             dim_lon.attrs.create('units', 'degrees_east')
 
-            dim_lat = h5_file.create_dataset('/lat', data=np.ones((5, )))
+            dim_lat = h5_file.create_dataset('/lat', data=np.ones((5,)))
             dim_lat.attrs.create('standard_name', 'latitude')
             dim_lat.attrs.create('units', 'degrees_north')
 
-            dim_time = h5_file.create_dataset('/time', data=np.ones((6, )))
+            dim_time = h5_file.create_dataset('/time', data=np.ones((6,)))
             dim_time.attrs.create('standard_name', 'time')
             dim_time.attrs.create('units', 'seconds since 1980-01-01T00:00:00')
 
@@ -1281,9 +1335,9 @@ class TestH5GridProjectionInfo(TestCase):
                 self.assertFalse(is_projection_y_dimension(dim_time))
 
     def test_get_dataset_attributes(self):
-        """ Ensure a dictionary is returned, with all string values decoded
-            from bytes, which is the default return type from
-            `h5py.Dataset.attrs`.
+        """Ensure a dictionary is returned, with all string values decoded
+        from bytes, which is the default return type from
+        `h5py.Dataset.attrs`.
 
         """
         attribute_dictionary = {'float': 1.234, 'string': '123'}
@@ -1298,29 +1352,28 @@ class TestH5GridProjectionInfo(TestCase):
         self.assertDictEqual(output_dictionary, attribute_dictionary)
 
     def test_get_grid_mapping_name(self):
-        """ Ensure the grid mapping name is returned, accounting for relative
-            paths, extended naming format and whether the listed grid mapping
-            is in the HDF-5 file.
+        """Ensure the grid mapping name is returned, accounting for relative
+        paths, extended naming format and whether the listed grid mapping
+        is in the HDF-5 file.
 
         """
         h5_file = h5py.File(self.test_h5_name, 'w')
         h5_file.create_dataset('crs', data=np.ones((1,)))
-        science_dataset = h5_file.create_dataset('/group/data',
-                                                 data=np.ones((2, 2)))
+        science_dataset = h5_file.create_dataset('/group/data', data=np.ones((2, 2)))
 
         with self.subTest('No grid_mapping attribute'):
             self.assertEqual(get_grid_mapping_name(science_dataset), None)
 
-        test_args = [['Full path grid_mapping', '/crs', '/crs'],
-                     ['Extended grid_mapping', '/crs: grid_x grid_y', '/crs'],
-                     ['Relative grid_mapping', '../crs', '/crs'],
-                     ['Relative, extended grid_mapping',
-                      '../crs: ../grid_x ../grid_y', '/crs']]
+        test_args = [
+            ['Full path grid_mapping', '/crs', '/crs'],
+            ['Extended grid_mapping', '/crs: grid_x grid_y', '/crs'],
+            ['Relative grid_mapping', '../crs', '/crs'],
+            ['Relative, extended grid_mapping', '../crs: ../grid_x ../grid_y', '/crs'],
+        ]
 
         for description, grid_mapping_attribute, expected_name in test_args:
             with self.subTest(description):
-                science_dataset.attrs.create('grid_mapping',
-                                             grid_mapping_attribute)
+                science_dataset.attrs.create('grid_mapping', grid_mapping_attribute)
                 grid_mapping_name = get_grid_mapping_name(science_dataset)
                 self.assertEqual(grid_mapping_name, expected_name)
 
@@ -1329,41 +1382,50 @@ class TestH5GridProjectionInfo(TestCase):
                 science_dataset.attrs.create('grid_mapping', 'crs_2')
                 get_grid_mapping_name(science_dataset)
 
-            self.assertEqual(context_manager.exception.message,
-                             ('Invalid metadata in /group/data: '
-                              'grid_mapping or coordinate="crs_2": '
-                              'Variable reference not in file'))
+            self.assertEqual(
+                context_manager.exception.message,
+                (
+                    'Invalid metadata in /group/data: '
+                    'grid_mapping or coordinate="crs_2": '
+                    'Variable reference not in file'
+                ),
+            )
 
     def test_resolve_relative_dataset_path(self):
-        """ Ensure a relative path can be qualified to a full path using the
-            location of the dataset making the reference. If the reference
-            implies the referee is more nested than it is, a custom exception
-            should be raised.
+        """Ensure a relative path can be qualified to a full path using the
+        location of the dataset making the reference. If the reference
+        implies the referee is more nested than it is, a custom exception
+        should be raised.
 
         """
         h5_file = h5py.File(self.test_h5_name, 'w')
-        dataset = h5_file.create_dataset('/group/nested_group/science',
-                                         data=np.ones((2, 3)))
+        dataset = h5_file.create_dataset(
+            '/group/nested_group/science', data=np.ones((2, 3))
+        )
         h5_file.create_dataset('/another_group/variable', data=np.ones((1,)))
         h5_file.create_dataset('/group/grid_mapping', data=np.ones((1,)))
         h5_file.create_dataset('/grid_mapping', data=np.ones((1,)))
 
-        test_args = [['Already absolute path', '/another_group/variable',
-                      '/another_group/variable'],
-                     ['Nested relative path', '../grid_mapping',
-                      '/group/grid_mapping'],
-                     ['Double nested relative path', '../../grid_mapping',
-                      '/grid_mapping']]
+        test_args = [
+            [
+                'Already absolute path',
+                '/another_group/variable',
+                '/another_group/variable',
+            ],
+            ['Nested relative path', '../grid_mapping', '/group/grid_mapping'],
+            ['Double nested relative path', '../../grid_mapping', '/grid_mapping'],
+        ]
 
         for description, reference, expected_path in test_args:
             with self.subTest(description):
-                resolved_path = resolve_relative_dataset_path(dataset,
-                                                              reference)
+                resolved_path = resolve_relative_dataset_path(dataset, reference)
 
                 self.assertEqual(resolved_path, expected_path)
 
-        test_args = [['Relative path has incorrect nesting', '../../../grid_mapping'],
-                     ['Variable reference not in file', 'non_existant_variable']]
+        test_args = [
+            ['Relative path has incorrect nesting', '../../../grid_mapping'],
+            ['Variable reference not in file', 'non_existant_variable'],
+        ]
 
         for description, relative_path in test_args:
             with self.subTest('Incorrect reference nesting'):
@@ -1373,11 +1435,11 @@ class TestH5GridProjectionInfo(TestCase):
                 self.assertTrue(context_manager.exception.message.endswith(description))
 
     def test_get_crs_from_grid_mapping(self):
-        """ Ensure that this function can handle:
+        """Ensure that this function can handle:
 
-            * A dictionary of grid mapping attributes
-            * A dataset with valid grid mapping metadata
-            * A dataset where the grid mapping metadata failed, but has an SRID
+        * A dictionary of grid mapping attributes
+        * A dataset with valid grid mapping metadata
+        * A dataset where the grid mapping metadata failed, but has an SRID
 
         """
         expected_epsg_code = 6933
@@ -1390,15 +1452,19 @@ class TestH5GridProjectionInfo(TestCase):
             'standard_parallel': 30.0,
             'longitude_of_central_meridian': 0.0,
             'false_easting': 0.0,
-            'false_northing': 0.0
+            'false_northing': 0.0,
         }
 
-        bad_wkt_attribute = {'crs_wkt': 'PROJCRS["THIS IS GARBLED"]',
-                             'srid': 'urn:ogc:def:crs:EPSG::6933'}
+        bad_wkt_attribute = {
+            'crs_wkt': 'PROJCRS["THIS IS GARBLED"]',
+            'srid': 'urn:ogc:def:crs:EPSG::6933',
+        }
 
-        test_args = [['Dictionary of attributes', cf_attributes, None],
-                     ['Good CF attributes in dataset', dataset, cf_attributes],
-                     ['SRID backup in dataset', dataset, bad_wkt_attribute]]
+        test_args = [
+            ['Dictionary of attributes', cf_attributes, None],
+            ['Good CF attributes in dataset', dataset, cf_attributes],
+            ['SRID backup in dataset', dataset, bad_wkt_attribute],
+        ]
 
         for description, input_object, dataset_attributes in test_args:
             with self.subTest(description):
@@ -1406,8 +1472,10 @@ class TestH5GridProjectionInfo(TestCase):
                     dataset.attrs.clear()
                     dataset.attrs.update(dataset_attributes)
 
-                self.assertEqual(get_crs_from_grid_mapping(input_object).to_epsg(),
-                                 expected_epsg_code)
+                self.assertEqual(
+                    get_crs_from_grid_mapping(input_object).to_epsg(),
+                    expected_epsg_code,
+                )
 
     def test_get_spatial_grid_shape(self):
         """Ensure the shape of the spatial dimensions or coordinates used
@@ -1417,7 +1485,9 @@ class TestH5GridProjectionInfo(TestCase):
         """
         with self.subTest('get nominal 2d shape from a granule file'):
             h5_file = h5py.File('tests/data/SPL3SMP_E_pm_input.h5', 'r')
-            h5_dataset = h5_file['/Soil_Moisture_Retrieval_Data_Polar_PM/surface_flag_pm']
+            h5_dataset = h5_file[
+                '/Soil_Moisture_Retrieval_Data_Polar_PM/surface_flag_pm'
+            ]
             cf_config = CFConfig('SPL3SMP_E')
             data_shape = get_spatial_grid_shape(h5_dataset, cf_config)
             self.assertEqual(data_shape, (2000, 2000))
@@ -1434,19 +1504,27 @@ class TestH5GridProjectionInfo(TestCase):
             data_shape = get_spatial_grid_shape(h5_dataset, cf_config)
             self.assertEqual(data_shape, (508, 1123))
         with self.subTest('get yxz shape from a granule file'):
-            h5_file = h5py.File('tests/data/SC_SPL3SMP_subsetted_without_maskfill.nc4', 'r')
-            h5_dataset = h5_file['/Soil_Moisture_Retrieval_Data_AM/landcover_class_fraction']
+            h5_file = h5py.File(
+                'tests/data/SC_SPL3SMP_subsetted_without_maskfill.nc4', 'r'
+            )
+            h5_dataset = h5_file[
+                '/Soil_Moisture_Retrieval_Data_AM/landcover_class_fraction'
+            ]
             cf_config = CFConfig('SPL3SMP_E')
             data_shape = get_spatial_grid_shape(h5_dataset, cf_config)
             self.assertEqual(data_shape, (27, 162))
 
     def test_get_apply_2d_process(self):
-        """ Ensure the the function returns the right apply_2d process
+        """Ensure the the function returns the right apply_2d process
         based on the shape of the variable
         """
-        with self.subTest('apply_2d process for nominal 2d shaped dataset from a granule file'):
+        with self.subTest(
+            'apply_2d process for nominal 2d shaped dataset from a granule file'
+        ):
             h5_file = h5py.File('tests/data/SPL3SMP_E_pm_input.h5', 'r')
-            h5_dataset = h5_file['/Soil_Moisture_Retrieval_Data_Polar_PM/surface_flag_pm']
+            h5_dataset = h5_file[
+                '/Soil_Moisture_Retrieval_Data_Polar_PM/surface_flag_pm'
+            ]
             cf_config = CFConfig('SPL3SMP_E')
             apply_2d_process = get_apply_2d_process(h5_dataset, cf_config)
             self.assertEqual(apply_2d_process, apply_2d)
@@ -1458,25 +1536,36 @@ class TestH5GridProjectionInfo(TestCase):
             apply_2d_process = get_apply_2d_process(h5_dataset, cf_config)
             self.assertEqual(apply_2d_process, apply_2d)
 
-        with self.subTest('get apply_2d_dataset_to_multidim process for not nominal granule'):
-            h5_file = h5py.File('tests/data/SC_SPL3SMP_subsetted_without_maskfill.nc4', 'r')
-            h5_dataset = h5_file['/Soil_Moisture_Retrieval_Data_AM/landcover_class_fraction']
+        with self.subTest(
+            'get apply_2d_dataset_to_multidim process for not nominal granule'
+        ):
+            h5_file = h5py.File(
+                'tests/data/SC_SPL3SMP_subsetted_without_maskfill.nc4', 'r'
+            )
+            h5_dataset = h5_file[
+                '/Soil_Moisture_Retrieval_Data_AM/landcover_class_fraction'
+            ]
             cf_config = CFConfig('SPL3SMP_E')
             apply_2d_process = get_apply_2d_process(h5_dataset, cf_config)
             self.assertEqual(apply_2d_process, apply_2d_dataset_to_multidim)
-            apply_2d_dataset_to_multidim
 
-        with self.subTest('apply_2d_dataset_to_multidim process for not supported spatial order'):
-            with self.assertRaises(NotSupportedData) as context_manager:
-                with h5py.File(self.test_h5_name, 'w') as h5_file:
-                    dim_lon = h5_file.create_dataset('/lon', data=np.ones((4)))
-                    dim_lon.attrs.create('standard_name', 'longitude')
-                    dim_lon.attrs.create('units', 'degrees_east')
-                    dim_lat = h5_file.create_dataset('/lat', data=np.ones((3)))
-                    dim_lat.attrs.create('standard_name', 'latitude')
-                    dim_lat.attrs.create('units', 'degrees_north')
-                    h5_dataset = h5_file.create_dataset('data', data=np.ones((4, 3)))
-                    h5_dataset.attrs.create('coordinates', '/lon /lat')
-                    cf_config = CFConfig('SPL3FTP')
-                    apply_2d_process = get_apply_2d_process(h5_dataset, cf_config)
-                    self.assertTrue(context_manager.exception.message.endswith("Not supported data"))
+        with (
+            self.subTest(
+                'apply_2d_dataset_to_multidim process for not supported spatial order'
+            ),
+            self.assertRaises(NotSupportedData) as context_manager,
+            h5py.File(self.test_h5_name, 'w') as h5_file,
+        ):
+            dim_lon = h5_file.create_dataset('/lon', data=np.ones(4))
+            dim_lon.attrs.create('standard_name', 'longitude')
+            dim_lon.attrs.create('units', 'degrees_east')
+            dim_lat = h5_file.create_dataset('/lat', data=np.ones(3))
+            dim_lat.attrs.create('standard_name', 'latitude')
+            dim_lat.attrs.create('units', 'degrees_north')
+            h5_dataset = h5_file.create_dataset('data', data=np.ones((4, 3)))
+            h5_dataset.attrs.create('coordinates', '/lon /lat')
+            cf_config = CFConfig('SPL3FTP')
+            apply_2d_process = get_apply_2d_process(h5_dataset, cf_config)
+            self.assertTrue(
+                context_manager.exception.message.endswith('Not supported data')
+            )

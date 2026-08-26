@@ -1,14 +1,12 @@
 #!/usr/bin/env python
-""" Applies a fill value to the areas of a data file that fall outside
-    a set of shapes defined by a shapefile.
+"""Applies a fill value to the areas of a data file that fall outside
+a set of shapes defined by a shapefile.
 """
+
 import logging
 import os
 
-from maskfill import geotiff_maskfill
-from maskfill import h5_maskfill
-from maskfill import history
-
+from maskfill import geotiff_maskfill, h5_maskfill, history
 
 DEFAULT_MASK_GRID_CACHE = 'ignore_and_delete'
 
@@ -37,8 +35,9 @@ def mask_fill(
 
     if input_extension == '.tif':
         # GeoTIFF case
-        logger.info(f'Performing mask fill with GeoTIFF {input_file} and '
-                    f'shapefile {shape_file}')
+        logger.info(
+            f'Performing mask fill with GeoTIFF {input_file} and shapefile {shape_file}'
+        )
         output_file = geotiff_maskfill.produce_masked_geotiff(
             input_file,
             collection_short_name,
@@ -51,8 +50,10 @@ def mask_fill(
         )
     elif input_extension in ('.h5', '.hdf5', '.nc4'):
         # HDF5 or NetCDF-4 case (HOSS produces NetCDF-4 files)
-        logger.info('Performing mask fill with HDF5/NetCDF-4 file '
-                    f'{input_file} and shapefile {shape_file}')
+        logger.info(
+            'Performing mask fill with HDF5/NetCDF-4 file '
+            f'{input_file} and shapefile {shape_file}'
+        )
         output_file = h5_maskfill.produce_masked_hdf(
             input_file,
             collection_short_name,
@@ -65,10 +66,7 @@ def mask_fill(
         )
 
         history.update_history_metadata(
-            output_file,
-            shape_file,
-            fill_value,
-            bounding_box
+            output_file, shape_file, fill_value, bounding_box
         )
 
     return output_file

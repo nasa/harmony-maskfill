@@ -28,9 +28,12 @@ commit messages should follow the format
 
 ## General coding practices:
 
-This repository adheres to Python coding style recommendations from
-[PEP8](https://peps.python.org/pep-0008/). Additionally, type hints are
-encouraged in all function signatures.
+Python formatting and linting are handled by
+[Ruff](https://docs.astral.sh/ruff/), configured in `pyproject.toml` and run via
+`pre-commit`. Install the git hooks once with `pre-commit install` and the
+formatter will run on every commit; `ruff check --fix .` and `ruff format .` do
+the same thing on demand. Additionally, type hints are encouraged in all
+function signatures.
 
 When adding or updating functionality, please ensure unit tests are added to
 the existing `unittest` suite in the `tests` directory, which cover each branch

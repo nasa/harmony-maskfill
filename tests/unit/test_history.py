@@ -1,10 +1,11 @@
 """Unit tests for history.py."""
 
+import json
 import os
 import shutil
 import tempfile
-import json
 from unittest import TestCase
+
 import h5py
 from freezegun import freeze_time
 
@@ -16,8 +17,8 @@ from maskfill.history import (
 )
 
 # Constants for test data
-SHAPE_HASH = "e1e473eb0276a31c09d07509d0b75018f8950410735a5a4ecaa43bab"
-FROZEN_TIME = "2000-01-02T03:04:05"
+SHAPE_HASH = 'e1e473eb0276a31c09d07509d0b75018f8950410735a5a4ecaa43bab'
+FROZEN_TIME = '2000-01-02T03:04:05'
 
 
 class TestHistory(TestCase):
@@ -65,17 +66,15 @@ class TestHistory(TestCase):
             'program_ref': PROGRAM_REF,
         }
 
-    def assert_history(self, input_filename, history, history_json, key="history"):
+    def assert_history(self, input_filename, history, history_json, key='history'):
         """Centralized assertion logic for history attributes."""
         with h5py.File(input_filename, 'r') as h5_input_file:
-            history_key = "History" if key == "history" else "history"
+            history_key = 'History' if key == 'history' else 'history'
             self.assertIn(key, h5_input_file.attrs)
             self.assertNotIn(history_key, h5_input_file.attrs)
 
             self.assertEqual(h5_input_file.attrs[key], history)
-            actual_history_json = json.loads(
-                h5_input_file.attrs["history_json"]
-            )
+            actual_history_json = json.loads(h5_input_file.attrs['history_json'])
             self.assertEqual(actual_history_json, history_json)
 
     @freeze_time(FROZEN_TIME)
@@ -95,11 +94,7 @@ class TestHistory(TestCase):
         update_history_metadata(
             input_filename, self.shape_file, self.fillvalue, self.bounding_box
         )
-        self.assert_history(
-            input_filename,
-            expected_history,
-            expected_history_json
-        )
+        self.assert_history(input_filename, expected_history, expected_history_json)
 
     @freeze_time(FROZEN_TIME)
     def test_update_history_metadata_append_history(self):
@@ -154,8 +149,8 @@ class TestHistory(TestCase):
                             '/Soil_Moisture_Retrieval_Data_AM/'
                             'landcover_class_fraction[0:26][294:455][]'
                         )
-                    }
-                ]
+                    },
+                ],
             }
         ]
 
@@ -172,11 +167,7 @@ class TestHistory(TestCase):
         update_history_metadata(
             input_filename, self.shape_file, self.fillvalue, self.bounding_box
         )
-        self.assert_history(
-            input_filename,
-            expected_history,
-            expected_history_json
-        )
+        self.assert_history(input_filename, expected_history, expected_history_json)
 
     @freeze_time(FROZEN_TIME)
     def test_update_history_metadata_capital_history(self):
@@ -197,10 +188,7 @@ class TestHistory(TestCase):
             input_filename, self.shape_file, self.fillvalue, self.bounding_box
         )
         self.assert_history(
-            input_filename,
-            expected_history,
-            expected_history_json,
-            key="History"
+            input_filename, expected_history, expected_history_json, key='History'
         )
 
     @freeze_time(FROZEN_TIME)
@@ -225,7 +213,7 @@ class TestHistory(TestCase):
             '%2FSoil_Moisture_Retrieval_Data_3km%2FEASE_column_index_3km%3B'
             '%2FSoil_Moisture_Retrieval_Data_3km%2Flongitude_3km%3B'
             '%2FSoil_Moisture_Retrieval_Data_1km%2FEASE_column_index_1km',
-            '2025-05-08T19:14:18.390538+00:00 Harmony Metadata Annotator 0.0.1'
+            '2025-05-08T19:14:18.390538+00:00 Harmony Metadata Annotator 0.0.1',
         ]
 
         expected_history_json = [
@@ -271,8 +259,8 @@ class TestHistory(TestCase):
                             '/Soil_Moisture_Retrieval_Data_3km/longitude_3km;'
                             '/Soil_Moisture_Retrieval_Data_1km/EASE_column_index_1km'
                         )
-                    }
-                ]
+                    },
+                ],
             }
         ]
 
@@ -289,11 +277,7 @@ class TestHistory(TestCase):
         update_history_metadata(
             input_filename, self.shape_file, self.fillvalue, self.bounding_box
         )
-        self.assert_history(
-            input_filename,
-            expected_history,
-            expected_history_json
-        )
+        self.assert_history(input_filename, expected_history, expected_history_json)
 
     @freeze_time(FROZEN_TIME)
     def test_update_history_metadata_append_history_bounding_box(self):
@@ -356,8 +340,8 @@ class TestHistory(TestCase):
                             '/Soil_Moisture_Retrieval_Data_AM/'
                             'landcover_class_fraction[0:26][294:455][]'
                         )
-                    }
-                ]
+                    },
+                ],
             }
         ]
 
@@ -367,8 +351,4 @@ class TestHistory(TestCase):
         update_history_metadata(
             input_filename, self.shape_file, self.fillvalue, bounding_box
         )
-        self.assert_history(
-            input_filename,
-            expected_history,
-            expected_history_json
-        )
+        self.assert_history(input_filename, expected_history, expected_history_json)

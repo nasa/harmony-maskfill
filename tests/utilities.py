@@ -1,53 +1,54 @@
-""" This module contains testing utilities to be used by multiple test
-    classes.
+"""This module contains testing utilities to be used by multiple test
+classes.
 
 """
-from datetime import datetime
+
 import os
-from shutil import rmtree
 import tempfile
+from datetime import datetime
+from shutil import rmtree
 from unittest import TestCase
 
-from harmony_service_lib.util import bbox_to_geometry
-import numpy as np
-from osgeo import gdal
-from pystac import Asset as StacAsset, Catalog as StacCatalog, Item as StacItem
 import h5py
+import numpy as np
+from harmony_service_lib.util import bbox_to_geometry
+from osgeo import gdal
+from pystac import Asset as StacAsset
+from pystac import Catalog as StacCatalog
+from pystac import Item as StacItem
 
-
-HISTORY_ATTRIBUTES = [
-    'history', 'History', 'HISTORY',
-    'history_json', 'HISTORY_JSON'
-]
+HISTORY_ATTRIBUTES = ['history', 'History', 'HISTORY', 'history_json', 'HISTORY_JSON']
 
 
 def create_input_stac(granule_url: str, media_type: str) -> StacCatalog:
-    """ A helper function to create a STAC catalog to be used as input when
-        invoking the MaskFillAdapter.
+    """A helper function to create a STAC catalog to be used as input when
+    invoking the MaskFillAdapter.
 
-        The geometry and datetime are set to arbitrary values are these are
-        not used in the tests.
+    The geometry and datetime are set to arbitrary values are these are
+    not used in the tests.
 
     """
     catalog = StacCatalog(id='input catalog', description='test input')
     item = StacItem(
-        id='input granule', bbox=[-180, -90, 180, 90],
+        id='input granule',
+        bbox=[-180, -90, 180, 90],
         geometry=bbox_to_geometry([-180, -90, 180, 90]),
-        datetime=datetime(2020, 1, 1), properties=None
+        datetime=datetime(2020, 1, 1),
+        properties=None,
     )
     item.add_asset(
-        'input data',
-        StacAsset(granule_url, media_type=media_type, roles=['data'])
+        'input data', StacAsset(granule_url, media_type=media_type, roles=['data'])
     )
     catalog.add_item(item)
     return catalog
 
 
 class MaskFillTestCase(TestCase):
-    """ A base class for testing containing comparison methods for HDF-5 and
-        GeoTIFF images.
+    """A base class for testing containing comparison methods for HDF-5 and
+    GeoTIFF images.
 
     """
+
     @classmethod
     def setUpClass(cls):
         cls.identifier = 'test'
@@ -61,11 +62,13 @@ class MaskFillTestCase(TestCase):
             rmtree(self.output_dir)
 
     def create_output_file_name(self, input_file_name, use_identifier=True):
-        """ Determine the output name that MaskFill will give to an file,
-            based on the target directory and input file name.
+        """Determine the output name that MaskFill will give to an file,
+        based on the target directory and input file name.
 
         """
-        output_root, output_extension = os.path.splitext(os.path.basename(input_file_name))
+        output_root, output_extension = os.path.splitext(
+            os.path.basename(input_file_name)
+        )
         output_basename = f'{output_root}_mf{output_extension}'
         if use_identifier:
             file_name = os.path.join(self.output_dir, self.identifier, output_basename)
@@ -97,12 +100,9 @@ class MaskFillTestCase(TestCase):
         # Remove history attributes from dataset_one before comparison
         # Maskfill version in history_joson will change per release.
         # Exclude history and history_json from compare
-        remove_history_metadata_one.pop("history", None)
-        remove_history_metadata_one.pop("history_json", None)
-        self.assertEqual(
-            remove_history_metadata_one,
-            dataset_two.GetMetadata()
-        )
+        remove_history_metadata_one.pop('history', None)
+        remove_history_metadata_one.pop('history_json', None)
+        self.assertEqual(remove_history_metadata_one, dataset_two.GetMetadata())
 
     def compare_h5_files(self, file_one_name, file_two_name):
         """Check all Attributes, Datasets and Groups within two HDF-5 files are
@@ -136,8 +136,9 @@ class MaskFillTestCase(TestCase):
         file_one_attributes = self.extract_all_h5_attributes(file_one, {})
         file_two_attributes = self.extract_all_h5_attributes(file_two, {})
 
-        self.assertEqual(list(file_one_attributes.keys()),
-                         list(file_two_attributes.keys()))
+        self.assertEqual(
+            list(file_one_attributes.keys()), list(file_two_attributes.keys())
+        )
 
         for attribute_name, attribute_value in file_one_attributes.items():
             if isinstance(attribute_value, np.ndarray):
@@ -147,19 +148,19 @@ class MaskFillTestCase(TestCase):
                         dataset_ref_one = file_one[ref_one[0]]
                         ref_two = file_two_attributes[attribute_name][ref_index][0]
                         dataset_ref_two = file_two[ref_two]
-                        self.assertEqual(dataset_ref_one.name,
-                                         dataset_ref_two.name)
+                        self.assertEqual(dataset_ref_one.name, dataset_ref_two.name)
                 else:
                     self.assertTrue(
-                        np.array_equal(attribute_value,
-                                       file_two_attributes[attribute_name]),
-                        attribute_name
+                        np.array_equal(
+                            attribute_value, file_two_attributes[attribute_name]
+                        ),
+                        attribute_name,
                     )
 
             else:
-                self.assertEqual(attribute_value,
-                                 file_two_attributes[attribute_name],
-                                 attribute_name)
+                self.assertEqual(
+                    attribute_value, file_two_attributes[attribute_name], attribute_name
+                )
 
     def compare_h5_file_datasets(self, object_one, object_two):
         """For both files, traverse through all Groups and Datasets. Ensure
@@ -179,8 +180,9 @@ class MaskFillTestCase(TestCase):
             if isinstance(object_one_value, h5py.Dataset):
                 self.assertEqual(object_one_value.shape, object_two_value.shape)
                 if isinstance(object_one_value[()], np.ndarray):
-                    self.assertTrue(np.array_equal(object_one_value[()],
-                                                   object_two_value[()]))
+                    self.assertTrue(
+                        np.array_equal(object_one_value[()], object_two_value[()])
+                    )
                 else:
                     self.assertEqual(object_one_value[()], object_two_value[()])
 
@@ -209,7 +211,9 @@ class MaskFillTestCase(TestCase):
         for iterable_object in h5py_object.values():
             if isinstance(iterable_object, h5py.Dataset):
                 for attr_key, attr_value in iterable_object.attrs.items():
-                    attribute_dictionary[f'{iterable_object.name}/{attr_key}'] = attr_value
+                    attribute_dictionary[f'{iterable_object.name}/{attr_key}'] = (
+                        attr_value
+                    )
 
             else:
                 self.extract_all_h5_attributes(iterable_object, attribute_dictionary)

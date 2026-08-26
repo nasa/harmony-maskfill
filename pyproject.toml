@@ -1,0 +1,26 @@
+# Tool configuration for the Harmony MaskFill service.
+
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+extend-exclude = ["reports"]
+
+[tool.ruff.format]
+quote-style = "single"
+docstring-code-format = true
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # Pyflakes
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "C4",   # flake8-comprehensions
+    "RUF",  # Ruff-specific rules
+]
+# E501 (line length) is left to the formatter, which wraps what it can and
+# leaves long string literals and URLs alone.
+ignore = ["E501"]
