@@ -404,21 +404,25 @@ def get_bounds_variables(input_file: h5py.File) -> set[str]:
     input file.
 
     A boundary variable is identified by the `bounds` attribute of another
-    variable, usually a coordinate variable. A `bounds` reference to a variable
-    that is not present in the file, for example after a variable subset, is ignored.
+    variable, usually a coordinate variable. However, a climatological time
+    coordinate variable uses a `climatology` attribute instead of `bounds`.
+    A reference to a variable that is not present in the file, for example after
+    a variable subset, is ignored.
 
     """
     bounds_variables = set()
+    bounds_attributes = ('bounds', 'climatology')
 
     def find_bounds_variables(_, obj):
         if isinstance(obj, h5py.Dataset):
-            bounds_reference = get_decoded_attribute(obj, 'bounds')
-            if isinstance(bounds_reference, str) and bounds_reference.strip():
-                with suppress(InvalidMetadata):
-                    bounds_path = resolve_relative_dataset_path(
-                        obj, bounds_reference.strip()
-                    )
-                    bounds_variables.add(obj.file[bounds_path].name)
+            for attribute_name in bounds_attributes:
+                bounds_reference = get_decoded_attribute(obj, attribute_name)
+                if isinstance(bounds_reference, str) and bounds_reference.strip():
+                    with suppress(InvalidMetadata):
+                        bounds_path = resolve_relative_dataset_path(
+                            obj, bounds_reference.strip()
+                        )
+                        bounds_variables.add(obj.file[bounds_path].name)
 
     input_file.visititems(find_bounds_variables)
 

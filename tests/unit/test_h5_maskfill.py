@@ -358,6 +358,18 @@ class TestH5MaskFill(MaskFillTestCase):
                 {'/lat_bnds', '/lon_bnds', '/time_bnds'},
             )
 
+    def test_get_bounds_variables_climatology(self):
+        """Ensure a variable referred to by a `climatology` attribute is
+        identified. Climatological time cells use `climatology` rather than
+        `bounds`.
+        """
+        with h5py.File(self.sample_nc4_file(), 'r+') as input_file:
+            input_file.create_dataset('time', data=np.array([1.0]))
+            input_file.create_dataset('climatology_bnds', data=np.array([[0.0, 2.0]]))
+            input_file['time'].attrs['climatology'] = 'climatology_bnds'
+
+            self.assertSetEqual(get_bounds_variables(input_file), {'/climatology_bnds'})
+
     @patch('maskfill.h5_maskfill.get_exclusions')
     @patch('maskfill.h5_maskfill.get_mask_array')
     def test_no_exclusions(self, mock_get_mask_array, mock_get_exclusions):
