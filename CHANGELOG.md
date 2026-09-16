@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.3.8] - 2026-09-15
+
+### Changed
+
+- CF-Convention boundary variables, identified by the `bounds` attribute are excluded
+  from mask filling in HDF-5 and NetCDF-4 files.
+
 ## [v1.3.7] - 2026-08-21
 
 ### Changed
@@ -166,6 +173,7 @@ see legacy-CHANGELOG.md.
 - On-premises scripts and artefacts for the SDPS system have been removed from
   the repository.
 
+[v1.3.8]: https://github.com/nasa/harmony-maskfill/releases/tag/1.3.8
 [v1.3.7]: https://github.com/nasa/harmony-maskfill/releases/tag/1.3.7
 [v1.3.6]: https://github.com/nasa/harmony-maskfill/releases/tag/1.3.6
 [v1.3.5]: https://github.com/nasa/harmony-maskfill/releases/tag/1.3.5

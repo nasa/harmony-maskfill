@@ -11,6 +11,7 @@ from pyproj import CRS
 from maskfill.cf_config import CFConfig
 from maskfill.h5_maskfill import (
     create_mask_array,
+    get_bounds_variables,
     get_coordinates,
     get_exclusions,
     get_mask_array,
@@ -345,6 +346,17 @@ class TestH5MaskFill(MaskFillTestCase):
         self.assertTrue(config_file_exclusions.issubset(exclusions))
 
         mock_get_string_variables.assert_called_once()
+
+    def test_get_bounds_variables(self):
+        """Ensure all variables referred to by a `bounds` attribute are
+        identified, using an example GPM/IMERG granule, in which `lat`, `lon`
+        and `time` refer to `lat_bnds`, `lon_bnds` and `time_bnds`.
+        """
+        with h5py.File('tests/data/GPM_3IMERGHH_input.nc4', 'r') as input_file:
+            self.assertSetEqual(
+                get_bounds_variables(input_file),
+                {'/lat_bnds', '/lon_bnds', '/time_bnds'},
+            )
 
     @patch('maskfill.h5_maskfill.get_exclusions')
     @patch('maskfill.h5_maskfill.get_mask_array')
