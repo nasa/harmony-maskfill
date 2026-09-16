@@ -19,6 +19,7 @@ Returns:
 import os
 import re
 import shutil
+from contextlib import suppress
 from logging import Logger
 
 import h5py
@@ -31,7 +32,7 @@ from maskfill.caching import (
     get_mask_array_path_from_id,
 )
 from maskfill.cf_config import CFConfig
-from maskfill.exceptions import MissingCoordinateDataset
+from maskfill.exceptions import InvalidMetadata, MissingCoordinateDataset
 from maskfill.h5_grid_info import (
     dataset_all_fill_value,
     get_apply_2d_process,
@@ -40,8 +41,10 @@ from maskfill.h5_grid_info import (
     get_lon_lat_datasets,
     get_spatial_grid_shape,
     get_transform,
+    resolve_relative_dataset_path,
 )
 from maskfill.utilities import (
+    get_decoded_attribute,
     get_h5_mask_array_id,
     process_h5_file,
 )
@@ -108,7 +111,8 @@ def produce_masked_hdf(
 
 
 def get_exclusions(h5_file_path: str, cf_config: CFConfig) -> set[str]:
-    """Get the set of dataset exclusions from coordinates and config file.
+    """Get the set of dataset exclusions from coordinates, CF-Convention
+    boundary variables and config file.
 
     Args:
         h5_dataset: h5py data object for dataset within hdf5 file
@@ -118,6 +122,10 @@ def get_exclusions(h5_file_path: str, cf_config: CFConfig) -> set[str]:
     with h5py.File(h5_file_path, mode='r') as input_file:
         exclusion_set = get_coordinates(input_file)
         exclusion_set.update(get_string_variables(input_file))
+        exclusion_set.update(
+            f'^{re.escape(bounds_path)}$'
+            for bounds_path in get_bounds_variables(input_file)
+        )
 
     exclusion_set.update(set(cf_config.get_file_exclusions()))
 
@@ -389,3 +397,29 @@ def get_string_variables(input_file: h5py.File) -> list[str]:
     input_file.visititems(find_string_variables)
 
     return string_variables
+
+
+def get_bounds_variables(input_file: h5py.File) -> set[str]:
+    """Return the full paths of all CF-Convention boundary variables in the
+    input file.
+
+    A boundary variable is identified by the `bounds` attribute of another
+    variable, usually a coordinate variable. A `bounds` reference to a variable
+    that is not present in the file, for example after a variable subset, is ignored.
+
+    """
+    bounds_variables = set()
+
+    def find_bounds_variables(_, obj):
+        if isinstance(obj, h5py.Dataset):
+            bounds_reference = get_decoded_attribute(obj, 'bounds')
+            if isinstance(bounds_reference, str) and bounds_reference.strip():
+                with suppress(InvalidMetadata):
+                    bounds_path = resolve_relative_dataset_path(
+                        obj, bounds_reference.strip()
+                    )
+                    bounds_variables.add(obj.file[bounds_path].name)
+
+    input_file.visititems(find_bounds_variables)
+
+    return bounds_variables
