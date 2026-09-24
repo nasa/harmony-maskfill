@@ -9,43 +9,22 @@
 #
 # Commands to use this file locally:
 #
-# docker build -f tests/Dockerfile -t maskfill .
-# docker run -v /full/path/to/host/directory/test-reports:/home/tests/reports maskfill:latest
+# docker build -f docker/tests.Dockerfile -t ghcr.io/nasa/harmony-maskfill-test .
+# docker run -v /full/path/to/host/directory/test-reports:/home/tests/reports ghcr.io/nasa/harmony-maskfill-test:latest
 #
 # 2021-06-25: Updated
 # 2025-09-15: Updated for migration to GitHub and GHCR images.
 # 2025-09-16: Updated to install test dependencies.
+# 2026-09-24: Removed conda environment, as the service image is now Pip-only.
 #
 FROM ghcr.io/nasa/harmony-maskfill
 
 # Install additional Pip requirements (for testing)
 COPY tests/pip_test_requirements.txt .
-RUN conda run --name maskfill pip install --no-input -r pip_test_requirements.txt
+RUN pip install --no-input --no-cache-dir -r pip_test_requirements.txt
 
 # Copy test directory containing Python unittest suite, test data and utilities
 COPY ./tests tests
-
-# Set conda environment to maskfill, as `conda run` will not stream logging.
-# Setting these environment variables is the equivalent of `conda activate`.
-ENV _CE_CONDA='' \
-    _CE_M='' \
-    CONDA_DEFAULT_ENV=maskfill \
-    CONDA_EXE=/opt/conda/bin/conda \
-    CONDA_PREFIX=/opt/conda/envs/maskfill \
-    CONDA_PREFIX_1=/opt/conda \
-    CONDA_PROMPT_MODIFIER=(maskfill) \
-    CONDA_PYTHON_EXE=/opt/conda/bin/python \
-    CONDA_ROOT=/opt/conda \
-    CONDA_SHLVL=2 \
-    PATH="/opt/conda/envs/maskfill/bin:${PATH}" \
-    SHLVL=1
-
-# GDAL specific environment variables
-ENV CPL_ZIP_ENCODING=UTF-8 \
-    GDAL_DATA=/opt/conda/envs/maskfill/share/gdal \
-    GSETTINGS_SCHEMA_DIR=/opt/conda/envs/maskfill/share/glib-2.0/schemas \
-    GSETTINGS_SCHEMA_DIR_CONDA_BACKUP='' \
-    PROJ_LIB=/opt/conda/envs/maskfill/share/proj
 
 # An environment variable used by BaseHarmonyAdapter uses to not stage files
 ENV ENV=test

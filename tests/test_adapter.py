@@ -311,7 +311,7 @@ class TestHarmonyMaskFill(MaskFillTestCase):
         actual_output_file = self.create_output_file_name(
             input_file_name, use_identifier=False
         )
-        self.compare_geotiff_files(actual_output_file, expected_output_file)
+        self.compare_h5_files(actual_output_file, expected_output_file)
 
         mock_download.asset_called_once_with(
             self.input_geotiff,

@@ -8,17 +8,22 @@ GeoTIFFs.
 
 ## Installation:
 
-MaskFill was developed using the Anaconda distribution of Python
-(<https://www.anaconda.com/download>) and conda virtual environment.
-This simplifies dependency management. Run these commands to create a MaskFill
-conda virtual environment and install all the needed packages:
+MaskFill requires Python 3.13. All dependencies are installed with Pip from
+binary wheels. The rasterio, pyproj, and h5py wheels bundle their own
+GDAL, PROJ and HDF-5 libraries, so no system GDAL installation is needed. Run
+these commands, using [uv](https://docs.astral.sh/uv/), to create a MaskFill
+virtual environment and install all the needed packages:
 
 ```bash
-conda create --name maskfill --file conda_requirements.txt \
-  python=3.13 --channel conda-forge --override-channels
-conda activate maskfill
-pip install -r pip_requirements.txt
+uv venv --python 3.13
+source .venv/bin/activate
+uv pip install -r pip_requirements.txt
 ```
+
+On Linux, the rasterio wheels need the system expat library (e.g.
+`apt-get install libexpat1`). The pinned rasterio version has no Linux
+aarch64 wheel, so on that platform use the Docker images, which are built for
+`linux/amd64`.
 
 ## Development:
 
@@ -219,7 +224,7 @@ To enable these checks:
 
 ```bash
 # Install pre-commit Python package as part of test requirements:
-pip install -r tests/pip_test_requirements.txt
+uv pip install -r tests/pip_test_requirements.txt
 
 # Install the git hook scripts:
 pre-commit install

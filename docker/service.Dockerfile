@@ -4,65 +4,43 @@
 # file. This service can process either HDF-5 or GeoTIFF files, and will
 # preserve the input file format and compression in the output product.
 #
-# This image instantiates a conda environment, with required packages, before
-# installing additional dependencies via Pip. The service code is then copied
-# into the Docker image, before environment variables are set to activate the
-# created conda environment.
+# This image installs all dependencies via Pip. The binary wheels for rasterio,
+# pyproj, and h5py bundle their own GDAL, PROJ and HDF-5 libraries and data
+# files, so the only system library required is expat, and no conda environment
+# is needed. The service code is then copied into the Docker image.
 #
 # Commands to use this file locally:
 #
-# docker build -f Harmony.Dockerfile -t sds/maskfill-harmony .
-# docker run -v /full/path/to/host/directory:/home/results sds/maskfill-harmony:latest "<full list of arguments>"
+# docker build -f docker/service.Dockerfile -t ghcr.io/nasa/harmony-maskfill .
+# docker run -v /full/path/to/host/directory:/home/results ghcr.io/nasa/harmony-maskfill:latest "<full list of arguments>"
 #
 # 2021-06-25: Updated
 # 2025-09-15: Updated for migration to GitHub and GHCR Docker image names.
 # 2025-09-16: Updated entry point to align with Harmony service repository best practices.
 # 2025-09-16: Updated paths to requirements files.
+# 2026-09-24: Migrated from a conda environment to a Pip-only Python image.
 #
-FROM continuumio/miniconda3:latest
+FROM python:3.13-slim-trixie
 
 WORKDIR "/home"
 
-# Copy Conda requirements into the container
-COPY ./conda_requirements.txt conda_requirements.txt
+# The rasterio wheels link against, but do not bundle, the system expat library.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libexpat1 \
+    && rm -rf /var/lib/apt/lists/*
 
-# Create Conda environment
-RUN conda create -y --name maskfill --file conda_requirements.txt \
-    python=3.13 --channel conda-forge --override-channels  -q && conda clean -a
-
-# Copy additional Pip dependencies into the image
+# Copy Pip requirements into the container
 COPY ./pip_requirements.txt pip_requirements.txt
 
-# Install additional Pip dependencies.
-RUN conda run --name maskfill pip install --no-input -r pip_requirements.txt
+# Install Pip dependencies.
+RUN pip install --no-input --no-cache-dir -r pip_requirements.txt
 
-# Place contents of the repository in the container.
-COPY . /home/
+# Copy only the files the service needs at runtime.
+COPY maskfill maskfill
+COPY docker/service_version.txt docker/service_version.txt
 
 # Create a directory to be the destination of a mounted volume:
 RUN mkdir /home/results
-
-# Set conda environment for MaskFill, as `conda run` will not stream logging.
-# Setting these environment variables is the equivalent of `conda activate`.
-ENV _CE_CONDA='' \
-    _CE_M='' \
-    CONDA_DEFAULT_ENV=maskfill \
-    CONDA_EXE=/opt/conda/bin/conda \
-    CONDA_PREFIX=/opt/conda/envs/maskfill \
-    CONDA_PREFIX_1=/opt/conda \
-    CONDA_PROMPT_MODIFIER=(maskfill) \
-    CONDA_PYTHON_EXE=/opt/conda/bin/python \
-    CONDA_ROOT=/opt/conda \
-    CONDA_SHLVL=2 \
-    PATH="/opt/conda/envs/maskfill/bin:${PATH}" \
-    SHLVL=1
-
-# Set GDAL related environment variables.
-ENV CPL_ZIP_ENCODING=UTF-8 \
-    GDAL_DATA=/opt/conda/envs/maskfill/share/gdal \
-    GSETTINGS_SCHEMA_DIR=/opt/conda/envs/maskfill/share/glib-2.0/schemas \
-    GSETTINGS_SCHEMA_DIR_CONDA_BACKUP='' \
-    PROJ_LIB=/opt/conda/envs/maskfill/share/proj
 
 # Configure a container to be executable via the `docker run` command.
 ENTRYPOINT ["python", "-m", "maskfill"]

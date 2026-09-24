@@ -11,8 +11,8 @@ from unittest import TestCase
 
 import h5py
 import numpy as np
+import rasterio
 from harmony_service_lib.util import bbox_to_geometry
-from osgeo import gdal
 from pystac import Asset as StacAsset
 from pystac import Catalog as StacCatalog
 from pystac import Item as StacItem
@@ -87,22 +87,25 @@ class MaskFillTestCase(TestCase):
 
         """
 
-        dataset_one = gdal.Open(file_one_name)
-        dataset_two = gdal.Open(file_two_name)
-        band_one = np.array(dataset_one.ReadAsArray())
-        band_two = np.array(dataset_two.ReadAsArray())
+        with (
+            rasterio.open(file_one_name) as dataset_one,
+            rasterio.open(file_two_name) as dataset_two,
+        ):
+            band_one = dataset_one.read()
+            band_two = dataset_two.read()
+            # Retrieve metadata dictionaries
+            remove_history_metadata_one = dataset_one.tags()
+            metadata_two = dataset_two.tags()
+
         self.assertEqual(band_one.shape, band_two.shape)
         self.assertTrue(np.array_equal(band_one, band_two))
-
-        # Retrieve metadata dictionaries
-        remove_history_metadata_one = dataset_one.GetMetadata()
 
         # Remove history attributes from dataset_one before comparison
         # Maskfill version in history_joson will change per release.
         # Exclude history and history_json from compare
         remove_history_metadata_one.pop('history', None)
         remove_history_metadata_one.pop('history_json', None)
-        self.assertEqual(remove_history_metadata_one, dataset_two.GetMetadata())
+        self.assertEqual(remove_history_metadata_one, metadata_two)
 
     def compare_h5_files(self, file_one_name, file_two_name):
         """Check all Attributes, Datasets and Groups within two HDF-5 files are
