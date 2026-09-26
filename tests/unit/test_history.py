@@ -4,11 +4,15 @@ import json
 import os
 import shutil
 import tempfile
+from contextlib import chdir
+from pathlib import Path
 from unittest import TestCase
+from unittest.mock import patch
 
 import h5py
 from freezegun import freeze_time
 
+from maskfill import history as history_module
 from maskfill.history import (
     PROGRAM,
     PROGRAM_REF,
@@ -352,3 +356,94 @@ class TestHistory(TestCase):
             input_filename, self.shape_file, self.fillvalue, bounding_box
         )
         self.assert_history(input_filename, expected_history, expected_history_json)
+
+
+class TestVersionLocation(TestCase):
+    """Resolve provenance versions independently of the caller's working directory."""
+
+    def setUp(self):
+        """Create an unrelated working directory without changing installed files."""
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.root = Path(self.directory.name)
+        self.version_path = (
+            Path(history_module.__file__).resolve().parent.parent
+            / 'docker'
+            / 'service_version.txt'
+        )
+        self.expected_version = self.version_path.read_text(encoding='utf-8').strip()
+
+    def test_shipped_version_matches_file(self):
+        """Preserve the existing result when invoked from the repository root."""
+        self.assertEqual(get_semantic_version(), self.expected_version)
+
+    def test_version_from_unrelated_working_directory(self):
+        """A caller does not need a local docker/service_version.txt file."""
+        with chdir(self.root):
+            self.assertEqual(get_semantic_version(), self.expected_version)
+
+    def test_working_directory_cannot_override_service_version(self):
+        """A same-named file in the working directory must not supply the version."""
+        (self.root / 'docker').mkdir()
+        (self.root / 'docker/service_version.txt').write_text('not-the-service-version')
+        with chdir(self.root):
+            self.assertEqual(get_semantic_version(), self.expected_version)
+
+    def test_version_is_relative_to_module_location(self):
+        """A relocated module resolves its sibling docker directory and trims text."""
+        module_dir = self.root / 'installed service' / 'maskfill'
+        module_dir.mkdir(parents=True)
+        docker_dir = module_dir.parent / 'docker'
+        docker_dir.mkdir()
+        (docker_dir / 'service_version.txt').write_text(' 9.8.7\n', encoding='utf-8')
+        with patch.object(history_module, '__file__', str(module_dir / 'history.py')):
+            self.assertEqual(get_semantic_version(), '9.8.7')
+
+    def test_empty_version_keeps_placeholder(self):
+        """The module-relative empty version file retains the documented fallback."""
+        module_dir = self.root / 'maskfill'
+        module_dir.mkdir()
+        (self.root / 'docker').mkdir()
+        (self.root / 'docker/service_version.txt').write_text(' \n')
+        with patch.object(history_module, '__file__', str(module_dir / 'history.py')):
+            self.assertEqual(get_semantic_version(), '[version not found]')
+
+    def test_missing_module_relative_file_still_raises(self):
+        """Do not silently substitute a caller's version for an incomplete install."""
+        module_dir = self.root / 'maskfill'
+        module_dir.mkdir()
+        with (
+            patch.object(history_module, '__file__', str(module_dir / 'history.py')),
+            self.assertRaises(FileNotFoundError),
+        ):
+            get_semantic_version()
+
+    @freeze_time(FROZEN_TIME)
+    def test_update_real_hdf5_history_from_other_directory(self):
+        """Append real provenance while preserving data, metadata and history casing."""
+        for attribute in ('history', 'History'):
+            with self.subTest(attribute=attribute):
+                input_path = self.root / f'{attribute}.h5'
+                with h5py.File(input_path, 'w') as source:
+                    source.create_dataset('values', data=[1, 2, 3], compression='gzip')
+                    source.attrs[attribute] = 'previous processing'
+                    source.attrs['source'] = 'synthetic fixture'
+                    source.attrs['history_json'] = json.dumps({'program': 'earlier'})
+                with chdir(self.root):
+                    update_history_metadata(str(input_path), 'shape.geojson', -9999, [])
+                with h5py.File(input_path, 'r') as output:
+                    records = json.loads(output.attrs['history_json'])
+                    self.assertEqual(len(records), 2)
+                    self.assertEqual(records[0], {'program': 'earlier'})
+                    self.assertEqual(records[1]['version'], self.expected_version)
+                    self.assertEqual(records[1]['program'], PROGRAM)
+                    self.assertEqual(records[1]['derived_from'], str(input_path))
+                    self.assertTrue(
+                        output.attrs[attribute].startswith('previous processing\n')
+                    )
+                    self.assertIn(self.expected_version, output.attrs[attribute])
+                    other_case = 'History' if attribute == 'history' else 'history'
+                    self.assertNotIn(other_case, output.attrs)
+                    self.assertEqual(output.attrs['source'], 'synthetic fixture')
+                    self.assertEqual(output['values'][:].tolist(), [1, 2, 3])
+                    self.assertEqual(output['values'].compression, 'gzip')

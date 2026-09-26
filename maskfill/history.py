@@ -285,8 +285,8 @@ def get_semantic_version() -> str:
         "[version not found]" if the file is empty.
 
     """
-    current_directory = os.path.dirname(os.path.abspath('__file__'))
-    path = os.path.join(current_directory, 'docker/service_version.txt')
+    module_directory = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.join(module_directory, '..', 'docker', 'service_version.txt')
     with open(path, encoding='utf-8') as file_handler:
         semantic_version = file_handler.read().strip()
         if not semantic_version:
