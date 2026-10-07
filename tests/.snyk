@@ -1,7 +1,4 @@
 # Snyk (https://snyk.io) policy file, patches or ignores known vulnerabilities.
 version: v1.25.0
-exclude:
-  global:
-    - data/pip_requirements_skip_snyk.txt
 language-settings:
   python: "3.13"

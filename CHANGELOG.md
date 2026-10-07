@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.4.0] - 2026-09-24
+
+### Changed
+
+- The service Docker image is now based on `python:3.13-slim-trixie` instead of
+  `continuumio/miniconda3`, and all dependencies are installed via Pip. The
+  conda environment, `conda_requirements.txt` and
+  `pip_requirements_skip_snyk.txt` have been removed.
+- GeoTIFF reading now uses `rasterio` instead of the `osgeo.gdal` bindings.
+  GDAL is now provided by the library bundled in the `rasterio` wheel.
+
+### Fixed
+
+- The service version recorded in `history_json` is now read from
+  `docker/service_version.txt` relative to the `maskfill` package, rather than
+  the current working directory.
+
 ## [v1.3.9] - 2026-09-16
 
 ### Changed
@@ -181,6 +198,7 @@ see legacy-CHANGELOG.md.
 - On-premises scripts and artefacts for the SDPS system have been removed from
   the repository.
 
+[v1.4.0]: https://github.com/nasa/harmony-maskfill/releases/tag/1.4.0
 [v1.3.9]: https://github.com/nasa/harmony-maskfill/releases/tag/1.3.9
 [v1.3.8]: https://github.com/nasa/harmony-maskfill/releases/tag/1.3.8
 [v1.3.7]: https://github.com/nasa/harmony-maskfill/releases/tag/1.3.7

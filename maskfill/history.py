@@ -269,7 +269,7 @@ def get_semantic_version() -> str:
     """Retrieve the semantic version string for the application.
 
     This function reads the `service_version.txt` file located in the
-    `docker/` directory relative to the current module and returns its
+    `docker/` directory alongside the `maskfill` package and returns its
     contents as a semantic version string. If the file is empty or the
     version cannot be determined, a placeholder value of
     "[version not found]" is returned.
@@ -285,8 +285,8 @@ def get_semantic_version() -> str:
         "[version not found]" if the file is empty.
 
     """
-    current_directory = os.path.dirname(os.path.abspath('__file__'))
-    path = os.path.join(current_directory, 'docker/service_version.txt')
+    repository_directory = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    path = os.path.join(repository_directory, 'docker/service_version.txt')
     with open(path, encoding='utf-8') as file_handler:
         semantic_version = file_handler.read().strip()
         if not semantic_version:
