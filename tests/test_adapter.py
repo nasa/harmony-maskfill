@@ -7,7 +7,7 @@ from os.path import basename
 from shutil import copy
 from typing import ClassVar
 from unittest import skip
-from unittest.mock import ANY, patch
+from unittest.mock import ANY, call, patch
 
 from harmony_service_lib.exceptions import HarmonyException, NoRetryException
 from harmony_service_lib.message import Message
@@ -163,12 +163,24 @@ class TestHarmonyMaskFill(MaskFillTestCase):
 
         # Check the functions to download the input data and stage the output
         # were called as expected.
-        mock_download.asset_called_once_with(
-            self.input_hdf5,
-            ANY,
-            logger=maskfill_adapter.logger,
-            access_token=self.access_token,
-            cfg=maskfill_config,
+        self.assertListEqual(
+            mock_download.call_args_list,
+            [
+                call(
+                    self.input_hdf5,
+                    ANY,
+                    logger=maskfill_adapter.logger,
+                    access_token=self.access_token,
+                    cfg=maskfill_config,
+                ),
+                call(
+                    self.shape_usa,
+                    ANY,
+                    logger=maskfill_adapter.logger,
+                    access_token=self.access_token,
+                    cfg=maskfill_config,
+                ),
+            ],
         )
         mock_stage.assert_called_once_with(
             StringEndsWith(self.masked_hdf5),
@@ -240,12 +252,24 @@ class TestHarmonyMaskFill(MaskFillTestCase):
 
         # Check the functions to download the input data and stage the output
         # were called as expected.
-        mock_download.asset_called_once_with(
-            self.input_geotiff,
-            ANY,
-            logger=maskfill_adapter.logger,
-            access_token=self.access_token,
-            cfg=maskfill_config,
+        self.assertListEqual(
+            mock_download.call_args_list,
+            [
+                call(
+                    self.input_geotiff,
+                    ANY,
+                    logger=maskfill_adapter.logger,
+                    access_token=self.access_token,
+                    cfg=maskfill_config,
+                ),
+                call(
+                    self.shape_usa,
+                    ANY,
+                    logger=maskfill_adapter.logger,
+                    access_token=self.access_token,
+                    cfg=maskfill_config,
+                ),
+            ],
         )
         mock_stage.assert_called_once_with(
             StringEndsWith(self.masked_geotiff),
@@ -313,12 +337,24 @@ class TestHarmonyMaskFill(MaskFillTestCase):
         )
         self.compare_h5_files(actual_output_file, expected_output_file)
 
-        mock_download.asset_called_once_with(
-            self.input_geotiff,
-            ANY,
-            logger=maskfill_adapter.logger,
-            access_token=self.access_token,
-            cfg=maskfill_config,
+        self.assertListEqual(
+            mock_download.call_args_list,
+            [
+                call(
+                    input_file_name,
+                    ANY,
+                    logger=maskfill_adapter.logger,
+                    access_token=self.access_token,
+                    cfg=maskfill_config,
+                ),
+                call(
+                    self.shape_usa,
+                    ANY,
+                    logger=maskfill_adapter.logger,
+                    access_token=self.access_token,
+                    cfg=maskfill_config,
+                ),
+            ],
         )
         mock_stage.assert_called_once_with(
             StringEndsWith(masked_name),
@@ -390,12 +426,17 @@ class TestHarmonyMaskFill(MaskFillTestCase):
 
         # Check the functions to download the input data and stage the output
         # were called as expected.
-        mock_download.asset_called_once_with(
-            input_file_name,
-            ANY,
-            logger=maskfill_adapter.logger,
-            access_token=self.access_token,
-            cfg=maskfill_config,
+        self.assertListEqual(
+            mock_download.call_args_list,
+            [
+                call(
+                    input_file_name,
+                    ANY,
+                    logger=maskfill_adapter.logger,
+                    access_token=self.access_token,
+                    cfg=maskfill_config,
+                ),
+            ],
         )
         mock_stage.assert_called_once_with(
             StringEndsWith(masked_name),
@@ -468,12 +509,24 @@ class TestHarmonyMaskFill(MaskFillTestCase):
 
         # Check the functions to download the input data and stage the output
         # were called as expected.
-        mock_download.asset_called_once_with(
-            input_file_name,
-            ANY,
-            logger=maskfill_adapter.logger,
-            access_token=self.access_token,
-            cfg=maskfill_config,
+        self.assertListEqual(
+            mock_download.call_args_list,
+            [
+                call(
+                    input_file_name,
+                    ANY,
+                    logger=maskfill_adapter.logger,
+                    access_token=self.access_token,
+                    cfg=maskfill_config,
+                ),
+                call(
+                    self.shape_usa,
+                    ANY,
+                    logger=maskfill_adapter.logger,
+                    access_token=self.access_token,
+                    cfg=maskfill_config,
+                ),
+            ],
         )
         mock_stage.assert_called_once_with(
             StringEndsWith(masked_name),
@@ -547,12 +600,24 @@ class TestHarmonyMaskFill(MaskFillTestCase):
 
         # Check the functions to download the input data and stage the output
         # were called as expected.
-        mock_download.asset_called_once_with(
-            input_file_name,
-            ANY,
-            logger=maskfill_adapter.logger,
-            access_token=self.access_token,
-            cfg=maskfill_config,
+        self.assertListEqual(
+            mock_download.call_args_list,
+            [
+                call(
+                    input_file_name,
+                    ANY,
+                    logger=maskfill_adapter.logger,
+                    access_token=self.access_token,
+                    cfg=maskfill_config,
+                ),
+                call(
+                    self.shape_usa,
+                    ANY,
+                    logger=maskfill_adapter.logger,
+                    access_token=self.access_token,
+                    cfg=maskfill_config,
+                ),
+            ],
         )
         mock_stage.assert_called_once_with(
             StringEndsWith(masked_name),
@@ -626,12 +691,24 @@ class TestHarmonyMaskFill(MaskFillTestCase):
 
         # Check the functions to download the input data and stage the output
         # were called as expected.
-        mock_download.asset_called_once_with(
-            input_file_name,
-            ANY,
-            logger=maskfill_adapter.logger,
-            access_token=self.access_token,
-            cfg=maskfill_config,
+        self.assertListEqual(
+            mock_download.call_args_list,
+            [
+                call(
+                    input_file_name,
+                    ANY,
+                    logger=maskfill_adapter.logger,
+                    access_token=self.access_token,
+                    cfg=maskfill_config,
+                ),
+                call(
+                    self.shape_usa,
+                    ANY,
+                    logger=maskfill_adapter.logger,
+                    access_token=self.access_token,
+                    cfg=maskfill_config,
+                ),
+            ],
         )
         mock_stage.assert_called_once_with(
             StringEndsWith(masked_name),
