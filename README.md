@@ -21,9 +21,7 @@ uv pip install -r pip_requirements.txt
 ```
 
 On Linux, the rasterio wheels need the system expat library (e.g.
-`apt-get install libexpat1`). The pinned rasterio version has no Linux
-aarch64 wheel, so on that platform use the Docker images, which are built for
-`linux/amd64`.
+`apt-get install libexpat1`).
 
 ## Development:
 
