@@ -20,7 +20,7 @@
 # 2025-09-16: Updated paths to requirements files.
 # 2026-09-24: Migrated from a conda environment to a Pip-only Python image.
 #
-FROM python:3.13-slim-trixie
+FROM python:3.13-slim
 
 WORKDIR "/home"
 

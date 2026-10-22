@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The service version recorded in `history_json` is now read from
   `docker/service_version.txt` relative to the `maskfill` package, rather than
-  the current working directory.
+  the current working directory. (fixes #18)
 
 ## [v1.3.9] - 2026-09-16
 
