@@ -15,9 +15,9 @@ these commands, using [uv](https://docs.astral.sh/uv/), to create a MaskFill
 virtual environment and install all the needed packages:
 
 ```bash
-uv venv --python 3.13
+uv venv --python 3.13 --seed
 source .venv/bin/activate
-uv pip install -r pip_requirements.txt
+uv run pip install -r pip_requirements.txt
 ```
 
 On Linux, the rasterio wheels need the system expat library (e.g.
