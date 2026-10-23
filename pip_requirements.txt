@@ -8,4 +8,6 @@ rasterio==1.4.4
 shapely==2.1.1
 # Harmony-specific dependencies
 harmony-service-lib~=3.0.0
+# Because harmony-service-lib has unpinned boto3, uv resolver is picking v0.0.3
+boto3>=1.40
 pystac~=1.0.1
