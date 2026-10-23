@@ -1,15 +1,17 @@
-affine==2.4.0
-geopandas==1.1.1
-h5py==3.14.0
-numpy==2.3.2
-pandas==2.3.1
+affine==3.0.1
+geopandas==1.2.0
+h5py==3.16.0
+numpy==2.5.4
+pandas==3.1.0
+# Held at 3.7.x: pyproj 3.8.0 (PROJ 9.8.1) shifts projected coordinates by
+# ~7 km in tests/unit/test_h5_grid_info.py. Investigate before upgrading.
 pyproj==3.7.2
-rasterio==1.4.4
-shapely==2.1.1
+rasterio==1.5.2
+shapely==2.2.0
 # Harmony-specific dependencies
 harmony-service-lib~=3.0.0
 # Because harmony-service-lib has no lower bound on boto3
 # the uv resolver is picking v0.0.3 which causes problems.
 # remove this when harmony-service-lib is changed.
-boto3>=1.40
-pystac~=1.0.1
+boto3>=1.43.118
+pystac==1.15.2

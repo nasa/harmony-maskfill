@@ -8,14 +8,14 @@ GeoTIFFs.
 
 ## Installation:
 
-MaskFill requires Python 3.13. All dependencies are installed with Pip from
+MaskFill requires Python 3.14. All dependencies are installed with Pip from
 binary wheels. The rasterio, pyproj, and h5py wheels bundle their own
 GDAL, PROJ and HDF-5 libraries, so no system GDAL installation is needed. Run
 these commands, using [uv](https://docs.astral.sh/uv/), to create a MaskFill
 virtual environment and install all the needed packages:
 
 ```bash
-uv venv --python 3.13
+uv venv --python 3.14
 source .venv/bin/activate
 uv pip install -r pip_requirements.txt
 ```

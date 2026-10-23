@@ -50,7 +50,7 @@ def get_mask_array(
     shapes = projected_gdf['geometry']
 
     # Rasterize the bounded and projected shapes into the mask array
-    if shapes.is_empty.empty:
+    if shapes.is_empty.all():
         return np.ones(out_shape)
 
     # if either row or column delta is zero, assume square pixels as an approximation

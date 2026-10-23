@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The service Docker image is now based on `python:3.13-slim-trixie` instead of
+- The python version the service runs on has been upgraded to python 3.14
+- The service Docker image is now based on `python:3.14-slim` instead of
   `continuumio/miniconda3`, and all dependencies are installed via Pip. The
   conda environment, `conda_requirements.txt` and
   `pip_requirements_skip_snyk.txt` have been removed.
