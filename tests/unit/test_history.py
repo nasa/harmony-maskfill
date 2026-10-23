@@ -352,3 +352,16 @@ class TestHistory(TestCase):
             input_filename, self.shape_file, self.fillvalue, bounding_box
         )
         self.assert_history(input_filename, expected_history, expected_history_json)
+
+    def test_get_semantic_version_independent_of_working_directory(self):
+        """Ensure the version file is located relative to the maskfill package,
+        not the current working directory.
+
+        """
+        with open('docker/service_version.txt', encoding='utf-8') as file_handler:
+            expected_version = file_handler.read().strip()
+
+        self.addCleanup(os.chdir, os.getcwd())
+        os.chdir(self.tmp_dir)
+
+        self.assertEqual(get_semantic_version(), expected_version)

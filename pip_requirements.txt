@@ -1,3 +1,15 @@
-harmony-service-lib~=3.0.0
+affine==2.4.0
+geopandas==1.1.1
+h5py==3.14.0
+numpy==2.3.2
+pandas==2.3.1
+pyproj==3.7.2
+rasterio==1.4.4
+shapely==2.1.1
 # Harmony-specific dependencies
+harmony-service-lib~=3.0.0
+# Because harmony-service-lib has no lower bound on boto3
+# the uv resolver is picking v0.0.3 which causes problems.
+# remove this when harmony-service-lib is changed.
+boto3>=1.40
 pystac~=1.0.1

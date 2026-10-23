@@ -3,8 +3,8 @@ from os import makedirs
 from os.path import join
 
 import h5py
-from numpy import array, array_equal, where
-from osgeo import gdal
+import rasterio
+from numpy import array_equal, where
 
 from maskfill.maskfill import (
     DEFAULT_MASK_GRID_CACHE,
@@ -166,8 +166,8 @@ class TestMaskFill(MaskFillTestCase):
         self.assertEqual(response_h5, self.output_comparison_h5)
         self.assertEqual(response_geo, self.output_comparison_geo)
 
-        geo_dataset = gdal.Open(self.output_comparison_geo)
-        geo_array = array(geo_dataset.ReadAsArray())
+        with rasterio.open(self.output_comparison_geo) as geo_dataset:
+            geo_array = geo_dataset.read(1)
 
         h5_file = h5py.File(self.output_comparison_h5, 'r')
         h5_array = h5_file['Analysis_Data']['sm_profile_analysis'][:]
@@ -336,10 +336,10 @@ class TestMaskFill(MaskFillTestCase):
         self.assertEqual(output_file, output_file_path)
         self.compare_geotiff_files(self.output_geotiff_template, output_file_path)
 
-        geotiff_results = gdal.Open(output_file_path)
-        compression = geotiff_results.GetMetadata('IMAGE_STRUCTURE').get(
-            'COMPRESSION', None
-        )
+        with rasterio.open(output_file_path) as geotiff_results:
+            compression = geotiff_results.tags(ns='IMAGE_STRUCTURE').get(
+                'COMPRESSION', None
+            )
         self.assertEqual(compression, 'LZW')
 
     def test_mask_fill_h5_dimension_list(self):

@@ -17,7 +17,6 @@ from geopandas import GeoDataFrame, GeoSeries
 from h5py import Dataset, Group
 from h5py import File as H5File
 from harmony_service_lib.exceptions import HarmonyException, NoRetryException
-from osgeo import gdal
 from pyproj import CRS, Transformer
 from rasterio.features import rasterize
 from shapely.geometry import Polygon, shape
@@ -320,8 +319,9 @@ def get_geotiff_crs(geotiff_path: str) -> CRS:
     Known Text (WKT) representation of the GeoTIFF projection information.
 
     """
-    data = gdal.Open(geotiff_path)
-    wkt_string = data.GetProjection()
+    with rasterio.open(geotiff_path) as raster:
+        wkt_string = raster.crs.to_wkt()
+
     return CRS.from_wkt(wkt_string)
 
 

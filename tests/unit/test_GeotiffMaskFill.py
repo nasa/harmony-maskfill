@@ -4,7 +4,7 @@ from os.path import isdir
 from shutil import copy, rmtree
 from unittest import TestCase
 
-from osgeo import gdal
+import rasterio
 
 from maskfill.geotiff_maskfill import (
     convert_variable_path,
@@ -69,15 +69,20 @@ class TestGeotiffMaskfill(TestCase):
         * Variable type default fill value (e.g., -9999.0 for floats).
 
         """
-        without_nodata = gdal.Open('tests/data/SMAP_L3_FT_P_banded_input.tif')
+        without_nodata = rasterio.open('tests/data/SMAP_L3_FT_P_banded_input.tif')
+        self.addCleanup(without_nodata.close)
         user_supplied_fill = 1234.5
-        infile_nodata_value = 5432.1
+        # Exactly representable as float32, the data type of the GeoTIFF band.
+        # otherwise: AssertionError: 5432.10009765625 != 5432.1
+        infile_nodata_value = 5432.5
 
         # Create copy of GeoTIFF and add nodata value to it:
         with_nodata = copy('tests/data/SMAP_L3_FT_P_banded_input.tif', self.output_dir)
-        geotiff_nodata = gdal.Open(with_nodata)
-        geotiff_nodata.GetRasterBand(1).SetNoDataValue(infile_nodata_value)
-        geotiff_nodata.FlushCache()
+        with rasterio.open(with_nodata, 'r+') as geotiff_to_update:
+            geotiff_to_update.nodata = infile_nodata_value
+
+        geotiff_nodata = rasterio.open(with_nodata)
+        self.addCleanup(geotiff_nodata.close)
 
         with self.subTest('Retrieves nodata value from GeoTIFF'):
             self.assertEqual(
@@ -103,5 +108,7 @@ class TestGeotiffMaskfill(TestCase):
         The SMAP_L3_FT_P_banded_input.tif has float32 data.
 
         """
-        float32_geotiff = gdal.Open('tests/data/SMAP_L3_FT_P_banded_input.tif')
-        self.assertEqual(get_geotiff_variable_type(float32_geotiff), 'float32')
+        with rasterio.open(
+            'tests/data/SMAP_L3_FT_P_banded_input.tif'
+        ) as float32_geotiff:
+            self.assertEqual(get_geotiff_variable_type(float32_geotiff), 'float32')

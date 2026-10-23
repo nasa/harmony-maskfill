@@ -8,7 +8,6 @@ from shutil import copyfile
 import numpy as np
 import rasterio
 import rasterio.mask
-from osgeo import gdal
 
 from maskfill import utilities
 from maskfill.caching import (
@@ -61,27 +60,23 @@ def produce_masked_geotiff(
         return None
 
     if variable_should_be_masked(geotiff_path, exclusions):
-        input_dataset = gdal.Open(geotiff_path)
+        with rasterio.open(geotiff_path) as input_dataset:
+            fill_value = get_fill_value(input_dataset, default_fill_value, logger)
+            compression = input_dataset.tags(ns='IMAGE_STRUCTURE').get(
+                'COMPRESSION', None
+            )
 
-        fill_value = get_fill_value(input_dataset, default_fill_value, logger)
-        compression = input_dataset.GetMetadata('IMAGE_STRUCTURE').get(
-            'COMPRESSION', None
-        )
+            out_image = np.array(
+                [
+                    utilities.mask_fill_array(
+                        input_dataset.read(band), mask_array, fill_value
+                    )
+                    for band in input_dataset.indexes
+                ]
+            )
 
-        # Raster band indices in gdal.Dataset are 1-based, range is 0-based.
-        out_image = np.array(
-            [
-                utilities.mask_fill_array(
-                    input_dataset.GetRasterBand(band + 1).ReadAsArray(),
-                    mask_array,
-                    fill_value,
-                )
-                for band in range(input_dataset.RasterCount)
-            ]
-        )
-
-        # Output file with updated metadata
-        out_meta = rasterio.open(geotiff_path).meta.copy()
+            # Output file with updated metadata
+            out_meta = input_dataset.meta.copy()
         out_meta.update(
             {
                 'compress': compression,
@@ -163,7 +158,7 @@ def create_mask_array(geotiff_path: str, shape_path: str) -> np.ndarray:
 
 
 def get_fill_value(
-    geotiff_dataset: gdal.Dataset,
+    geotiff_dataset: rasterio.DatasetReader,
     default_fill_value: float | None,
     logger: Logger,
 ) -> float:
@@ -171,7 +166,7 @@ def get_fill_value(
     If the GeoTIFF has no fill value, returns the given default fill value.
 
     Args:
-        geotiff_path (str): The path to a GeoTIFF file
+        geotiff_dataset (rasterio.DatasetReader): An open GeoTIFF dataset
         default_fill_value (float): The default value which is returned if
             no fill value is found in the GeoTIFF
 
@@ -179,7 +174,7 @@ def get_fill_value(
         float: The fill value
 
     """
-    fill_value = geotiff_dataset.GetRasterBand(1).GetNoDataValue()
+    fill_value = geotiff_dataset.nodata
 
     if fill_value is None and default_fill_value is not None:
         logger.info(
@@ -221,10 +216,11 @@ def convert_variable_path(variable_path: str) -> str:
     return variable_path.replace('/', '_').replace('.', '_')
 
 
-def get_geotiff_variable_type(geotiff_dataset: gdal.Dataset) -> str:
+def get_geotiff_variable_type(geotiff_dataset: rasterio.DatasetReader) -> str:
     """Extract a string representation of the data type of the GeoTIFF. This
     function assumes all bands will have the same data type, and retrieves
-    the first band, rather than the full array, as this is more performant.
+    the data type of the first band from the dataset metadata, without reading
+    any array data.
 
     """
-    return geotiff_dataset.GetRasterBand(1).ReadAsArray().dtype.name
+    return geotiff_dataset.dtypes[0]
